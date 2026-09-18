@@ -132,3 +132,13 @@ npm run deploy
 - `cloudflare-workers-assets`：Workers Static Assets 部署规则
 
 Codex 会从仓库的 `.agents/skills/*/SKILL.md` 发现这些项目级 skills。
+
+另外已加入以下通用 UI Skills，均随仓库保存：
+
+- `ui-ux-pro-max`：UI/UX Pro Max 的设计系统、可访问性、响应式与栈指南
+- `frontend-design`：Anthropic 的差异化 Web 视觉设计与文案原则
+- `tailwind-theme-builder`：Tailwind CSS 4 + shadcn/ui 主题与暗色模式指南
+- `web-design-guidelines`：Vercel Web Interface Guidelines 审查规则
+- `ui-style`：面向本项目的 UI 风格聚合规则，统一以上指南与项目约束
+
+公开 Skill 的来源和版本哈希记录在根目录 `skills-lock.json`。其中 `tailwind-theme-builder` 的上游元数据标注为 `claude-code-only`，在本项目中作为 Tailwind/shadcn 参考规则保留。
