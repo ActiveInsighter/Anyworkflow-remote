@@ -22,16 +22,18 @@ export function RunEditorPage() {
   const templateMode = searchParams.get('mode') === 'edit' ? 'edit' : templateId ? 'use' : ''
   const session = useSession()
   const editorRef = useRef<AnyWorkflowEditorHandle | null>(null)
-  const [source, setSource] = useState(() => createStarterPlan())
+
+  const [source, setSource] = useState(createStarterPlan)
   const initialMeta = parsePlanMeta(source)
   const [title, setTitle] = useState(initialMeta.title)
   const [mode, setMode] = useState<DispatchExecutionMode>(initialMeta.mode)
   const [maxConcurrency, setMaxConcurrency] = useState(initialMeta.maxConcurrency)
+  const [templateTitle, setTemplateTitle] = useState('')
   const [loading, setLoading] = useState(Boolean(runId || templateId))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [dirty, setDirty] = useState(false)
-  const [templateTitle, setTemplateTitle] = useState('')
+
   const diagnostics = useMemo(() => validateAnyWorkflowSource(source), [source])
   const errorCount = diagnostics.filter((item) => item.severity === 'error').length
 
@@ -76,12 +78,201 @@ export function RunEditorPage() {
   }, [runId])
 
   useEffect(() => {
-    function beforeUnload(event: BeforeUnloadEvent) {
-      if (!dirty) return
-      event.preventDefault()
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      if (dirty) event.preventDefault()
     }
     window.addEventListener('beforeunload', beforeUnload)
     return () => window.removeEventListener('beforeunload', beforeUnload)
   }, [dirty])
 
-  functim½¸Íå¹5•Ñ„¡¹•áÑM½ÕÉ”èÍÑÉ¥¹œ¤ì(€€€½¹ÍĞµ•Ñ„€ôÁ…ÉÍ•A±…¹5•Ñ„¡¹•áÑM½ÕÉ”¤(€€€Í•ÑQ¥Ñ±”¡µ•Ñ„¹Ñ¥Ñ±”¤(€€€Í•Ñ5½‘”¡µ•Ñ„¹µ½‘”¤(€€€Í•Ñ5…á½¹ÕÉÉ•¹ä¡µ•Ñ„¹µ…á½¹ÕÉÉ•¹ä¤(€ô((€™Õ¹Ñ¥½¸½¹‘¥Ñ½É¡…¹”¡¹•áÑM½ÕÉ”èÍÑÉ¥¹œ¤ì(€€€Í•ÑM½ÕÉ”¡¹•áÑM½ÕÉ”¤(€€€Íå¹5•Ñ„¡¹•áÑM½ÕÉ”¤(€€€Í•Ñ¥ÉÑä¡ÑÉÕ”¤(€ô((€™Õ¹Ñ¥½¸ÕÁ‘…Ñ•5•Ñ„¡¹•áĞèA…ÉÑ¥…°ñìÑ¥Ñ±”èÍÑÉ¥¹œìµ½‘”è¥ÍÁ…Ñ¡á•ÕÑ¥½¹5½‘”ìµ…á½¹ÕÉÉ•¹äè¹Õµ‰•Èôø¤ì(€€€½¹ÍĞ¹•áÑQ¥Ñ±”€ô¹•áĞ¹Ñ¥Ñ±”€üüÑ¥Ñ±”(€€€½¹ÍĞ¹•áÑ5½‘”€ô¹•áĞ¹µ½‘”€üüµ½‘”(€€€½¹ÍĞ¹•áÑ½¹ÕÉÉ•¹ä€ô¹•áĞ¹µ…á½¹ÕÉÉ•¹ä€üüµ…á½¹ÕÉÉ•¹ä(€€€½¹ÍĞ¹•áÑM½ÕÉ”€ô…ÁÁ±åA±…¹5•Ñ„¡Í½ÕÉ”°ì(€€€€€Ñ¥Ñ±”è¹•áÑQ¥Ñ±”°(€€€€€µ½‘”è¹•áÑ5½‘”°(€€€€€µ…á½¹ÕÉÉ•¹äè¹•áÑ½¹ÕÉÉ•¹ä°(€€€ô¤(€€€Í•ÑQ¥Ñ±”¡¹•áÑQ¥Ñ±”¤(€€€Í•Ñ5½‘”¡¹•áÑ5½‘”¤(€€€Í•Ñ5…á½¹ÕÉÉ•¹ä¡¹•áÑ5½‘”€ôôô€Í•É¥…°œ€ü€Ä€è¹•áÑ½¹ÕÉÉ•¹ä¤(€€€Í•ÑM½ÕÉ”¡¹•áÑM½ÕÉ”¤(€€€Í•Ñ¥ÉÑä¡ÑÉÕ”¤(€ô((€™Õ¹Ñ¥½¸¹½Éµ…±¥é•‘M½ÕÉ” ¤èÍÑÉ¥¹œì(€€€É•ÑÕÉ¸…ÁÁ±åA±…¹5•Ñ„¡Í½ÕÉ”°ìÑ¥Ñ±”°µ½‘”°µ…á½¹ÕÉÉ•¹äô¤(€ô((€…Íå¹Œ™Õ¹Ñ¥½¸Á•ÉÍ¥ÍĞ¡ÁÕ‰±¥Í è‰½½±•…¸¤ì(€€€¥˜€ …Í•ÍÍ¥½¸ñğÍ…Ù¥¹œ¤É•ÑÕÉ¸(€€€¥˜€¡•ÉÉ½É½Õ¹Ğ€ø€À¤ì(€€€€€Í•ÑÉÉ½È¡M0ƒšr$€‘í•ÉÉ½É½Õ¹Ñôƒ’â«¦Rg¢¾¿¾ò3¢¾ß–#’ş»–’5€¤(€€€€€•‘¥Ñ½ÉI•˜¹ÕÉÉ•¹Ğü¹™½ÕÌ ¤(€€€€€É•ÑÕÉ¸(€€€ô((€€€Í•ÑM…Ù¥¹œ¡ÑÉÕ”¤(€€€Í•ÑÉÉ½È œœ¤(€€€ÑÉäì(€€€€€½¹ÍĞÁ±…¹Q•áĞ€ô¹½Éµ…±¥é•‘M½ÕÉ” ¤(€€€€€¥˜€¡Ñ•µÁ±…Ñ•5½‘”€ôôô€•‘¥Ğœ€˜˜Ñ•µÁ±…Ñ•%¤ì(€€€€€€€…İ…¥ĞÕÁ‘…Ñ•]½É­™±½İQ•µÁ±…Ñ”¡Ñ•µÁ±…Ñ•%°ì(€€€€€€€€€Ñ¥Ñ±”èÑ•µÁ±…Ñ•Q¥Ñ±”ñğÑ¥Ñ±”ñğ€Ÿšr«–F÷–B7š¢‡švüœ°(€€€€€€€€€Á±…¹Q•áĞ°(€€€€€€€ô¤(€€€€€€€Í•ÑM½ÕÉ”¡Á±…¹Q•áĞ¤(€€€€€€€Í•Ñ¥ÉÑä¡™…±Í”¤(€€€€€€€¹…Ù¥…Ñ”¡€½Ñ•µÁ±…Ñ•Ì¼‘íÑ•µÁ±…Ñ•%‘õ€°ìÉ•Á±…”èÑÉÕ”ô¤(€€€€€€€É•ÑÕÉ¸(€€€€€ô((€€€€€½¹ÍĞÍ…Ù•€ôÉÕ¹%(€€€€€€€€ü…İ…¥ĞÕÁ‘…Ñ•IÕ¹É…™Ğ¡ÉÕ¹%°Á±…¹Q•áĞ°ÁÕ‰±¥Í ¤(€€€€€€€€è…İ…¥ĞÉ•…Ñ•IÕ¸¡Á±…¹Q•áĞ°ÁÕ‰±¥Í €ü€ÅÕ•Õ•œ€è€‘É…™Ğœ¤(€€€€€Í•ÑM½ÕÉ”¡Á±…¹Q•áĞ¤(€€€€€Í•Ñ¥ÉÑä¡™…±Í”¤(€€€€€¹…Ù¥…Ñ”¡ÁÕ‰±¥Í €ü€½ÉÕ¹Ì¼‘íÍ…Ù•¹¥‘õ€€è€½ÉÕ¹Ì¼‘íÍ…Ù•¹¥‘ô½•‘¥Ñ€°ìÉ•Á±…”èÑÉÕ”ô¤(€€€ô…Ñ €¡…ÕÍ”¤ì(€€€€€Í•ÑÉÉ½È¡Ñ½ÉÉ½É5•ÍÍ…”¡…ÕÍ”¤¤(€€€ô™¥¹…±±äì(€€€€€Í•ÑM…Ù¥¹œ¡™…±Í”¤(€€€ô(€ô((€¥˜€ …Í•ÍÍ¥½¸¤ì(€€€É•ÑÕÉ¸€ (€€€€€€ñÁÁA…”ø(€€€€€€€€ñµÁÑåMÑ…Ñ”Ñ¥Ñ±”ô‹šr«¢ş{š:”ˆ…Ñ¥½¸õìñ	ÕÑÑ½¸…Í¡¥±øñ1¥¹¬Ñ¼ôˆ½Í•ÑÑ¥¹Ìˆû¢ş{š:”ğ½1¥¹¬øğ½	ÕÑÑ½¸ùô€¼ø(€€€€€€ğ½ÁÁA…”ø(€€€€¤(€ô((€¥˜€¡±½…‘¥¹œ¤É•ÑÕÉ¸€ñÁÁA…”øñ1½…‘¥¹MÑ…Ñ”€¼øğ½ÁÁA…”ø((€É•ÑÕÉ¸€ (€€€€ñÁÁA…”±…ÍÍ9…µ”ô‰µ…àµÜµlÄĞĞÁÁátˆø(€€€€€€ñA…•!•…‘•È(€€€€€€€•å•‰É½ÜõíÑ•µÁ±…Ñ•5½‘”€ôôô€•‘¥Ğœ€ü€Ÿš¢‡švüœ€èÉÕ¹%€ü€Ÿ¢6'¢üœ€èÑ•µÁ±…Ñ•5½‘”€ôôô€ÕÍ”œ€ü€Ÿš¢‡švüœ€è€ŸšZÃ–îèô(€€€€€€€Ñ¥Ñ±”õíÑ•µÁ±…Ñ•5½‘”€ôôô€•‘¥Ğœ€üÑ•µÁ±…Ñ•Q¥Ñ±”ñğ€Ÿò[¢úGš¢‡švüœ€èÉÕ¹%€üÑ¥Ñ±”ñğ€Ÿšr«–F÷–B4IÕ¸œ€èÑ•µÁ±…Ñ•5½‘”€ôôô€ÕÍ”œ€ü€Ÿ’öÿR£š¢‡švüœ€è€Ÿ–"o–îèIÕ¸ô(€€€€€€€…Ñ¥½¹Ìõì(€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰™±•à¥Ñ•µÌµ•¹Ñ•È…À´Èˆø(€€€€€€€€€€€í•ÉÉ½É½Õ¹Ğ€ø€À€ü€ñ	…‘”Ù…É¥…¹Ğô‰‘•ÍÑÉÕÑ¥Ù”ˆ±…ÍÍ9…µ”ô‰É½Õ¹‘•µ™Õ±°Áà´Ìˆùí•ÉÉ½É½Õ¹Ñôƒ¦Rg¢¾¼ğ½	…‘”ø€è¹Õ±±ô(€€€€€€€€€€€€ñ	…‘”Ù…É¥…¹Ğõí‘¥ÉÑä€ü€½ÕÑ±¥¹”œ€è€Í•½¹‘…Éäô±…ÍÍ9…µ”õí¸ É½Õ¹‘•µ™Õ±°Áà´Ìœ°‘¥ÉÑä€˜˜€‰½É‘•Èµ…µ‰•È´ÔÀÀ¼ÌÀÑ•áĞµ…µ‰•È´ØÀÀ‘…É¬éÑ•áĞµ…µ‰•È´ĞÀÀœ¥ôø(€€€€€€€€€€€€€í‘¥ÉÑä€ü€Ÿšr«’şw–¶`œ€è€ğøñ¥É±•¡•¬±…ÍÍ9…µ”ô‰µÈ´ÄÍ¥é”´Ìˆ€¼û–ŞË’şw–¶`ğ¼ùô(€€€€€€€€€€€€ğ½	…‘”ø(€€€€€€€€€€ğ½‘¥Øø(€€€€€€€ô(€€€€€€¼ø((€€€€€í•ÉÉ½È€ü€ñÉÉ½É	…¹¹•Èùí•ÉÉ½Éôğ½ÉÉ½É	…¹¹•Èø€è¹Õ±±ô((€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰É¥¥Ñ•µÌµÍÑ…ÉĞ…À´Ğá°éÉ¥µ½±ÌµlÈàÁÁá}µ¥¹µ…à À°Å™È¥tˆø(€€€€€€€€ñ…É±…ÍÍ9…µ”ô‰á°éÍÑ¥­äá°éÑ½À´Ğˆø(€€€€€€€€€€ñ…É‘!•…‘•È±…ÍÍ9…µ”ô‰Áˆ´Ğˆø(€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰µˆ´ÄÉ¥Í¥é”´äÁ±…”µ¥Ñ•µÌµ•¹Ñ•ÈÉ½Õ¹‘•µ±œ‰œµµÕÑ•Ñ•áĞµµÕÑ•µ™½É•É½Õ¹ˆø(€€€€€€€€€€€€€€ñM±¥‘•ÉÍ!½É¥é½¹Ñ…°±…ÍÍ9…µ”ô‰Í¥é”´Ğˆ€¼ø(€€€€€€€€€€€€ğ½‘¥Øø(€€€€€€€€€€€€ñ…É‘Q¥Ñ±”ùIÕ¸ƒ¦7ö¸ğ½…É‘Q¥Ñ±”ø(€€€€€€€€€€ğ½…É‘!•…‘•Èø(€€€€€€€€€€ñ…É‘½¹Ñ•¹Ğ±…ÍÍ9…µ”ô‰É¥…À´Ôˆø(€€€€€€€€€€€íÑ•µÁ±…Ñ•5½‘”€ôôô€•‘¥Ğœ€ü€ (€€€€€€€€€€€€€€ñ¥•±±…‰•°ô‹š¢‡švÿ–B7Àˆø(€€€€€€€€€€€€€€€€ñQ•áÑ%¹ÁÕĞ(€€€€€€€€€€€€€€€€€Ù…±Õ”õíÑ•µÁ±…Ñ•Q¥Ñ±•ô(€€€€€€€€€€€€€€€€€µ…á1•¹Ñ õìÔÄÉô(€€€€€€€€€€€€€€€€€½¹¡…¹”õì¡•Ù•¹Ğ¤€ôøìÍ•ÑQ•µÁ±…Ñ•Q¥Ñ±”¡•Ù•¹Ğ¹Ñ…É•Ğ¹Ù…±Õ”¤ìÍ•Ñ¥ÉÑä¡ÑÉÕ”¤õô(€€€€€€€€€€€€€€€€¼ø(€€€€€€€€€€€€€€ğ½¥•±ø(€€€€€€€€€€€€¤€è¹Õ±±ô((€€€€€€€€€€€€ñ¥•±±…‰•°ô‹–B7Àˆø(€€€€€€€€€€€€€€ñQ•áÑ%¹ÁÕĞÙ…±Õ”õíÑ¥Ñ±•ôµ…á1•¹Ñ õìÔÄÉô½¹¡…¹”õì¡•Ù•¹Ğ¤€ôøÕÁ‘…Ñ•5•Ñ„¡ìÑ¥Ñ±”è•Ù•¹Ğ¹Ñ…É•Ğ¹Ù…±Õ”ô¥ô€¼ø(€€€€€€€€€€€€ğ½¥•±ø((€€€€€€€€€€€€ñ¥•±±…‰•°ô‹¢Â–ê˜ˆø(€€€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰É¥É¥µ½±Ì´ÈÉ½Õ¹‘•µ±œ‰½É‘•È‰œµµÕÑ•À´Äˆø(€€€€€€€€€€€€€€€ì¡l(€€€€€€€€€€€€€€€€€lÍ•É¥…°œ°€Ÿ’âË¢†0t°(€€€€€€€€€€€€€€€€€lÁ…É…±±•°œ°€Ÿ–æÛ¢†0t°(€€€€€€€€€€€€€€€t…Ì½¹ÍĞ¤¹µ…À ¡mÙ…±Õ”°±…‰•±t¤€ôø€ (€€€€€€€€€€€€€€€€€€ñ‰ÕÑÑ½¸(€€€€€€€€€€€€€€€€€€€­•äõíÙ…±Õ•ô(€€€€€€€€€€€€€€€€€€€ÑåÁ”ô‰‰ÕÑÑ½¸ˆ(€€€€€€€€€€€€€€€€€€€±…ÍÍ9…µ”õí¸ (€€€€€€€€€€€€€€€€€€€€€€ ´äÉ½Õ¹‘•µµÑ•áĞµÍ´™½¹Ğµµ•‘¥Õ´Ñ•áĞµµÕÑ•µ™½É•É½Õ¹ÑÉ…¹Í¥Ñ¥½¸µ½±½ÉÌœ°(€€€€€€€€€€€€€€€€€€€€€µ½‘”€ôôôÙ…±Õ”€˜˜€‰œµ‰…­É½Õ¹Ñ•áĞµ™½É•É½Õ¹œ°(€€€€€€€€€€€€€€€€€€€€¥ô(€€€€€€€€€€€€€€€€€€€½¹±¥¬õì ¤€ôøÕÁ‘…Ñ•5•Ñ„¡ìµ½‘”èÙ…±Õ”°µ…á½¹ÕÉÉ•¹äèÙ…±Õ”€ôôô€Í•É¥…°œ€ü€Ä€è5…Ñ ¹µ…à È°µ…á½¹ÕÉÉ•¹ä¤ô¥ô(€€€€€€€€€€€€€€€€€€ø(€€€€€€€€€€€€€€€€€€€í±…‰•±ô(€€€€€€€€€€€€€€€€€€ğ½‰ÕÑÑ½¸ø(€€€€€€€€€€€€€€€€¤¥ô(€€€€€€€€€€€€€€ğ½‘¥Øø(€€€€€€€€€€€€ğ½¥•±ø((€€€€€€€€€€€íµ½‘”€ôôô€Á…É…±±•°œ€ü€ (€€€€€€€€€€€€€€ñ¥•±±…‰•°ô‹šr–’Ÿ–æÛ–>Dˆø(€€€€€€€€€€€€€€€€ñQ•áÑ%¹ÁÕĞ(€€€€€€€€€€€€€€€€€ÑåÁ”ô‰¹Õµ‰•Èˆ(€€€€€€€€€€€€€€€€€µ¥¸õìÅô(€€€€€€€€€€€€€€€€€µ…àõìÄÙô(€€€€€€€€€€€€€€€€€Ù…±Õ”õíµ…á½¹ÕÉÉ•¹åô(€€€€€€€€€€€€€€€€€½¹¡…¹”õì¡•Ù•¹Ğ¤€ôøÕÁ‘…Ñ•5•Ñ„¡ìµ…á½¹ÕÉÉ•¹äè5…Ñ ¹µ…à Ä°5…Ñ ¹µ¥¸ ÄØ°9Õµ‰•È¡•Ù•¹Ğ¹Ñ…É•Ğ¹Ù…±Õ”¤ñğ€Ä¤¤ô¥ô(€€€€€€€€€€€€€€€€¼ø(€€€€€€€€€€€€€€ğ½¥•±ø(€€€€€€€€€€€€¤€è¹Õ±±ô((€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰É¥…À´ÈÉ½Õ¹‘•µ±œ‰½É‘•È‰œµµÕÑ•¼ÈÀÀ´ÌÑ•áĞµlÄÅÁátÑ•áĞµµÕÑ•µ™½É•É½Õ¹ˆø(€€€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰™±•à©ÕÍÑ¥™äµ‰•Ñİ••¸ˆøñÍÁ…¸û¢†—– ğ½ÍÁ…¸øñ­‰ùÑÉ°¿Š2`€¬MÁ…”ğ½­‰øğ½‘¥Øø(€€€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰™±•à©ÕÍÑ¥™äµ‰•Ñİ••¸ˆøñÍÁ…¸ûšBsÒˆğ½ÍÁ…¸øñ­‰ùÑÉ°¿Š2`€¬ğ½­‰øğ½‘¥Øø(€€€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰™±•à©ÕÍÑ¥™äµ‰•Ñİ••¸ˆøñÍÁ…¸û’şw–¶`ğ½ÍÁ…¸øñ­‰ùÑÉ°¿Š2`€¬Lğ½­‰øğ½‘¥Øø(€€€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰™±•à©ÕÍÑ¥™äµ‰•Ñİ••¸ˆøñÍÁ…¸ûš>C’ë¢¾4ğ½ÍÁ…¸øñ­‰ø¼ğ½­‰øğ½‘¥Øø(€€€€€€€€€€€€ğ½‘¥Øø(€€€€€€€€€€ğ½…É‘½¹Ñ•¹Ğø(€€€€€€€€ğ½…Éø((€€€€€€€€ñ¹å]½É­™±½İ‘¥Ñ½ÈÉ•˜õí•‘¥Ñ½ÉI•™ôÙ…±Õ”õíÍ½ÕÉ•ô½¹¡…¹”õí½¹‘¥Ñ½É¡…¹•ô½¹M…Ù”õì ¤€ôøÙ½¥Á•ÉÍ¥ÍĞ¡™…±Í”¥ô€¼ø(€€€€€€ğ½‘¥Øø((€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰µĞ´Ğ™±•à™±•àµ½°…À´È‰½É‘•ÈµĞÁĞ´ĞÍ´éÍÑ¥­äÍ´é‰½ÑÑ½´´ĞÍ´éè´ÈÀÍ´é™±•àµÉ½ÜÍ´é©ÕÍÑ¥™äµ•¹Í´éÉ½Õ¹‘•µá°Í´é‰½É‘•ÈÍ´é‰œµ‰…­É½Õ¹¼äÔÍ´éÀ´ÌÍ´é‰…­‘É½Àµ‰±ÕÈˆø(€€€€€€€íÑ•µÁ±…Ñ•5½‘”€ôôô€•‘¥Ğœ€ü€ (€€€€€€€€€€ñ	ÕÑÑ½¸½¹±¥¬õì ¤€ôøÙ½¥Á•ÉÍ¥ÍĞ¡™…±Í”¥ô‘¥Í…‰±•õíÍ…Ù¥¹œñğ•ÉÉ½É½Õ¹Ğ€ø€Áôø(€€€€€€€€€€€€ñM…Ù”€¼ùíÍ…Ù¥¹œ€ü€Ÿ’şw–¶c’â·Š˜œ€è€Ÿ’şw–¶cš¢‡švüô(€€€€€€€€€€ğ½	ÕÑÑ½¸ø(€€€€€€€€¤€è€ (€€€€€€€€€€ğø(€€€€€€€€€€€€ñ	ÕÑÑ½¸Ù…É¥…¹Ğô‰½ÕÑ±¥¹”ˆ½¹±¥¬õì ¤€ôøÙ½¥Á•ÉÍ¥ÍĞ¡™…±Í”¥ô‘¥Í…‰±•õíÍ…Ù¥¹œñğ•ÉÉ½É½Õ¹Ğ€ø€Áôø(€€€€€€€€€€€€€€ñM…Ù”€¼ùíÍ…Ù¥¹œ€ü€Ÿ’şw–¶c’â·Š˜œ€è€Ÿ’şw–¶c¢6'¢üô(€€€€€€€€€€€€ğ½	ÕÑÑ½¸ø(€€€€€€€€€€€€ñ	ÕÑÑ½¸½¹±¥¬õì ¤€ôøÙ½¥Á•ÉÍ¥ÍĞ¡ÑÉÕ”¥ô‘¥Í…‰±•õíÍ…Ù¥¹œñğ•ÉÉ½É½Õ¹Ğ€ø€Áôø(€€€€€€€€€€€€€€ñA±…ä€¼ùíÍ…Ù¥¹œ€ü€Ÿ–’B’â·Š˜œ€è€Ÿ–ò–/¢şC¢†0ô(€€€€€€€€€€€€ğ½	ÕÑÑ½¸ø(€€€€€€€€€€ğ¼ø(€€€€€€€€¥ô(€€€€€€ğ½‘¥Øø(€€€€ğ½ÁÁA…”ø(€€¤)ô(
+  function syncMeta(nextSource: string) {
+    const meta = parsePlanMeta(nextSource)
+    setTitle(meta.title)
+    setMode(meta.mode)
+    setMaxConcurrency(meta.maxConcurrency)
+  }
+
+  function onEditorChange(nextSource: string) {
+    setSource(nextSource)
+    syncMeta(nextSource)
+    setDirty(true)
+  }
+
+  function updateMeta(next: Partial<{ title: string; mode: DispatchExecutionMode; maxConcurrency: number }>) {
+    const nextTitle = next.title ?? title
+    const nextMode = next.mode ?? mode
+    const nextConcurrency = next.maxConcurrency ?? maxConcurrency
+    const nextSource = applyPlanMeta(source, {
+      title: nextTitle,
+      mode: nextMode,
+      maxConcurrency: nextConcurrency,
+    })
+    setTitle(nextTitle)
+    setMode(nextMode)
+    setMaxConcurrency(nextMode === 'serial' ? 1 : nextConcurrency)
+    setSource(nextSource)
+    setDirty(true)
+  }
+
+  async function persist(publish: boolean) {
+    if (!session || saving) return
+    if (errorCount > 0) {
+      setError('DSL æœ‰ ' + errorCount + ' ä¸ªé”™è¯¯ï¼Œè¯·å…ˆä¿®å¤')
+      editorRef.current?.focus()
+      return
+    }
+
+    setSaving(true)
+    setError('')
+    try {
+      const planText = applyPlanMeta(source, { title, mode, maxConcurrency })
+
+      if (templateMode === 'edit' && templateId) {
+        await updateWorkflowTemplate(templateId, {
+          title: templateTitle || title || 'æœªå‘½åæ¨¡æ¿',
+          planText,
+        })
+        setSource(planText)
+        setDirty(false)
+        navigate('/templates/' + templateId, { replace: true })
+        return
+      }
+
+      const saved = runId
+        ? await updateRunDraft(runId, planText, publish)
+        : await createRun(planText, publish ? 'queued' : 'draft')
+
+      setSource(planText)
+      setDirty(false)
+      navigate(publish ? '/runs/' + saved.id : '/runs/' + saved.id + '/edit', { replace: true })
+    } catch (cause) {
+      setError(toErrorMessage(cause))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (!session) {
+    return <AppPage><EmptyState title="æœªè¿æ¥" action={<Button asChild><Link to="/settings">è¿æ¥</Link></Button>} /></AppPage>
+  }
+
+  if (loading) return <AppPage><LoadingState /></AppPage>
+
+  const pageTitle = templateMode === 'edit'
+    ? templateTitle || 'ç¼–è¾‘æ¨¡æ¿'
+    : runId
+      ? title || 'æœªå‘½å Run'
+      : templateMode === 'use'
+        ? 'ä½¿ç”¨æ¨¡æ¿'
+        : 'åˆ›å»º Run'
+
+  return (
+    <AppPage className="max-w-[1440px]">
+      <PageHeader
+        eyebrow={templateMode === 'edit' ? 'æ¨¡æ¿' : runId ? 'è‰ç¨¿' : templateMode === 'use' ? 'æ¨¡æ¿' : 'æ–°å»º'}
+        title={pageTitle}
+        actions={
+          <div className="flex items-center gap-2">
+            {errorCount > 0 ? <Badge variant="destructive" className="rounded-full px-3">{errorCount} é”™è¯¯</Badge> : null}
+            <Badge variant={dirty ? 'outline' : 'secondary'} className={cn('rounded-full px-3', dirty && 'border-amber-500/30 text-amber-600 dark:text-amber-400')}>
+              {dirty ? 'æœªä¿å­˜' : <><CircleCheck className="mr-1 size-3" />å·²ä¿å­˜</>}
+            </Badge>
+          </div>
+        }
+      />
+
+      {error ? <ErrorBanner>{error}</ErrorBanner> : null}
+
+      <div className="grid items-start gap-4 xl:grid-cols-[280px_minmax(0,1fr)]">
+        <Card className="xl:sticky xl:top-4">
+          <CardHeader className="pb-4">
+            <div className="mb-1 grid size-9 place-items-center rounded-lg bg-muted text-muted-foreground">
+              <SlidersHorizontal className="size-4" />
+            </div>
+            <CardTitle>Run é…ç½®</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-5">
+            {templateMode === 'edit' ? (
+              <Field label="æ¨¡æ¿åç§°">
+                <TextInput value={templateTitle} maxLength={512} onChange={(event) => { setTemplateTitle(event.target.value); setDirty(true) }} />
+              </Field>
+            ) : null}
+
+            <Field label="åç§°">
+              <TextInput value={title} maxLength={512} onChange={(event) => updateMeta({ title: event.target.value })} />
+            </Field>
+
+            <Field label="è°ƒåº¦">
+              <div className="grid grid-cols-2 rounded-lg border bg-muted p-1">
+                {([
+                  ['serial', 'ä¸²è¡Œ'],
+                  ['parallel', 'å¹¶è¡Œ'],
+                ] as const).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={cn(
+                      'h-9 rounded-md text-sm font-medium text-muted-foreground transition-colors',
+                      mode === value && 'bg-background text-foreground',
+                    )}
+                    onClick={() => updateMeta({
+                      mode: value,
+                      maxConcurrency: value === 'serial' ? 1 : Math.max(2, maxConcurrency),
+                    })}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </Field>
+
+            {mode === 'parallel' ? (
+              <Field label="æœ€å¤§å¹¶å‘">
+                <TextInput
+                  type="number"
+                  min={1}
+                  max={16}
+                  value={maxConcurrency}
+                  onChange={(event) => updateMeta({
+                    maxConcurrency: Math.max(1, Math.min(16, Number(event.target.value) || 1)),
+                  })}
+                />
+              </Field>
+            ) : null}
+
+            <div className="grid gap-2 rounded-lg border bg-muted/20 p-3 text-[11px] text-muted-foreground">
+              <div className="flex justify-between gap-4"><span>è¡¥å…¨</span><kbd>Ctrl/âŒ˜ + Space</kbd></div>
+              <div className="flex justify-between gap-4"><span>æœç´¢</span><kbd>Ctrl/âŒ˜ + F</kbd></div>
+              <div className="flex justify-between gap-4"><span>ä¿å­˜</span><kbd>Ctrl/âŒ˜ + S</kbd></div>
+              <div className="flex justify-between gap-4"><span>æç¤ºè¯</span><kbd>/</kbd></div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <AnyWorkflowEditor
+          ref={editorRef}
+          value={source}
+          onChange={onEditorChange}
+          onSave={() => void persist(false)}
+        />
+      </div>
+
+      <div className="mt-4 flex flex-col gap-2 border-t pt-4 sm:sticky sm:bottom-4 sm:z-20 sm:flex-row sm:justify-end sm:rounded-xl sm:border sm:bg-background/95 sm:p-3 sm:backdrop-blur">
+        {templateMode === 'edit' ? (
+          <Button onClick={() => void persist(false)} disabled={saving || errorCount > 0}>
+            <Save />{saving ? 'ä¿å­˜ä¸­â€¦' : 'ä¿å­˜æ¨¡æ¿'}
+          </Button>
+        ) : (
+          <>
+            <Button variant="outline" onClick={() => void persist(false)} disabled={saving || errorCount > 0}>
+              <Save />{saving ? 'ä¿å­˜ä¸­â€¦' : 'ä¿å­˜è‰ç¨¿'}
+            </Button>
+            <Button onClick={() => void persist(true)} disabled={saving || errorCount > 0}>
+              <Play />{saving ? 'å¤„ç†ä¸­â€¦' : 'å¼€å§‹è¿è¡Œ'}
+            </Button>
+          </>
+        )}
+      </div>
+    </AppPage>
+  )
+}
