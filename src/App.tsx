@@ -1,21 +1,24 @@
+import { FileQuestion } from 'lucide-react'
 import { BrowserRouter, Link, Route, Routes } from 'react-router'
-import { AppShell } from './components/AppShell'
-import { DashboardPage } from './pages/DashboardPage'
-import { EventDetailPage } from './pages/EventDetailPage'
-import { RunDetailPage } from './pages/RunDetailPage'
-import { RunEditorPage } from './pages/RunEditorPage'
-import { SettingsPage } from './pages/SettingsPage'
-import { TaskDetailPage } from './pages/TaskDetailPage'
-import { Button, Card } from './components/ui'
+import { AppShell } from '@/components/AppShell'
+import { AppPage, EmptyState } from '@/components/app/ui'
+import { Button } from '@/components/ui/button'
+import { DashboardPage } from '@/pages/DashboardPage'
+import { EventDetailPage } from '@/pages/EventDetailPage'
+import { RunDetailPage } from '@/pages/RunDetailPage'
+import { RunEditorPage } from '@/pages/RunEditorPage'
+import { SettingsPage } from '@/pages/SettingsPage'
+import { TaskDetailPage } from '@/pages/TaskDetailPage'
 
 function NotFoundPage() {
   return (
-    <Card className="empty-state">
-      <div className="empty-symbol">404</div>
-      <h2>页面不存在</h2>
-      <p>这个地址没有对应的 AnyWorkflow 页面。</p>
-      <Button variant="primary" asChild><Link to="/">返回工作流</Link></Button>
-    </Card>
+    <AppPage>
+      <EmptyState
+        title="页面不存在"
+        description="这个地址没有对应的 AnyWorkflow 页面。"
+        action={<Button asChild><Link to="/"><FileQuestion />返回工作流</Link></Button>}
+      />
+    </AppPage>
   )
 }
 
