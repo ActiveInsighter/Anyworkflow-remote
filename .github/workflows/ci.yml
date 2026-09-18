@@ -26,24 +26,59 @@ jobs:
 
           mkdir -p artifacts
           bundle="artifacts/anyworkflow-remote-${GITHUB_SHA}.zip"
+          archive_name="$(basename "${bundle}")"
 
           # Archive exactly the tracked source that passed this CI run.
-          # git archive keeps Linux/Unix paths and excludes .git, node_modules,
-          # dist and other untracked build/runtime files.
-          git archive             --format=zip             --prefix=Anyworkflow-remote/             --output="${bundle}"             HEAD
+          # git archive keeps Unix-style paths and excludes .git, node_modules,
+          # dist, and all other untracked runtime/build files.
+          git archive \
+            --format=zip \
+            --prefix=Anyworkflow-remote/ \
+            --output="${bundle}" \
+            HEAD
 
-          # Skills are part of the AI context bundle and must never disappear
-          # silently because of a future repository/layout change.
-          unzip -Z1 "${bundle}" | grep -q '^Anyworkflow-remote/.agents/skills/.*/SKILL\.md$'
+          entries="$(unzip -Z1 "${bundle}")"
 
-          echo "Created ${bundle}"
+          # The portable agent context must remain self-contained.
+          for required in \
+            "Anyworkflow-remote/AGENTS.md" \
+            "Anyworkflow-remote/skills-lock.json" \
+            "Anyworkflow-remote/.agents/skills/ui-style/SKILL.md"; do
+            printf '%s\n' "${entries}" | grep -Fxq "${required}"
+          done
+
+          skill_count="$(printf '%s\n' "${entries}" | grep -Ec '^Anyworkflow-remote/.agents/skills/.+/SKILL\.md$')"
+          if [ "${skill_count}" -lt 1 ]; then
+            echo "No bundled SKILL.md files found" >&2
+            exit 1
+          fi
+
+          archive_sha256="$(sha256sum "${bundle}" | awk '{print $1}')"
+
+          cat > artifacts/context.json <<EOF
+          {
+            "schemaVersion": 1,
+            "repository": "${GITHUB_REPOSITORY}",
+            "commit": "${GITHUB_SHA}",
+            "ref": "${GITHUB_REF}",
+            "archive": "${archive_name}",
+            "archiveSha256": "${archive_sha256}",
+            "projectRoot": "Anyworkflow-remote/",
+            "agentGuide": "Anyworkflow-remote/AGENTS.md",
+            "skillsRoot": "Anyworkflow-remote/.agents/skills/",
+            "validationCommand": "npm run preflight"
+          }
+          EOF
+
+          echo "Created ${bundle} with ${skill_count} skills"
+          echo "SHA-256: ${archive_sha256}"
           unzip -l "${bundle}" | tail -n 3
 
       - name: Upload AI context artifact
         uses: actions/upload-artifact@v4
         with:
           name: anyworkflow-remote-ai-context
-          path: artifacts/anyworkflow-remote-${{ github.sha }}.zip
+          path: artifacts/
           if-no-files-found: error
           retention-days: 30
           compression-level: 0
