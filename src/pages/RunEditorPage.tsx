@@ -84,7 +84,7 @@ export function RunEditorPage() {
       <Card className="empty-state">
         <h2>请先连接 AnyWorkflow</h2>
         <p>连接后才能创建和保存 Run。</p>
-        <Link className="button button-primary" to="/settings">去连接</Link>
+        <Button variant="primary" asChild><Link to="/settings">去连接</Link></Button>
       </Card>
     )
   }

@@ -8,7 +8,8 @@ AnyWorkflow 的响应式 Web 控制端。项目参考 `Anyworkflow-wechat` 的�
 - Vite 8.3
 - TypeScript 7
 - React Router 8
-- Tailwind CSS 4.3（作为样式基础，当前 UI 主要使用语义化类和 CSS 变量）
+- Tailwind CSS 4.3
+- shadcn/ui（Radix primitives + Lucide icons + CSS variables）
 - PocketBase HTTP API
 - Cloudflare Workers Static Assets
 
@@ -94,3 +95,15 @@ GitHub 仓库需要以下 Actions Secrets：
 ```bash
 npm run deploy
 ```
+
+
+## Codex / Agent Skills
+
+仓库内置项目级 Skills，位于 `.agents/skills/`，用于让 Codex 在后续修改时自动加载项目约束：
+
+- `anyworkflow-contract`：PocketBase / Run / Task / Event / DSL 契约
+- `shadcn-responsive-ui`：shadcn/ui、响应式与可访问性
+- `frontend-quality-gate`：登录、状态、类型检查与构建验证
+- `cloudflare-workers-assets`：Workers Static Assets 部署规则
+
+Codex 会从仓库的 `.agents/skills/*/SKILL.md` 发现这些项目级 skills。

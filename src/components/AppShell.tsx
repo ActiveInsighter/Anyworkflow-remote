@@ -1,3 +1,4 @@
+import { House, Plus, Settings, Workflow } from 'lucide-react'
 import { NavLink, Outlet, useLocation } from 'react-router'
 import { useSession } from '../lib/session'
 
@@ -13,7 +14,7 @@ export function AppShell() {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <div className="brand-mark">A</div>
+          <div className="brand-mark"><Workflow size={18} strokeWidth={2.2} /></div>
           <div className="brand-copy">
             <strong>AnyWorkflow</strong>
             <span>Remote</span>
@@ -22,15 +23,15 @@ export function AppShell() {
 
         <nav className="sidebar-nav" aria-label="主导航">
           <NavLink to="/" end className={navClass}>
-            <span className="nav-icon">⌂</span>
+            <span className="nav-icon"><House /></span>
             <span>工作流</span>
           </NavLink>
           <NavLink to="/runs/new" className={navClass}>
-            <span className="nav-icon">＋</span>
+            <span className="nav-icon"><Plus /></span>
             <span>新建 Run</span>
           </NavLink>
           <NavLink to="/settings" className={navClass}>
-            <span className="nav-icon">⚙</span>
+            <span className="nav-icon"><Settings /></span>
             <span>连接设置</span>
           </NavLink>
         </nav>
@@ -47,7 +48,7 @@ export function AppShell() {
       <main className="main-panel">
         <div className="mobile-topbar">
           <div className="brand compact">
-            <div className="brand-mark">A</div>
+            <div className="brand-mark"><Workflow size={16} strokeWidth={2.2} /></div>
             <strong>AnyWorkflow</strong>
           </div>
           <span className={session ? 'mobile-status online' : 'mobile-status'}>
@@ -62,15 +63,15 @@ export function AppShell() {
 
       <nav className="mobile-nav" aria-label="移动端导航">
         <NavLink to="/" end className={navClass}>
-          <span className="nav-icon">⌂</span>
+          <span className="nav-icon"><House /></span>
           <span>工作流</span>
         </NavLink>
         <NavLink to="/runs/new" className={navClass}>
-          <span className="nav-icon">＋</span>
+          <span className="nav-icon"><Plus /></span>
           <span>新建</span>
         </NavLink>
         <NavLink to="/settings" className={navClass}>
-          <span className="nav-icon">⚙</span>
+          <span className="nav-icon"><Settings /></span>
           <span>设置</span>
         </NavLink>
       </nav>

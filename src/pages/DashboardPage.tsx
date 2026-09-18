@@ -77,7 +77,7 @@ export function DashboardPage() {
         <EmptyState
           title="还没有连接 AnyWorkflow"
           description="连接现有 PocketBase 账号后即可读取你的小程序工作流，不需要修改后端。"
-          action={<Link className="button button-primary" to="/settings">连接账号</Link>}
+          action={<Button variant="primary" asChild><Link to="/settings">连接账号</Link></Button>}
         />
       </>
     )
@@ -92,7 +92,7 @@ export function DashboardPage() {
         actions={
           <>
             <Button variant="secondary" onClick={() => void state.reload()} disabled={state.loading}>刷新</Button>
-            <Link className="button button-primary" to="/runs/new">新建 Run</Link>
+            <Button variant="primary" asChild><Link to="/runs/new">新建 Run</Link></Button>
           </>
         }
       />
@@ -165,7 +165,7 @@ export function DashboardPage() {
         <EmptyState
           title={filter === 'all' ? '从第一个工作流开始' : '这个分类暂时没有 Run'}
           description={filter === 'all' ? '创建草稿后，可在网页或小程序继续编辑和发布。' : undefined}
-          action={filter === 'all' ? <Link className="button button-primary" to="/runs/new">新建 Run</Link> : undefined}
+          action={filter === 'all' ? <Button variant="primary" asChild><Link to="/runs/new">新建 Run</Link></Button> : undefined}
         />
       ) : null}
     </>

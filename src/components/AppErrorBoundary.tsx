@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { clearSession } from '../lib/session'
+import { Button } from './ui'
 
 interface AppErrorBoundaryProps {
   children: ReactNode
@@ -40,8 +41,8 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorB
           <p>前端遇到了未处理的错误。你可以先重新加载；如果问题与登录状态有关，可以清除当前登录状态后重新连接。</p>
           <pre>{this.state.error.message || 'Unknown error'}</pre>
           <div className="fatal-error-actions">
-            <button className="button button-secondary" onClick={this.reload}>重新加载</button>
-            <button className="button button-primary" onClick={this.resetSession}>退出登录并重置</button>
+            <Button variant="secondary" onClick={this.reload}>重新加载</Button>
+            <Button variant="primary" onClick={this.resetSession}>退出登录并重置</Button>
           </div>
         </section>
       </main>

@@ -1,5 +1,5 @@
 import { Link, useParams } from 'react-router'
-import { Card, ErrorBanner, LoadingState, MetaGrid, PageHeader, ProgressBar, StatusBadge } from '../components/ui'
+import { Button, Card, ErrorBanner, LoadingState, MetaGrid, PageHeader, ProgressBar, StatusBadge } from '../components/ui'
 import { getTask, listAllEventsForTask, toErrorMessage } from '../lib/api'
 import {
   eventStatusMeta,
@@ -38,7 +38,7 @@ export function TaskDetailPage() {
         eyebrow="Task"
         title={task.title || `Task ${task.runIndex + 1}`}
         description={modeLabel(task.executionMode, task.maxConcurrency, '事件')}
-        actions={<Link className="button button-secondary" to={`/runs/${task.run}`}>返回 Run</Link>}
+        actions={<Button variant="secondary" asChild><Link to={`/runs/${task.run}`}>返回 Run</Link></Button>}
       />
 
       {state.error ? <ErrorBanner>{state.error}</ErrorBanner> : null}

@@ -116,7 +116,7 @@ export function RunDetailPage() {
         description={modeLabel(run.executionMode, run.maxConcurrency, '任务')}
         actions={
           <>
-            {run.status === 'draft' ? <Link className="button button-secondary" to={`/runs/${run.id}/edit`}>编辑</Link> : null}
+            {run.status === 'draft' ? <Button variant="secondary" asChild><Link to={`/runs/${run.id}/edit`}>编辑</Link></Button> : null}
             {run.status === 'draft' ? <Button variant="primary" onClick={() => void publishDraft()} disabled={acting}>开始运行</Button> : null}
             {canPause ? <Button variant="secondary" onClick={() => void control('pause')} disabled={acting}>暂停</Button> : null}
             {canResume ? <Button variant="primary" onClick={() => void control('resume')} disabled={acting}>继续</Button> : null}

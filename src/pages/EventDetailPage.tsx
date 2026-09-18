@@ -34,7 +34,7 @@ export function EventDetailPage() {
         description="执行器接收到的队列与当前运行状态。"
         actions={
           <>
-            <Link className="button button-secondary" to={`/tasks/${event.task}`}>返回 Task</Link>
+            <Button variant="secondary" asChild><Link to={`/tasks/${event.task}`}>返回 Task</Link></Button>
             <Button variant="secondary" onClick={() => void copyQueue()}>复制完整队列</Button>
           </>
         }

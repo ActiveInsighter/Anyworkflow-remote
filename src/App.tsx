@@ -6,7 +6,7 @@ import { RunDetailPage } from './pages/RunDetailPage'
 import { RunEditorPage } from './pages/RunEditorPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { TaskDetailPage } from './pages/TaskDetailPage'
-import { Card } from './components/ui'
+import { Button, Card } from './components/ui'
 
 function NotFoundPage() {
   return (
@@ -14,7 +14,7 @@ function NotFoundPage() {
       <div className="empty-symbol">404</div>
       <h2>页面不存在</h2>
       <p>这个地址没有对应的 AnyWorkflow 页面。</p>
-      <Link className="button button-primary" to="/">返回工作流</Link>
+      <Button variant="primary" asChild><Link to="/">返回工作流</Link></Button>
     </Card>
   )
 }

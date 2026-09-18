@@ -1,5 +1,28 @@
 @import "tailwindcss";
 
+@theme inline {
+  --color-background: var(--ui-background);
+  --color-foreground: var(--ui-foreground);
+  --color-card: var(--ui-card);
+  --color-card-foreground: var(--ui-card-foreground);
+  --color-primary: var(--ui-primary);
+  --color-primary-foreground: var(--ui-primary-foreground);
+  --color-secondary: var(--ui-secondary);
+  --color-secondary-foreground: var(--ui-secondary-foreground);
+  --color-muted: var(--ui-muted);
+  --color-muted-foreground: var(--ui-muted-foreground);
+  --color-accent: var(--ui-accent);
+  --color-accent-foreground: var(--ui-accent-foreground);
+  --color-destructive: var(--ui-destructive);
+  --color-border: var(--ui-border);
+  --color-input: var(--ui-input);
+  --color-ring: var(--ui-ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
 :root {
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
@@ -29,7 +52,23 @@
   --info: #315f9a;
   --info-soft: #edf4ff;
   --shadow: 0 1px 2px rgb(19 25 33 / 4%), 0 10px 28px rgb(19 25 33 / 5%);
-  --radius: 18px;
+  --radius: 14px;
+  --ui-background: #f5f6f8;
+  --ui-foreground: #17191d;
+  --ui-card: #ffffff;
+  --ui-card-foreground: #17191d;
+  --ui-primary: #17191d;
+  --ui-primary-foreground: #ffffff;
+  --ui-secondary: #f0f2f5;
+  --ui-secondary-foreground: #252a31;
+  --ui-muted: #f0f2f5;
+  --ui-muted-foreground: #6f7782;
+  --ui-accent: #edf5f3;
+  --ui-accent-foreground: #173f3e;
+  --ui-destructive: #b93832;
+  --ui-border: #e2e5e9;
+  --ui-input: #d8dce2;
+  --ui-ring: #6e8f8b;
 }
 
 * {
@@ -1218,6 +1257,22 @@ textarea:focus-visible {
     --info: #8bb8ee;
     --info-soft: #0f1c2b;
     --shadow: none;
+    --ui-background: #000000;
+    --ui-foreground: #f1f3f4;
+    --ui-card: #0b0b0c;
+    --ui-card-foreground: #f1f3f4;
+    --ui-primary: #f1f3f4;
+    --ui-primary-foreground: #080809;
+    --ui-secondary: #17181b;
+    --ui-secondary-foreground: #e6e9ed;
+    --ui-muted: #17181b;
+    --ui-muted-foreground: #959ca6;
+    --ui-accent: #10211f;
+    --ui-accent-foreground: #aad8d1;
+    --ui-destructive: #f08882;
+    --ui-border: #1d1f23;
+    --ui-input: #2a2d32;
+    --ui-ring: #8dc8bf;
   }
 
   .button-primary,
@@ -1492,4 +1547,56 @@ textarea:focus-visible {
     min-height: 250px;
     padding: 32px 20px;
   }
+}
+
+
+.fatal-error-screen {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px;
+  background: var(--bg);
+}
+
+.fatal-error-card {
+  width: min(100%, 620px);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--panel);
+  padding: 28px;
+  box-shadow: var(--shadow);
+}
+
+.fatal-error-code {
+  color: var(--danger);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .12em;
+}
+
+.fatal-error-card h1 {
+  margin: 8px 0;
+  font-size: 26px;
+}
+
+.fatal-error-card p {
+  color: var(--text-2);
+  line-height: 1.7;
+}
+
+.fatal-error-card pre {
+  max-height: 180px;
+  overflow: auto;
+  border-radius: 10px;
+  background: var(--panel-soft);
+  padding: 12px;
+  color: var(--text-2);
+  white-space: pre-wrap;
+}
+
+.fatal-error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
 }
