@@ -3,7 +3,6 @@ import { AlertCircle, CircleDashed, LoaderCircle } from 'lucide-react'
 import type { StatusTone } from '@/types'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Progress } from '@/components/ui/progress'
@@ -26,14 +25,15 @@ const progressToneClasses: Record<StatusTone, string> = {
   warning: 'bg-[var(--warning)]',
 }
 
-export function AppPage({
-  children,
-  className,
-}: {
-  children: ReactNode
-  className?: string
-}) {
-  return <div className={cn('mx-auto w-full max-w-6xl px-4 pb-8 pt-6 sm:px-6 sm:pb-10 sm:pt-8 lg:px-8 lg:pt-10', className)}>{children}</div>
+export function AppPage({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <div className={cn(
+      'mx-auto w-full max-w-[1220px] px-4 pb-10 pt-5 sm:px-6 sm:pt-7 lg:px-8 lg:pb-14',
+      className,
+    )}>
+      {children}
+    </div>
+  )
 }
 
 export function PageHeader({
@@ -46,12 +46,12 @@ export function PageHeader({
   actions?: ReactNode
 }) {
   return (
-    <header className="mb-6 flex flex-col gap-4 sm:mb-7 sm:flex-row sm:items-start sm:justify-between">
+    <header className="mb-5 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
-        {eyebrow ? <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{eyebrow}</p> : null}
-        <h1 className="text-balance text-[28px] font-semibold tracking-[-0.035em] sm:text-3xl lg:text-[34px]">{title}</h1>
+        {eyebrow ? <div className="mb-1 text-[11px] font-medium text-muted-foreground">{eyebrow}</div> : null}
+        <h1 className="truncate text-[24px] font-semibold tracking-[-0.035em] sm:text-[26px]">{title}</h1>
       </div>
-      {actions ? <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:shrink-0 sm:justify-end">{actions}</div> : null}
+      {actions ? <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0 sm:justify-end">{actions}</div> : null}
     </header>
   )
 }
@@ -66,18 +66,18 @@ export function SectionHeading({
   trailing?: ReactNode
 }) {
   return (
-    <div className="mb-3 mt-7 flex items-end justify-between gap-4">
-      <div>
-        {eyebrow ? <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{eyebrow}</p> : null}
-        <h2 className="text-lg font-semibold tracking-[-0.02em]">{title}</h2>
+    <div className="mb-2 mt-6 flex items-center justify-between gap-4">
+      <div className="min-w-0">
+        {eyebrow ? <div className="mb-0.5 text-[10px] font-medium text-muted-foreground">{eyebrow}</div> : null}
+        <h2 className="truncate text-sm font-semibold tracking-[-0.015em]">{title}</h2>
       </div>
-      {trailing ? <div className="text-xs text-muted-foreground">{trailing}</div> : null}
+      {trailing ? <div className="shrink-0 text-xs tabular-nums text-muted-foreground">{trailing}</div> : null}
     </div>
   )
 }
 
 export function StatusBadge({ tone, children }: { tone: StatusTone; children: ReactNode }) {
-  return <Badge className={cn('h-6 rounded-full px-2.5 text-[10px] font-semibold', toneClasses[tone])}>{children}</Badge>
+  return <Badge className={cn('h-6 rounded-md px-2 text-[10px] font-medium', toneClasses[tone])}>{children}</Badge>
 }
 
 export function ProgressBar({
@@ -93,8 +93,8 @@ export function ProgressBar({
   return (
     <Progress
       value={safeValue}
-      aria-label={`进度 ${safeValue}%`}
-      className={cn('h-1.5 bg-muted', className)}
+      aria-label={'进度 ' + safeValue + '%'}
+      className={cn('h-1 bg-muted', className)}
       indicatorClassName={progressToneClasses[tone]}
     />
   )
@@ -102,7 +102,7 @@ export function ProgressBar({
 
 export function ErrorBanner({ children }: { children: ReactNode }) {
   return (
-    <Alert variant="destructive" className="mb-4">
+    <Alert variant="destructive" className="mb-4 rounded-lg">
       <AlertCircle />
       <AlertDescription>{children}</AlertDescription>
     </Alert>
@@ -111,69 +111,47 @@ export function ErrorBanner({ children }: { children: ReactNode }) {
 
 export function LoadingState({ label = '加载中…' }: { label?: string }) {
   return (
-    <Card className="border-dashed bg-card/70">
-      <CardContent className="flex min-h-36 items-center justify-center gap-2.5 p-6 text-sm text-muted-foreground" role="status" aria-live="polite">
-        <LoaderCircle className="size-4 animate-spin" />
-        <span>{label}</span>
-      </CardContent>
-    </Card>
+    <div className="flex min-h-32 items-center justify-center gap-2 rounded-lg border border-dashed text-sm text-muted-foreground" role="status" aria-live="polite">
+      <LoaderCircle className="size-4 animate-spin" />
+      <span>{label}</span>
+    </div>
   )
 }
 
-export function EmptyState({
-  title,
-  action,
-}: {
-  title: string
-  action?: ReactNode
-}) {
+export function EmptyState({ title, action }: { title: string; action?: ReactNode }) {
   return (
-    <Card className="border-dashed bg-card/70">
-      <CardContent className="flex min-h-52 flex-col items-center justify-center p-8 text-center">
-        <div className="mb-4 grid size-10 place-items-center rounded-lg bg-muted text-muted-foreground">
-          <CircleDashed className="size-5" />
-        </div>
-        <h2 className="text-base font-semibold tracking-tight">{title}</h2>
-        {action ? <div className="mt-5">{action}</div> : null}
-      </CardContent>
-    </Card>
+    <div className="flex min-h-44 flex-col items-center justify-center rounded-lg border border-dashed px-6 py-10 text-center">
+      <CircleDashed className="mb-3 size-5 text-muted-foreground" />
+      <div className="text-sm font-medium">{title}</div>
+      {action ? <div className="mt-4">{action}</div> : null}
+    </div>
   )
 }
 
-export function Field({
-  label,
-  children,
-}: {
-  label: string
-  children: ReactNode
-}) {
+export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="grid gap-2">
-      <Label className="text-xs font-medium">{label}</Label>
+    <div className="grid gap-1.5">
+      <Label className="text-[11px] font-medium text-muted-foreground">{label}</Label>
       {children}
     </div>
   )
 }
 
 export function TextInput(props: InputHTMLAttributes<HTMLInputElement>) {
-  return <Input {...props} className={cn('h-10', props.className)} />
+  return <Input {...props} className={cn('h-9', props.className)} />
 }
 
 export function TextArea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return <Textarea {...props} className={cn(props.className)} />
 }
 
-export function MetaGrid({
-  items,
-}: {
-  items: Array<{ label: string; value: ReactNode }>
-}) {
+export function MetaGrid({ items }: { items: Array<{ label: string; value: ReactNode }> }) {
   return (
-    <dl className="grid grid-cols-2 overflow-hidden rounded-lg border bg-muted/15 sm:grid-cols-4">
+    <dl className="grid grid-cols-2 gap-x-5 gap-y-4 border-y py-4 sm:grid-cols-4 sm:gap-x-7">
       {items.map((item) => (
-        <div className="min-w-0 border-b border-r p-3.5 last:border-r-0 sm:p-4 [&:nth-last-child(-n+2)]:border-b-0 sm:[&:nth-last-child(-n+4)]:border-b-0" key={item.label}>
+        <div className="min-w-0" key={item.label}>
           <dt className="text-[10px] font-medium text-muted-foreground">{item.label}</dt>
-          <dd className="mt-1.5 break-words text-xs font-semibold sm:text-sm">{item.value}</dd>
+          <dd className="mt-1 truncate text-xs font-medium sm:text-sm">{item.value}</dd>
         </div>
       ))}
     </dl>
