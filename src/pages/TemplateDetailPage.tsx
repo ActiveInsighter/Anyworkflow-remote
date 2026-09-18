@@ -4,7 +4,6 @@ import { Link, useNavigate, useParams } from 'react-router'
 import { AppPage, ErrorBanner, LoadingState, MetaGrid, PageHeader } from '@/components/app/ui'
 import { ConfirmDeleteDialog } from '@/components/app/confirm-delete-dialog'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAsyncData } from '@/hooks/useAsyncData'
 import { toErrorMessage } from '@/lib/api'
 import { formatDateTime } from '@/lib/format'
@@ -34,7 +33,7 @@ export function TemplateDetailPage() {
     setError('')
     try {
       const result = await duplicateWorkflowTemplate(template)
-      navigate(`/templates/${result.id}`)
+      navigate('/templates/' + result.id)
     } catch (cause) {
       setError(toErrorMessage(cause))
     } finally {
@@ -58,40 +57,42 @@ export function TemplateDetailPage() {
   return (
     <AppPage>
       <PageHeader
-        eyebrow="模板"
         title={template.title || '未命名模板'}
         actions={
           <>
-            <Button asChild><Link to={`/runs/new?templateId=${encodeURIComponent(template.id)}`}><Play />使用</Link></Button>
-            <Button variant="outline" asChild><Link to={`/runs/new?templateId=${encodeURIComponent(template.id)}&mode=edit`}><Pencil />编辑</Link></Button>
+            <Button asChild><Link to={'/runs/new?templateId=' + encodeURIComponent(template.id)}><Play />使用</Link></Button>
+            <Button variant="outline" asChild><Link to={'/runs/new?templateId=' + encodeURIComponent(template.id) + '&mode=edit'}><Pencil />编辑</Link></Button>
           </>
         }
       />
+
       {state.error ? <ErrorBanner>{state.error}</ErrorBanner> : null}
       {error ? <ErrorBanner>{error}</ErrorBanner> : null}
 
-      <Card>
-        <CardContent className="p-4 sm:p-5">
-          <MetaGrid items={[
-            { label: '目录', value: template.folderRecord?.name || '未分类' },
-            { label: '更新', value: formatDateTime(template.updated) },
-            { label: '标签', value: template.tags.join(' · ') || '—' },
-            { label: '来源', value: template.sourceRun ? 'Run' : '—' },
-          ]} />
-          {template.sourceRun ? <Button variant="ghost" className="mt-3" asChild><Link to={`/runs/${template.sourceRun}`}><Workflow />来源 Run</Link></Button> : null}
-        </CardContent>
-      </Card>
+      <section className="rounded-lg border bg-card p-4 sm:p-5">
+        <MetaGrid items={[
+          { label: '目录', value: template.folderRecord?.name || '未分类' },
+          { label: '更新', value: formatDateTime(template.updated) },
+          { label: '标签', value: template.tags.join(' · ') || '—' },
+          { label: '来源', value: template.sourceRun ? 'Run' : '—' },
+        ]} />
+        {template.sourceRun ? (
+          <Button variant="ghost" size="sm" className="mt-3" asChild>
+            <Link to={'/runs/' + template.sourceRun}><Workflow />来源 Run</Link>
+          </Button>
+        ) : null}
+      </section>
 
-      <Card className="mt-4">
-        <CardHeader><CardTitle className="text-base">DSL</CardTitle></CardHeader>
-        <CardContent>
-          <pre className="m-0 max-h-[560px] overflow-auto whitespace-pre-wrap break-words rounded-lg bg-[#08090a] p-4 font-mono text-xs leading-6 text-zinc-100">{template.planText}</pre>
-        </CardContent>
-      </Card>
+      <div className="mt-5 overflow-hidden rounded-lg border bg-card">
+        <div className="border-b px-4 py-2.5 text-xs font-medium text-muted-foreground">DSL</div>
+        <pre className="m-0 max-h-[620px] overflow-auto whitespace-pre-wrap break-words bg-[var(--cm-bg)] p-4 font-mono text-xs leading-6 text-[var(--cm-fg)]">
+          {template.planText}
+        </pre>
+      </div>
 
-      <div className="mt-4 flex justify-end gap-2">
-        <Button variant="outline" onClick={() => void copy()} disabled={acting}><Copy />复制</Button>
-        <Button variant="destructive" onClick={() => setDeleteOpen(true)} disabled={acting}><Trash2 />删除</Button>
+      <div className="mt-3 flex flex-wrap justify-end gap-1 border-t pt-3">
+        <Button variant="ghost" onClick={() => void copy()} disabled={acting}><Copy />复制</Button>
+        <Button variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setDeleteOpen(true)} disabled={acting}><Trash2 />删除</Button>
       </div>
 
       <ConfirmDeleteDialog

@@ -65,32 +65,32 @@ export function FolderManagerDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>目录</DialogTitle>
         </DialogHeader>
 
-        <div className="grid gap-2">
+        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_160px_auto]">
           <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="目录名称" maxLength={120} />
           <select
             value={parent}
             onChange={(event) => setParent(event.target.value)}
-            className="h-10 rounded-lg border border-input bg-background px-3 text-sm outline-none"
+            className="h-9 rounded-md border border-input bg-background px-2.5 text-xs outline-none focus:border-ring"
           >
             <option value="">根目录</option>
             {flat.map((folder) => (
               <option key={folder.id} value={folder.id}>{'　'.repeat(folder.depth)}{folder.name}</option>
             ))}
           </select>
-          <Button onClick={() => void create()} disabled={!name.trim() || Boolean(busy)}>
-            <FolderPlus />新建目录
+          <Button size="sm" onClick={() => void create()} disabled={!name.trim() || Boolean(busy)}>
+            <FolderPlus />新建
           </Button>
         </div>
 
-        <div className="max-h-72 overflow-y-auto rounded-lg border">
-          {flat.length === 0 ? <div className="p-4 text-sm text-muted-foreground">暂无目录</div> : null}
+        <div className="max-h-72 overflow-y-auto rounded-md border">
+          {flat.length === 0 ? <div className="p-4 text-xs text-muted-foreground">暂无目录</div> : null}
           {flat.map((folder) => (
-            <div key={folder.id} className="flex items-center gap-2 border-b p-2.5 last:border-b-0" style={{ paddingLeft: 10 + folder.depth * 16 }}>
+            <div key={folder.id} className="flex items-center gap-2 border-b px-2 py-2 last:border-b-0 hover:bg-muted/20" style={{ paddingLeft: 8 + folder.depth * 14 }}>
               {editing === folder.id ? (
                 <Input
                   autoFocus
@@ -99,17 +99,17 @@ export function FolderManagerDialog({
                   className="h-8 flex-1"
                 />
               ) : (
-                <span className="min-w-0 flex-1 truncate text-sm">{folder.name}</span>
+                <span className="min-w-0 flex-1 truncate text-xs">{folder.name}</span>
               )}
               {editing === folder.id ? (
                 <Button size="sm" onClick={() => void rename(folder.id)} disabled={busy === folder.id}>保存</Button>
               ) : (
-                <Button size="icon" variant="ghost" className="size-8" onClick={() => { setEditing(folder.id); setEditingName(folder.name) }}>
-                  <Pencil />
+                <Button size="icon" variant="ghost" className="size-7" onClick={() => { setEditing(folder.id); setEditingName(folder.name) }} aria-label="重命名">
+                  <Pencil className="size-3.5" />
                 </Button>
               )}
-              <Button size="icon" variant="ghost" className="size-8 text-destructive" onClick={() => void remove(folder.id)} disabled={busy === folder.id}>
-                <Trash2 />
+              <Button size="icon" variant="ghost" className="size-7 text-destructive hover:text-destructive" onClick={() => void remove(folder.id)} disabled={busy === folder.id} aria-label="删除">
+                <Trash2 className="size-3.5" />
               </Button>
             </div>
           ))}

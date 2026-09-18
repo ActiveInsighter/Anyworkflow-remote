@@ -1,4 +1,4 @@
-import { CircleCheck, Play, Save, SlidersHorizontal } from 'lucide-react'
+import { CircleCheck, Play, Save } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { AnyWorkflowEditor, type AnyWorkflowEditorHandle } from '@/components/editor/AnyWorkflowEditor'
@@ -6,7 +6,6 @@ import { validateAnyWorkflowSource } from '@/components/editor/anyworkflow-dsl'
 import { AppPage, EmptyState, ErrorBanner, Field, LoadingState, PageHeader, TextInput } from '@/components/app/ui'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { createRun, getRun, toErrorMessage, updateRunDraft } from '@/lib/api'
 import { getWorkflowTemplate, updateWorkflowTemplate } from '@/lib/library'
 import { applyPlanMeta, createStarterPlan, parsePlanMeta } from '@/lib/plan'
@@ -167,14 +166,16 @@ export function RunEditorPage() {
         : '创建 Run'
 
   return (
-    <AppPage className="max-w-[1440px]">
+    <AppPage className="max-w-[1380px]">
       <PageHeader
-        eyebrow={templateMode === 'edit' ? '模板' : runId ? '草稿' : templateMode === 'use' ? '模板' : '新建'}
         title={pageTitle}
         actions={
           <div className="flex items-center gap-2">
-            {errorCount > 0 ? <Badge variant="destructive" className="rounded-full px-3">{errorCount} 错误</Badge> : null}
-            <Badge variant={dirty ? 'outline' : 'secondary'} className={cn('rounded-full px-3', dirty && 'border-amber-500/30 text-amber-600 dark:text-amber-400')}>
+            {errorCount > 0 ? <Badge variant="destructive" className="rounded-md">{errorCount} 错误</Badge> : null}
+            <Badge
+              variant={dirty ? 'outline' : 'secondary'}
+              className={cn('rounded-md', dirty && 'border-amber-500/30 text-amber-600 dark:text-amber-400')}
+            >
               {dirty ? '未保存' : <><CircleCheck className="mr-1 size-3" />已保存</>}
             </Badge>
           </div>
@@ -183,81 +184,77 @@ export function RunEditorPage() {
 
       {error ? <ErrorBanner>{error}</ErrorBanner> : null}
 
-      <div className="grid items-start gap-4 xl:grid-cols-[280px_minmax(0,1fr)]">
-        <Card className="xl:sticky xl:top-4">
-          <CardHeader className="pb-4">
-            <div className="mb-1 grid size-9 place-items-center rounded-lg bg-muted text-muted-foreground">
-              <SlidersHorizontal className="size-4" />
-            </div>
-            <CardTitle>Run 配置</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-5">
-            {templateMode === 'edit' ? (
-              <Field label="模板名称">
-                <TextInput value={templateTitle} maxLength={512} onChange={(event) => { setTemplateTitle(event.target.value); setDirty(true) }} />
-              </Field>
-            ) : null}
-
+      <div className="mb-3 rounded-lg border bg-card p-3">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(240px,1fr)_220px_190px_130px] xl:items-end">
+          {templateMode === 'edit' ? (
+            <Field label="模板名称">
+              <TextInput
+                value={templateTitle}
+                maxLength={512}
+                onChange={(event) => { setTemplateTitle(event.target.value); setDirty(true) }}
+              />
+            </Field>
+          ) : (
             <Field label="名称">
               <TextInput value={title} maxLength={512} onChange={(event) => updateMeta({ title: event.target.value })} />
             </Field>
+          )}
 
-            <Field label="调度">
-              <div className="grid grid-cols-2 rounded-lg border bg-muted p-1">
-                {([
-                  ['serial', '串行'],
-                  ['parallel', '并行'],
-                ] as const).map(([value, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    className={cn(
-                      'h-9 rounded-md text-sm font-medium text-muted-foreground transition-colors',
-                      mode === value && 'bg-background text-foreground',
-                    )}
-                    onClick={() => updateMeta({
-                      mode: value,
-                      maxConcurrency: value === 'serial' ? 1 : Math.max(2, maxConcurrency),
-                    })}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
+          {templateMode === 'edit' ? (
+            <Field label="Run 名称">
+              <TextInput value={title} maxLength={512} onChange={(event) => updateMeta({ title: event.target.value })} />
             </Field>
+          ) : (
+            <div className="hidden xl:block" />
+          )}
 
-            {mode === 'parallel' ? (
-              <Field label="最大并发">
-                <TextInput
-                  type="number"
-                  min={1}
-                  max={16}
-                  value={maxConcurrency}
-                  onChange={(event) => updateMeta({
-                    maxConcurrency: Math.max(1, Math.min(16, Number(event.target.value) || 1)),
+          <Field label="调度">
+            <div className="grid h-9 grid-cols-2 rounded-md bg-muted p-1">
+              {([
+                ['serial', '串行'],
+                ['parallel', '并行'],
+              ] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={cn(
+                    'rounded text-xs font-medium text-muted-foreground transition-colors',
+                    mode === value && 'bg-background text-foreground',
+                  )}
+                  onClick={() => updateMeta({
+                    mode: value,
+                    maxConcurrency: value === 'serial' ? 1 : Math.max(2, maxConcurrency),
                   })}
-                />
-              </Field>
-            ) : null}
-
-            <div className="grid gap-2 rounded-lg border bg-muted/20 p-3 text-[11px] text-muted-foreground">
-              <div className="flex justify-between gap-4"><span>补全</span><kbd>Ctrl/⌘ + Space</kbd></div>
-              <div className="flex justify-between gap-4"><span>搜索</span><kbd>Ctrl/⌘ + F</kbd></div>
-              <div className="flex justify-between gap-4"><span>保存</span><kbd>Ctrl/⌘ + S</kbd></div>
-              <div className="flex justify-between gap-4"><span>提示词</span><kbd>/</kbd></div>
+                >
+                  {label}
+                </button>
+              ))}
             </div>
-          </CardContent>
-        </Card>
+          </Field>
 
-        <AnyWorkflowEditor
-          ref={editorRef}
-          value={source}
-          onChange={onEditorChange}
-          onSave={() => void persist(false)}
-        />
+          <Field label="最大并发">
+            <TextInput
+              type="number"
+              min={1}
+              max={16}
+              disabled={mode !== 'parallel'}
+              value={mode === 'parallel' ? maxConcurrency : 1}
+              onChange={(event) => updateMeta({
+                maxConcurrency: Math.max(1, Math.min(16, Number(event.target.value) || 1)),
+              })}
+            />
+          </Field>
+        </div>
       </div>
 
-      <div className="mt-4 flex flex-col gap-2 border-t pt-4 sm:sticky sm:bottom-4 sm:z-20 sm:flex-row sm:justify-end sm:rounded-xl sm:border sm:bg-background/95 sm:p-3 sm:backdrop-blur">
+      <AnyWorkflowEditor
+        ref={editorRef}
+        value={source}
+        onChange={onEditorChange}
+        onSave={() => void persist(false)}
+      />
+
+      <div className="mt-3 flex flex-col gap-2 border-t pt-3 sm:sticky sm:bottom-3 sm:z-20 sm:flex-row sm:justify-end sm:border sm:bg-background/95 sm:p-2 sm:backdrop-blur">
         {templateMode === 'edit' ? (
           <Button onClick={() => void persist(false)} disabled={saving || errorCount > 0}>
             <Save />{saving ? '保存中…' : '保存模板'}

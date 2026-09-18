@@ -1,7 +1,6 @@
 import type { LucideIcon } from 'lucide-react'
 import { BookMarked, House, Menu, Settings, Workflow } from 'lucide-react'
 import { NavLink, Outlet } from 'react-router'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
@@ -22,7 +21,7 @@ const navItems: NavItem[] = [
 
 function navClass({ isActive }: { isActive: boolean }) {
   return cn(
-    'flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+    'group relative flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground',
     isActive && 'bg-muted text-foreground',
   )
 }
@@ -34,7 +33,7 @@ function NavItems({ mobile = false }: { mobile?: boolean }) {
         const Icon = item.icon
         const link = (
           <NavLink key={item.to} to={item.to} end={item.end} className={navClass}>
-            <Icon className="size-4" strokeWidth={2} />
+            <Icon className="size-4" strokeWidth={1.9} />
             <span>{item.label}</span>
           </NavLink>
         )
@@ -44,65 +43,68 @@ function NavItems({ mobile = false }: { mobile?: boolean }) {
   )
 }
 
-export function AppShell() {
+function AccountState() {
   const session = useSession()
+  return (
+    <div className="flex min-w-0 items-center gap-2.5">
+      <span className={cn('size-2 shrink-0 rounded-full bg-muted-foreground/35', session && 'bg-emerald-500')} />
+      <div className="min-w-0">
+        <div className="truncate text-xs font-medium">{session?.record.name || session?.record.email || '未连接'}</div>
+      </div>
+    </div>
+  )
+}
 
+export function AppShell() {
   return (
     <div className="min-h-dvh bg-background text-foreground">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r bg-card px-3 py-4 md:flex">
-        <div className="flex items-center gap-3 px-2 pb-6 pt-1">
-          <div className="grid size-9 place-items-center rounded-lg bg-[var(--ui-primary)] text-[var(--ui-primary-foreground)]">
-            <Workflow className="size-[18px]" strokeWidth={2.1} />
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[216px] flex-col border-r bg-background px-3 py-3 md:flex">
+        <div className="flex h-11 items-center gap-2.5 px-2">
+          <div className="grid size-8 place-items-center rounded-md bg-primary text-primary-foreground">
+            <Workflow className="size-4" strokeWidth={2} />
           </div>
-          <div className="text-sm font-semibold tracking-tight">AnyWorkflow</div>
+          <div className="text-sm font-semibold tracking-[-0.02em]">AnyWorkflow</div>
         </div>
 
-        <NavItems />
+        <div className="mt-5">
+          <NavItems />
+        </div>
 
         <div className="mt-auto border-t px-2 pt-4">
-          <div className="flex items-center gap-2.5">
-            <span className={cn('size-2 shrink-0 rounded-full bg-muted-foreground/40', session && 'bg-emerald-500')} />
-            <div className="truncate text-xs font-semibold">{session?.record.name || session?.record.email || '未连接'}</div>
-          </div>
+          <AccountState />
         </div>
       </aside>
 
-      <header className="sticky top-0 z-30 flex min-h-14 items-center gap-3 border-b bg-background/95 px-3 pt-[env(safe-area-inset-top)] backdrop-blur md:hidden">
+      <header className="sticky top-0 z-30 flex h-[52px] items-center gap-2 border-b bg-background/92 px-3 pt-[env(safe-area-inset-top)] backdrop-blur md:hidden">
         <Sheet>
           <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label="打开菜单">
-              <Menu className="size-5" />
+            <Button variant="ghost" size="icon" className="size-9" aria-label="打开菜单">
+              <Menu className="size-[18px]" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left">
-            <SheetHeader>
-              <div className="mb-3 flex items-center gap-2.5 pr-10">
-                <div className="grid size-9 place-items-center rounded-lg bg-[var(--ui-primary)] text-[var(--ui-primary-foreground)]">
-                  <Workflow className="size-[18px]" />
+          <SheetContent side="left" className="w-[286px]">
+            <SheetHeader className="pb-2">
+              <div className="flex items-center gap-2.5 pr-10">
+                <div className="grid size-8 place-items-center rounded-md bg-primary text-primary-foreground">
+                  <Workflow className="size-4" />
                 </div>
                 <SheetTitle>AnyWorkflow</SheetTitle>
                 <SheetDescription className="sr-only">菜单</SheetDescription>
               </div>
             </SheetHeader>
-            <div className="px-3">
+            <div className="px-3 pt-3">
               <NavItems mobile />
             </div>
             <div className="mt-auto border-t px-5 pb-[calc(18px+env(safe-area-inset-bottom))] pt-4">
-              <div className="flex items-center gap-2.5">
-                <span className={cn('size-2 rounded-full bg-muted-foreground/40', session && 'bg-emerald-500')} />
-                <div className="truncate text-xs font-semibold">{session?.record.name || session?.record.email || '未连接'}</div>
-              </div>
+              <AccountState />
             </div>
           </SheetContent>
         </Sheet>
 
-        <div className="min-w-0 flex-1 truncate text-sm font-semibold tracking-tight">AnyWorkflow</div>
-        <Badge variant={session ? 'secondary' : 'outline'} className="rounded-full px-2.5 text-[10px]">
-          {session ? '已连接' : '未连接'}
-        </Badge>
+        <div className="min-w-0 flex-1 truncate text-sm font-semibold tracking-[-0.02em]">AnyWorkflow</div>
       </header>
 
-      <main className="min-h-dvh md:pl-60">
+      <main className="min-h-dvh md:pl-[216px]">
         <Outlet />
       </main>
     </div>
