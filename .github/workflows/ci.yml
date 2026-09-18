@@ -10,9 +10,40 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: "22.22"
+
       - run: npm install
       - run: npm run typecheck
       - run: npm run build
+
+      - name: Package tested source and skills
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p artifacts
+          bundle="artifacts/anyworkflow-remote-${GITHUB_SHA}.zip"
+
+          # Archive exactly the tracked source that passed this CI run.
+          # git archive keeps Linux/Unix paths and excludes .git, node_modules,
+          # dist and other untracked build/runtime files.
+          git archive             --format=zip             --prefix=Anyworkflow-remote/             --output="${bundle}"             HEAD
+
+          # Skills are part of the AI context bundle and must never disappear
+          # silently because of a future repository/layout change.
+          unzip -Z1 "${bundle}" | grep -q '^Anyworkflow-remote/.agents/skills/.*/SKILL\.md$'
+
+          echo "Created ${bundle}"
+          unzip -l "${bundle}" | tail -n 3
+
+      - name: Upload AI context artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: anyworkflow-remote-ai-context
+          path: artifacts/anyworkflow-remote-${{ github.sha }}.zip
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
