@@ -4,7 +4,6 @@ import { Link, useNavigate } from 'react-router'
 import { AppPage, EmptyState, ErrorBanner, LoadingState, PageHeader, ProgressBar, StatusBadge } from '@/components/app/ui'
 import { ConfirmDeleteDialog } from '@/components/app/confirm-delete-dialog'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAsyncData } from '@/hooks/useAsyncData'
 import { cloneRun, deleteRun, listAllRuns, toErrorMessage } from '@/lib/api'
@@ -50,7 +49,7 @@ export function DashboardPage() {
     setActionError('')
     try {
       const copied = await cloneRun(run, status)
-      navigate(status === 'draft' ? `/runs/${copied.id}/edit` : `/runs/${copied.id}`)
+      navigate(status === 'draft' ? '/runs/' + copied.id + '/edit' : '/runs/' + copied.id)
     } catch (error) {
       setActionError(toErrorMessage(error))
     } finally {
@@ -77,11 +76,8 @@ export function DashboardPage() {
   if (!session) {
     return (
       <AppPage>
-        <PageHeader title="AnyWorkflow" />
-        <EmptyState
-          title="未连接"
-          action={<Button asChild><Link to="/settings">连接</Link></Button>}
-        />
+        <PageHeader title="工作流" />
+        <EmptyState title="未连接" action={<Button asChild><Link to="/settings">连接</Link></Button>} />
       </AppPage>
     )
   }
@@ -89,13 +85,11 @@ export function DashboardPage() {
   return (
     <AppPage>
       <PageHeader
-        eyebrow="工作流"
-        title="我的 Run"
+        title="工作流"
         actions={
           <>
-            <Button variant="outline" onClick={() => void state.reload()} disabled={state.loading}>
+            <Button variant="ghost" size="icon" onClick={() => void state.reload()} disabled={state.loading} aria-label="刷新">
               <RefreshCw className={state.loading ? 'animate-spin' : ''} />
-              刷新
             </Button>
             <Button asChild>
               <Link to="/runs/new"><Plus />新建</Link>
@@ -107,92 +101,101 @@ export function DashboardPage() {
       {state.error ? <ErrorBanner>{state.error}</ErrorBanner> : null}
       {actionError ? <ErrorBanner>{actionError}</ErrorBanner> : null}
 
-      <Tabs value={filter} onValueChange={(value) => setFilter(value as FilterKey)} className="gap-5">
-        <TabsList className="grid w-full grid-cols-4">
+      <Tabs value={filter} onValueChange={(value) => setFilter(value as FilterKey)}>
+        <TabsList className="w-full sm:w-auto">
           {([
             ['all', '全部', counts.all],
             ['draft', '草稿', counts.draft],
             ['active', '进行中', counts.active],
             ['done', '已结束', counts.done],
           ] as const).map(([value, label, count]) => (
-            <TabsTrigger key={value} value={value} className="min-w-0 gap-1 px-1 text-xs sm:px-3 sm:text-sm">
+            <TabsTrigger key={value} value={value}>
               <span>{label}</span>
-              <span className="text-[10px] tabular-nums text-muted-foreground">{count}</span>
+              <span className="tabular-nums text-muted-foreground">{count}</span>
             </TabsTrigger>
           ))}
         </TabsList>
 
         {state.loading && !state.data ? <LoadingState /> : null}
 
-        <div className="grid gap-3 lg:grid-cols-2">
-          {visibleRuns.map((run) => {
-            const status = runStatusMeta(run.status, run.requestedAction)
-            const percent = progressPercent(run.completedTasks, run.totalTasks)
-            const terminal = ['succeeded', 'failed', 'canceled'].includes(run.status)
-            const canDelete = run.status === 'draft' || terminal
+        {visibleRuns.length ? (
+          <div className="overflow-hidden rounded-lg border bg-card">
+            {visibleRuns.map((run) => {
+              const status = runStatusMeta(run.status, run.requestedAction)
+              const percent = progressPercent(run.completedTasks, run.totalTasks)
+              const terminal = ['succeeded', 'failed', 'canceled'].includes(run.status)
+              const canDelete = run.status === 'draft' || terminal
 
-            return (
-              <Card key={run.id} className="overflow-hidden transition-colors hover:border-foreground/15">
-                <CardHeader className="gap-3 p-4 pb-3 sm:p-5 sm:pb-3">
-                  <div className="flex items-start justify-between gap-4">
+              return (
+                <div
+                  key={run.id}
+                  className="border-b p-4 last:border-b-0 hover:bg-muted/20"
+                >
+                  <div className="grid gap-3 md:grid-cols-[minmax(0,1.5fr)_180px_130px_auto] md:items-center">
                     <div className="min-w-0">
-                      <Link to={`/runs/${run.id}`} className="block truncate text-base font-semibold tracking-tight">
-                        {run.title || '未命名 Run'}
-                      </Link>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {run.status === 'draft' ? '草稿' : `${run.totalTasks} Tasks`} · {modeLabel(run.executionMode, run.maxConcurrency, '任务')}
-                      </p>
+                      <div className="flex min-w-0 items-center gap-2">
+                        <Link to={'/runs/' + run.id} className="truncate text-sm font-semibold tracking-[-0.015em] hover:underline">
+                          {run.title || '未命名 Run'}
+                        </Link>
+                        <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+                      </div>
+                      <div className="mt-1 text-[11px] text-muted-foreground">
+                        {modeLabel(run.executionMode, run.maxConcurrency, '任务')}
+                      </div>
                     </div>
-                    <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+
+                    <div className="min-w-0">
+                      <div className="mb-1.5 flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
+                        <span>{progressText(run.completedTasks, run.totalTasks, 'Tasks')}</span>
+                        <span>{Math.round(percent)}%</span>
+                      </div>
+                      <ProgressBar value={percent} tone={status.tone} />
+                    </div>
+
+                    <div className="text-[11px] text-muted-foreground md:text-right">
+                      {formatDateTime(run.updated)}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1 md:justify-end">
+                      {run.status === 'draft' ? (
+                        <Button size="sm" variant="ghost" onClick={() => navigate('/runs/' + run.id + '/edit')}>
+                          <Pencil />编辑
+                        </Button>
+                      ) : null}
+                      <Button size="sm" variant="ghost" onClick={() => void copyRun(run, 'draft')} disabled={Boolean(actingId) || !run.planText.trim()}>
+                        <Copy />复制
+                      </Button>
+                      {terminal ? (
+                        <Button size="sm" variant="ghost" onClick={() => void copyRun(run, 'queued')} disabled={Boolean(actingId) || !run.planText.trim()}>
+                          <RotateCcw />重跑
+                        </Button>
+                      ) : null}
+                      {canDelete ? (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => setDeleteTarget(run)}
+                          disabled={Boolean(actingId)}
+                        >
+                          <Trash2 />
+                          <span className="md:hidden">删除</span>
+                        </Button>
+                      ) : null}
+                    </div>
                   </div>
-
-                  <ProgressBar value={percent} tone={status.tone} />
-
-                  <div className="flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
-                    <span>{progressText(run.completedTasks, run.totalTasks, 'Tasks')}</span>
-                    <span>{formatDateTime(run.updated)}</span>
-                  </div>
-                </CardHeader>
-
-                <CardContent className="px-4 pb-3 pt-0 sm:px-5">
-                  <Button variant="ghost" className="h-8 w-full justify-start px-0 text-xs text-muted-foreground hover:bg-transparent hover:text-foreground" asChild>
-                    <Link to={`/runs/${run.id}`}>详情</Link>
-                  </Button>
-                </CardContent>
-
-                <CardFooter className="flex flex-wrap justify-end gap-1 border-t bg-transparent p-2.5">
-                  {run.status === 'draft' ? (
-                    <Button size="sm" variant="ghost" onClick={() => navigate(`/runs/${run.id}/edit`)}>
-                      <Pencil />编辑
-                    </Button>
-                  ) : null}
-                  <Button size="sm" variant="ghost" onClick={() => void copyRun(run, 'draft')} disabled={Boolean(actingId) || !run.planText.trim()}>
-                    <Copy />复制
-                  </Button>
-                  {terminal ? (
-                    <Button size="sm" variant="ghost" onClick={() => void copyRun(run, 'queued')} disabled={Boolean(actingId) || !run.planText.trim()}>
-                      <RotateCcw />重跑
-                    </Button>
-                  ) : null}
-                  {canDelete ? (
-                    <Button size="sm" variant="ghost" className="text-destructive hover:bg-destructive/8 hover:text-destructive" onClick={() => setDeleteTarget(run)} disabled={Boolean(actingId)}>
-                      <Trash2 />删除
-                    </Button>
-                  ) : null}
-                </CardFooter>
-              </Card>
-            )
-          })}
-        </div>
+                </div>
+              )
+            })}
+          </div>
+        ) : null}
       </Tabs>
 
       {!state.loading && visibleRuns.length === 0 ? (
-        <div className="mt-5">
-          <EmptyState
-            title="暂无 Run"
-            action={filter === 'all' ? <Button asChild><Link to="/runs/new"><Plus />新建</Link></Button> : undefined}
-          />
-        </div>
+        <EmptyState
+          title="暂无 Run"
+          action={filter === 'all' ? <Button asChild><Link to="/runs/new"><Plus />新建</Link></Button> : undefined}
+        />
       ) : null}
 
       <ConfirmDeleteDialog
