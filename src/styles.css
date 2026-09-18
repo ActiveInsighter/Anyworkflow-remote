@@ -17,10 +17,10 @@
   --color-border: var(--ui-border);
   --color-input: var(--ui-input);
   --color-ring: var(--ui-ring);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 3px);
+  --radius-md: calc(var(--radius) - 1px);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-xl: calc(var(--radius) + 3px);
 }
 
 :root {
@@ -30,52 +30,52 @@
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 
-  --radius: 10px;
-  --ui-background: #f7f8f8;
-  --ui-foreground: #1b1f22;
+  --radius: 8px;
+  --ui-background: #f6f7f7;
+  --ui-foreground: #171b19;
   --ui-card: #ffffff;
-  --ui-card-foreground: #1b1f22;
-  --ui-primary: #2f6f66;
+  --ui-card-foreground: #171b19;
+  --ui-primary: #315f58;
   --ui-primary-foreground: #ffffff;
-  --ui-secondary: #edf1f0;
-  --ui-secondary-foreground: #33423f;
-  --ui-muted: #eef1f1;
-  --ui-muted-foreground: #77807f;
-  --ui-accent: #e8f1ef;
+  --ui-secondary: #eef1f0;
+  --ui-secondary-foreground: #2e3c39;
+  --ui-muted: #eff2f1;
+  --ui-muted-foreground: #747d7a;
+  --ui-accent: #eaf1ef;
   --ui-accent-foreground: #29564f;
-  --ui-destructive: #c34f49;
-  --ui-border: #e0e5e4;
-  --ui-input: #d4dcda;
-  --ui-ring: #78a59d;
+  --ui-destructive: #bc4c47;
+  --ui-border: #e1e6e4;
+  --ui-input: #d9dfdd;
+  --ui-ring: #7ba9a1;
 
-  --info: #4c759b;
-  --info-soft: #eef4f8;
-  --success: #34775a;
-  --success-soft: #edf6f1;
-  --warning: #9a6b24;
-  --warning-soft: #fbf5e9;
-  --danger: #c34f49;
-  --danger-soft: #fbefee;
+  --info: #456f96;
+  --info-soft: #edf3f7;
+  --success: #34745a;
+  --success-soft: #ecf5f0;
+  --warning: #94651f;
+  --warning-soft: #faf3e6;
+  --danger: #bc4c47;
+  --danger-soft: #faeeee;
 
-  --cm-bg: #fbfcfc;
-  --cm-fg: #202625;
-  --cm-gutter-bg: #f3f6f5;
-  --cm-gutter-fg: #8a9491;
-  --cm-toolbar-bg: #f7f9f8;
-  --cm-border: #dfe5e3;
-  --cm-active-line: #eef5f3;
-  --cm-selection: #d9ebe7;
+  --cm-bg: #ffffff;
+  --cm-fg: #202624;
+  --cm-gutter-bg: #f7f8f8;
+  --cm-gutter-fg: #8b9491;
+  --cm-toolbar-bg: #fafbfb;
+  --cm-border: #e0e5e3;
+  --cm-active-line: #f0f6f4;
+  --cm-selection: #dcece8;
   --cm-tooltip-bg: #ffffff;
-  --cm-caret: #2f6f66;
-  --cm-keyword: #8a3d8f;
-  --cm-variable: #8a5d15;
-  --cm-string: #337358;
-  --cm-link: #356b9a;
-  --cm-atom: #7658a8;
-  --cm-number: #9b5b36;
-  --cm-function: #356b9a;
+  --cm-caret: #315f58;
+  --cm-keyword: #87458c;
+  --cm-variable: #8c611a;
+  --cm-string: #2f7355;
+  --cm-link: #356c98;
+  --cm-atom: #6f5ba2;
+  --cm-number: #955b36;
+  --cm-function: #356c98;
   --cm-comment: #87908d;
-  --cm-bracket: #5e6865;
+  --cm-bracket: #626b68;
 }
 
 * {
@@ -106,18 +106,26 @@ body {
 body,
 button,
 input,
-textarea {
+textarea,
+select {
   font: inherit;
 }
 
 button,
 a,
 input,
-textarea {
+textarea,
+select {
   -webkit-tap-highlight-color: transparent;
 }
 
+button,
+select {
+  color: inherit;
+}
+
 a {
+  color: inherit;
   text-decoration: none;
 }
 
@@ -131,64 +139,79 @@ pre,
   background: color-mix(in srgb, var(--ui-ring) 22%, transparent);
 }
 
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ui-muted-foreground) 30%, transparent);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --ui-background: #000000;
-    --ui-foreground: #f1f4f3;
-    --ui-card: #0a0c0c;
-    --ui-card-foreground: #f1f4f3;
-    --ui-primary: #8fc9bf;
-    --ui-primary-foreground: #08201c;
-    --ui-secondary: #151a19;
-    --ui-secondary-foreground: #e6ecea;
-    --ui-muted: #141918;
-    --ui-muted-foreground: #98a19f;
-    --ui-accent: #10211e;
-    --ui-accent-foreground: #b1ddd5;
-    --ui-destructive: #ef817a;
-    --ui-border: #202624;
-    --ui-input: #2b3331;
-    --ui-ring: #7fb4ab;
+    --ui-foreground: #eef2f0;
+    --ui-card: #090b0a;
+    --ui-card-foreground: #eef2f0;
+    --ui-primary: #91c9c0;
+    --ui-primary-foreground: #08211d;
+    --ui-secondary: #141817;
+    --ui-secondary-foreground: #e4e9e7;
+    --ui-muted: #121615;
+    --ui-muted-foreground: #929b98;
+    --ui-accent: #10201d;
+    --ui-accent-foreground: #b5ded7;
+    --ui-destructive: #ec7d77;
+    --ui-border: #1f2422;
+    --ui-input: #2a312f;
+    --ui-ring: #7fb5ac;
 
-    --info: #8fb6df;
-    --info-soft: #101b27;
-    --success: #83c8a6;
-    --success-soft: #102019;
-    --warning: #dfb86f;
-    --warning-soft: #221b11;
-    --danger: #ed817a;
-    --danger-soft: #241312;
+    --info: #8bb5dc;
+    --info-soft: #101b25;
+    --success: #82c6a3;
+    --success-soft: #0e1f18;
+    --warning: #ddb36a;
+    --warning-soft: #211a10;
+    --danger: #ec7d77;
+    --danger-soft: #231211;
 
-    --cm-bg: #080a0a;
-    --cm-fg: #e8eeec;
-    --cm-gutter-bg: #0d1010;
-    --cm-gutter-fg: #66706e;
-    --cm-toolbar-bg: #0c0f0f;
-    --cm-border: #202725;
-    --cm-active-line: #101716;
-    --cm-selection: #18332f;
-    --cm-tooltip-bg: #101413;
-    --cm-caret: #8fc9bf;
-    --cm-keyword: #d9a2dc;
-    --cm-variable: #e1b875;
-    --cm-string: #93d2ae;
-    --cm-link: #8dbdea;
-    --cm-atom: #b7a2e8;
-    --cm-number: #e4a681;
-    --cm-function: #8dbdea;
-    --cm-comment: #6f7a77;
-    --cm-bracket: #a6b0ad;
+    --cm-bg: #080a09;
+    --cm-fg: #e7ecea;
+    --cm-gutter-bg: #0c0f0e;
+    --cm-gutter-fg: #69716f;
+    --cm-toolbar-bg: #0b0e0d;
+    --cm-border: #202624;
+    --cm-active-line: #101715;
+    --cm-selection: #18342f;
+    --cm-tooltip-bg: #101412;
+    --cm-caret: #91c9c0;
+    --cm-keyword: #d8a4db;
+    --cm-variable: #dfb675;
+    --cm-string: #91cfac;
+    --cm-link: #89b9e5;
+    --cm-atom: #b4a0e3;
+    --cm-number: #e0a17e;
+    --cm-function: #89b9e5;
+    --cm-comment: #6e7774;
+    --cm-bracket: #a4adaa;
   }
 }
 
-
 .aw-code-editor .cm-editor {
-  min-height: 360px;
+  min-height: 400px;
 }
 
 .aw-code-editor .cm-scroller {
-  min-height: 360px;
-  max-height: min(68vh, 760px);
+  min-height: 400px;
+  max-height: min(72vh, 820px);
   overflow: auto;
 }
 
@@ -205,8 +228,8 @@ pre,
 }
 
 .aw-code-editor .cm-tooltip-autocomplete ul {
-  font-family: inherit;
   max-height: 300px;
+  font-family: inherit;
 }
 
 .aw-code-editor .cm-completionLabel {
@@ -222,7 +245,7 @@ pre,
 @media (max-width: 640px) {
   .aw-code-editor .cm-editor,
   .aw-code-editor .cm-scroller {
-    min-height: 52vh;
+    min-height: 54vh;
   }
 
   .aw-code-editor .cm-gutters {
