@@ -16,7 +16,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { to: '/', label: '工作流', icon: House, end: true },
-  { to: '/settings', label: '连接设置', icon: Settings },
+  { to: '/settings', label: '设置', icon: Settings },
 ]
 
 function navClass({ isActive }: { isActive: boolean }) {
@@ -28,7 +28,7 @@ function navClass({ isActive }: { isActive: boolean }) {
 
 function NavItems({ mobile = false }: { mobile?: boolean }) {
   return (
-    <nav className="grid gap-1" aria-label={mobile ? '移动端菜单' : '主导航'}>
+    <nav className="grid gap-1" aria-label={mobile ? '菜单' : '主导航'}>
       {navItems.map((item) => {
         const Icon = item.icon
         const link = (
@@ -53,21 +53,15 @@ export function AppShell() {
           <div className="grid size-9 place-items-center rounded-lg bg-[var(--ui-primary)] text-[var(--ui-primary-foreground)]">
             <Workflow className="size-[18px]" strokeWidth={2.1} />
           </div>
-          <div className="min-w-0">
-            <div className="text-sm font-semibold tracking-tight">AnyWorkflow</div>
-            <div className="mt-0.5 text-[11px] text-muted-foreground">Remote Console</div>
-          </div>
+          <div className="text-sm font-semibold tracking-tight">AnyWorkflow</div>
         </div>
 
         <NavItems />
 
-        <div className="mt-auto border-t pt-4">
-          <div className="flex items-start gap-2.5 px-2 py-1">
-            <span className={cn('mt-1 size-2 shrink-0 rounded-full bg-muted-foreground/40', session && 'bg-emerald-500')} />
-            <div className="min-w-0">
-              <div className="truncate text-xs font-semibold">{session?.record.name || session?.record.email || '未连接'}</div>
-              <div className="mt-1 text-[10px] leading-4 text-muted-foreground">{session ? 'PocketBase 已连接' : '连接账号后同步工作流'}</div>
-            </div>
+        <div className="mt-auto border-t px-2 pt-4">
+          <div className="flex items-center gap-2.5">
+            <span className={cn('size-2 shrink-0 rounded-full bg-muted-foreground/40', session && 'bg-emerald-500')} />
+            <div className="truncate text-xs font-semibold">{session?.record.name || session?.record.email || '未连接'}</div>
           </div>
         </div>
       </aside>
@@ -85,10 +79,8 @@ export function AppShell() {
                 <div className="grid size-9 place-items-center rounded-lg bg-[var(--ui-primary)] text-[var(--ui-primary-foreground)]">
                   <Workflow className="size-[18px]" />
                 </div>
-                <div>
-                  <SheetTitle>AnyWorkflow</SheetTitle>
-                  <SheetDescription>Remote Console</SheetDescription>
-                </div>
+                <SheetTitle>AnyWorkflow</SheetTitle>
+                <SheetDescription className="sr-only">菜单</SheetDescription>
               </div>
             </SheetHeader>
             <div className="px-3">
@@ -97,19 +89,13 @@ export function AppShell() {
             <div className="mt-auto border-t px-5 pb-[calc(18px+env(safe-area-inset-bottom))] pt-4">
               <div className="flex items-center gap-2.5">
                 <span className={cn('size-2 rounded-full bg-muted-foreground/40', session && 'bg-emerald-500')} />
-                <div className="min-w-0">
-                  <div className="truncate text-xs font-semibold">{session?.record.name || session?.record.email || '未连接'}</div>
-                  <div className="mt-0.5 text-[10px] text-muted-foreground">{session ? 'PocketBase 已连接' : '尚未连接账号'}</div>
-                </div>
+                <div className="truncate text-xs font-semibold">{session?.record.name || session?.record.email || '未连接'}</div>
               </div>
             </div>
           </SheetContent>
         </Sheet>
 
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <span className="truncate text-sm font-semibold tracking-tight">AnyWorkflow</span>
-        </div>
-
+        <div className="min-w-0 flex-1 truncate text-sm font-semibold tracking-tight">AnyWorkflow</div>
         <Badge variant={session ? 'secondary' : 'outline'} className="rounded-full px-2.5 text-[10px]">
           {session ? '已连接' : '未连接'}
         </Badge>

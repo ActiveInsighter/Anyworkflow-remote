@@ -15,8 +15,7 @@ function NotFoundPage() {
     <AppPage>
       <EmptyState
         title="页面不存在"
-        description="这个地址没有对应的 AnyWorkflow 页面。"
-        action={<Button asChild><Link to="/"><FileQuestion />返回工作流</Link></Button>}
+        action={<Button asChild><Link to="/"><FileQuestion />工作流</Link></Button>}
       />
     </AppPage>
   )

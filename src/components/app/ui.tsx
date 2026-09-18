@@ -33,26 +33,23 @@ export function AppPage({
   children: ReactNode
   className?: string
 }) {
-  return <div className={cn('mx-auto w-full max-w-6xl px-4 pb-12 pt-6 sm:px-6 sm:pt-8 lg:px-8 lg:pt-10', className)}>{children}</div>
+  return <div className={cn('mx-auto w-full max-w-6xl px-4 pb-8 pt-6 sm:px-6 sm:pb-10 sm:pt-8 lg:px-8 lg:pt-10', className)}>{children}</div>
 }
 
 export function PageHeader({
   eyebrow,
   title,
-  description,
   actions,
 }: {
   eyebrow?: string
   title: string
-  description?: string
   actions?: ReactNode
 }) {
   return (
-    <header className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-start sm:justify-between">
+    <header className="mb-6 flex flex-col gap-4 sm:mb-7 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0">
         {eyebrow ? <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{eyebrow}</p> : null}
         <h1 className="text-balance text-[28px] font-semibold tracking-[-0.035em] sm:text-3xl lg:text-[34px]">{title}</h1>
-        {description ? <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{description}</p> : null}
       </div>
       {actions ? <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:shrink-0 sm:justify-end">{actions}</div> : null}
     </header>
@@ -69,7 +66,7 @@ export function SectionHeading({
   trailing?: ReactNode
 }) {
   return (
-    <div className="mb-3 mt-8 flex items-end justify-between gap-4">
+    <div className="mb-3 mt-7 flex items-end justify-between gap-4">
       <div>
         {eyebrow ? <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{eyebrow}</p> : null}
         <h2 className="text-lg font-semibold tracking-[-0.02em]">{title}</h2>
@@ -112,10 +109,10 @@ export function ErrorBanner({ children }: { children: ReactNode }) {
   )
 }
 
-export function LoadingState({ label = '正在加载…' }: { label?: string }) {
+export function LoadingState({ label = '加载中…' }: { label?: string }) {
   return (
-    <Card className="border-dashed bg-card/70 shadow-none">
-      <CardContent className="flex min-h-44 items-center justify-center gap-2.5 p-6 text-sm text-muted-foreground" role="status" aria-live="polite">
+    <Card className="border-dashed bg-card/70">
+      <CardContent className="flex min-h-36 items-center justify-center gap-2.5 p-6 text-sm text-muted-foreground" role="status" aria-live="polite">
         <LoaderCircle className="size-4 animate-spin" />
         <span>{label}</span>
       </CardContent>
@@ -125,21 +122,18 @@ export function LoadingState({ label = '正在加载…' }: { label?: string }) 
 
 export function EmptyState({
   title,
-  description,
   action,
 }: {
   title: string
-  description?: string
   action?: ReactNode
 }) {
   return (
-    <Card className="border-dashed bg-card/70 shadow-none">
-      <CardContent className="flex min-h-64 flex-col items-center justify-center p-8 text-center sm:p-12">
-        <div className="mb-4 grid size-11 place-items-center rounded-xl bg-muted text-muted-foreground">
+    <Card className="border-dashed bg-card/70">
+      <CardContent className="flex min-h-52 flex-col items-center justify-center p-8 text-center">
+        <div className="mb-4 grid size-10 place-items-center rounded-lg bg-muted text-muted-foreground">
           <CircleDashed className="size-5" />
         </div>
-        <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
-        {description ? <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">{description}</p> : null}
+        <h2 className="text-base font-semibold tracking-tight">{title}</h2>
         {action ? <div className="mt-5">{action}</div> : null}
       </CardContent>
     </Card>
@@ -148,18 +142,15 @@ export function EmptyState({
 
 export function Field({
   label,
-  hint,
   children,
 }: {
   label: string
-  hint?: string
   children: ReactNode
 }) {
   return (
     <div className="grid gap-2">
       <Label className="text-xs font-medium">{label}</Label>
       {children}
-      {hint ? <p className="text-[11px] leading-5 text-muted-foreground">{hint}</p> : null}
     </div>
   )
 }
@@ -178,7 +169,7 @@ export function MetaGrid({
   items: Array<{ label: string; value: ReactNode }>
 }) {
   return (
-    <dl className="grid grid-cols-2 overflow-hidden rounded-lg border bg-muted/20 sm:grid-cols-4">
+    <dl className="grid grid-cols-2 overflow-hidden rounded-lg border bg-muted/15 sm:grid-cols-4">
       {items.map((item) => (
         <div className="min-w-0 border-b border-r p-3.5 last:border-r-0 sm:p-4 [&:nth-last-child(-n+2)]:border-b-0 sm:[&:nth-last-child(-n+4)]:border-b-0" key={item.label}>
           <dt className="text-[10px] font-medium text-muted-foreground">{item.label}</dt>

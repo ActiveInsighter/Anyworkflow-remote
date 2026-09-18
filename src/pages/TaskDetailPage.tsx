@@ -28,7 +28,7 @@ export function TaskDetailPage() {
     { enabled: Boolean(taskId), pollMs: 5000, errorMessage: toErrorMessage },
   )
 
-  if (state.loading && !state.data) return <AppPage><LoadingState label="正在读取 Task…" /></AppPage>
+  if (state.loading && !state.data) return <AppPage><LoadingState /></AppPage>
   if (state.error && !state.data) return <AppPage><ErrorBanner>{state.error}</ErrorBanner></AppPage>
   if (!state.data) return null
 
@@ -40,8 +40,7 @@ export function TaskDetailPage() {
       <PageHeader
         eyebrow="Task"
         title={task.title || `Task ${task.runIndex + 1}`}
-        description={modeLabel(task.executionMode, task.maxConcurrency, '事件')}
-        actions={<Button variant="outline" asChild><Link to={`/runs/${task.run}`}><ArrowLeft />返回 Run</Link></Button>}
+        actions={<Button variant="outline" asChild><Link to={`/runs/${task.run}`}><ArrowLeft />Run</Link></Button>}
       />
 
       {state.error ? <ErrorBanner>{state.error}</ErrorBanner> : null}
@@ -49,33 +48,30 @@ export function TaskDetailPage() {
       <Card>
         <CardHeader className="gap-4 p-4 sm:p-5">
           <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">任务进度</p>
-              <h2 className="mt-1 text-xl font-semibold tracking-tight">{progressText(task.completedEvents, task.totalEvents, 'Events')}</h2>
-            </div>
+            <h2 className="text-xl font-semibold tracking-tight">{progressText(task.completedEvents, task.totalEvents, 'Events')}</h2>
             <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
           </div>
           <ProgressBar value={progressPercent(task.completedEvents, task.totalEvents)} tone={status.tone} />
         </CardHeader>
         <CardContent className="px-4 pb-4 pt-0 sm:px-5 sm:pb-5">
           <MetaGrid items={[
-            { label: '调度方式', value: modeLabel(task.executionMode, task.maxConcurrency, '事件') },
-            { label: '编排状态', value: task.orchestrationState },
-            { label: '创建时间', value: formatDateTime(task.created) },
-            { label: '更新时间', value: formatDateTime(task.updated) },
+            { label: '调度', value: modeLabel(task.executionMode, task.maxConcurrency, '事件') },
+            { label: '编排', value: task.orchestrationState },
+            { label: '创建', value: formatDateTime(task.created) },
+            { label: '更新', value: formatDateTime(task.updated) },
           ]} />
           {task.compileError || task.lastError ? <div className="mt-4 rounded-lg bg-destructive/10 p-3 text-xs leading-5 text-destructive">{task.compileError || task.lastError}</div> : null}
         </CardContent>
       </Card>
 
-      <SectionHeading eyebrow="Events" title="执行单元" trailing={`${events.length} 项`} />
+      <SectionHeading title="Events" trailing={events.length} />
 
       <div className="grid gap-2.5">
         {events.map((event) => {
           const eventStatus = eventStatusMeta(event.status, event.terminalResult)
           return (
             <Link
-              className="group grid grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border bg-card p-3.5 shadow-sm transition-colors hover:border-foreground/15 sm:grid-cols-[44px_minmax(0,1fr)_auto] sm:p-4"
+              className="grid grid-cols-[40px_minmax(0,1fr)] items-center gap-3 rounded-xl border bg-card p-3.5 transition-colors hover:border-foreground/15 sm:grid-cols-[44px_minmax(0,1fr)] sm:p-4"
               to={`/events/${event.id}`}
               key={event.id}
             >
@@ -87,15 +83,14 @@ export function TaskDetailPage() {
                   <h3 className="truncate text-sm font-semibold">{getEventTitle(event.queueTextOverride, `Event ${event.eventIndex + 1}`)}</h3>
                   <StatusBadge tone={eventStatus.tone}>{eventStatus.label}</StatusBadge>
                 </div>
-                <p className="mt-1 text-[11px] text-muted-foreground">{terminalResultLabel(event.terminalResult)} · 尝试 {event.attempt} 次</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">{terminalResultLabel(event.terminalResult)} · {event.attempt}</p>
               </div>
-              <span className="hidden text-muted-foreground transition-transform group-hover:translate-x-0.5 sm:block">›</span>
             </Link>
           )
         })}
       </div>
 
-      {!events.length ? <Card className="mt-3 border-dashed bg-muted/20 p-5 text-center text-xs text-muted-foreground">暂无 Event，云端仍可能正在编排。</Card> : null}
+      {!events.length ? <Card className="mt-3 border-dashed bg-muted/20 p-5 text-center text-xs text-muted-foreground">暂无 Event</Card> : null}
     </AppPage>
   )
 }

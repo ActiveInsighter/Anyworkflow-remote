@@ -1,5 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
-import { RotateCcw, LogOut } from 'lucide-react'
+import { LogOut, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { clearSession } from '@/lib/session'
 
@@ -22,9 +22,7 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorB
     console.error('AnyWorkflow UI crashed', error, info)
   }
 
-  private reload = () => {
-    window.location.reload()
-  }
+  private reload = () => window.location.reload()
 
   private resetSession = () => {
     clearSession()
@@ -36,18 +34,14 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorB
 
     return (
       <main className="grid min-h-dvh place-items-center bg-background p-4 text-foreground">
-        <section className="w-full max-w-xl rounded-xl border bg-card p-5 shadow-lg sm:p-6">
-          <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-destructive">UI ERROR</div>
-          <h1 className="mt-2 text-xl font-semibold">页面渲染失败</h1>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            前端遇到了未处理的错误。可以先重新加载；如果问题与登录状态有关，再退出登录并重置。
-          </p>
+        <section className="w-full max-w-xl rounded-xl border bg-card p-5 sm:p-6">
+          <h1 className="text-xl font-semibold">页面错误</h1>
           <pre className="mt-4 max-h-48 overflow-auto whitespace-pre-wrap rounded-lg bg-muted p-3 font-mono text-xs leading-5 text-muted-foreground">
             {this.state.error.message || 'Unknown error'}
           </pre>
           <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-            <Button variant="outline" onClick={this.reload}><RotateCcw />重新加载</Button>
-            <Button onClick={this.resetSession}><LogOut />退出登录并重置</Button>
+            <Button variant="outline" onClick={this.reload}><RotateCcw />刷新</Button>
+            <Button onClick={this.resetSession}><LogOut />退出</Button>
           </div>
         </section>
       </main>

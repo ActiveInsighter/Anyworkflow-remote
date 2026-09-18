@@ -99,7 +99,7 @@ export function RunDetailPage() {
     }
   }
 
-  if (state.loading && !state.data) return <AppPage><LoadingState label="正在读取 Run…" /></AppPage>
+  if (state.loading && !state.data) return <AppPage><LoadingState /></AppPage>
   if (state.error && !state.data) return <AppPage><ErrorBanner>{state.error}</ErrorBanner></AppPage>
   if (!state.data) return null
 
@@ -118,11 +118,10 @@ export function RunDetailPage() {
       <PageHeader
         eyebrow="Run"
         title={run.title || '未命名 Run'}
-        description={modeLabel(run.executionMode, run.maxConcurrency, '任务')}
         actions={
           <>
             {run.status === 'draft' ? <Button variant="outline" asChild><Link to={`/runs/${run.id}/edit`}><Pencil />编辑</Link></Button> : null}
-            {run.status === 'draft' ? <Button onClick={() => void publishDraft()} disabled={acting}><Play />开始运行</Button> : null}
+            {run.status === 'draft' ? <Button onClick={() => void publishDraft()} disabled={acting}><Play />运行</Button> : null}
             {canPause ? <Button variant="outline" onClick={() => void control('pause')} disabled={acting}><Pause />暂停</Button> : null}
             {canResume ? <Button onClick={() => void control('resume')} disabled={acting}><Play />继续</Button> : null}
             {canCancel ? <Button variant="destructive" onClick={() => void control('cancel')} disabled={acting}><XCircle />取消</Button> : null}
@@ -136,33 +135,30 @@ export function RunDetailPage() {
       <Card>
         <CardHeader className="gap-4 p-4 sm:p-5">
           <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">执行概览</p>
-              <h2 className="mt-1 text-xl font-semibold tracking-tight">{progressText(run.completedTasks, totalTasks, 'Tasks')}</h2>
-            </div>
+            <h2 className="text-xl font-semibold tracking-tight">{progressText(run.completedTasks, totalTasks, 'Tasks')}</h2>
             <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
           </div>
           <ProgressBar value={percent} tone={status.tone} />
         </CardHeader>
         <CardContent className="px-4 pb-4 pt-0 sm:px-5 sm:pb-5">
           <MetaGrid items={[
-            { label: '调度方式', value: modeLabel(run.executionMode, run.maxConcurrency, '任务') },
-            { label: '活跃任务', value: tasks.filter((task) => task.status === 'queued' || task.status === 'running').length },
-            { label: '更新时间', value: formatDateTime(run.updated) },
-            { label: '命令版本', value: run.commandVersion },
+            { label: '调度', value: modeLabel(run.executionMode, run.maxConcurrency, '任务') },
+            { label: '活跃', value: tasks.filter((task) => task.status === 'queued' || task.status === 'running').length },
+            { label: '更新', value: formatDateTime(run.updated) },
+            { label: '版本', value: run.commandVersion },
           ]} />
           {run.lastError ? <div className="mt-4 rounded-lg bg-destructive/10 p-3 text-xs leading-5 text-destructive">{run.lastError}</div> : null}
         </CardContent>
       </Card>
 
-      <SectionHeading eyebrow="Tasks" title="任务组" trailing={`${tasks.length} 项`} />
+      <SectionHeading title="Tasks" trailing={tasks.length} />
 
       <div className="grid gap-2.5">
         {tasks.map((task) => {
           const taskStatus = runStatusMeta(task.status, task.requestedAction)
           return (
             <Link
-              className="group grid grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border bg-card p-3.5 shadow-sm transition-colors hover:border-foreground/15 sm:grid-cols-[44px_minmax(0,1fr)_auto] sm:p-4"
+              className="group grid grid-cols-[40px_minmax(0,1fr)] items-center gap-3 rounded-xl border bg-card p-3.5 transition-colors hover:border-foreground/15 sm:grid-cols-[44px_minmax(0,1fr)] sm:p-4"
               to={`/tasks/${task.id}`}
               key={task.id}
             >
@@ -177,28 +173,20 @@ export function RunDetailPage() {
                 <p className="mt-1 text-[11px] text-muted-foreground">{modeLabel(task.executionMode, task.maxConcurrency, '事件')} · {progressText(task.completedEvents, task.totalEvents, 'Events')}</p>
                 <ProgressBar className="mt-2" value={progressPercent(task.completedEvents, task.totalEvents)} tone={taskStatus.tone} />
               </div>
-              <span className="hidden text-muted-foreground transition-transform group-hover:translate-x-0.5 sm:block">›</span>
             </Link>
           )
         })}
       </div>
 
       {!tasks.length && run.status !== 'draft' ? (
-        <Card className="mt-3 border-dashed bg-muted/20 p-5 text-center text-xs text-muted-foreground">云端正在编排 Task，页面会自动刷新。</Card>
+        <Card className="mt-3 border-dashed bg-muted/20 p-5 text-center text-xs text-muted-foreground">暂无 Task</Card>
       ) : null}
 
-      <Card className="mt-8">
-        <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">更多操作</p>
-            <h2 className="mt-1 text-base font-semibold">复制与清理</h2>
-            <p className="mt-1 text-xs text-muted-foreground">复制只复用工作流定义，不复制运行时状态。</p>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Button variant="outline" onClick={() => void copy('draft')} disabled={acting || !run.planText.trim()}><Copy />复制为草稿</Button>
-            {terminal ? <Button variant="outline" onClick={() => void copy('queued')} disabled={acting || !run.planText.trim()}><RotateCcw />重新运行</Button> : null}
-            {(run.status === 'draft' || terminal) ? <Button variant="destructive" onClick={() => setConfirmDeleteOpen(true)} disabled={acting}><Trash2 />删除 Run</Button> : null}
-          </div>
+      <Card className="mt-7">
+        <CardContent className="flex flex-col gap-2 p-4 sm:flex-row sm:justify-end">
+          <Button variant="outline" onClick={() => void copy('draft')} disabled={acting || !run.planText.trim()}><Copy />复制草稿</Button>
+          {terminal ? <Button variant="outline" onClick={() => void copy('queued')} disabled={acting || !run.planText.trim()}><RotateCcw />重跑</Button> : null}
+          {(run.status === 'draft' || terminal) ? <Button variant="destructive" onClick={() => setConfirmDeleteOpen(true)} disabled={acting}><Trash2 />删除</Button> : null}
         </CardContent>
       </Card>
 
@@ -206,7 +194,7 @@ export function RunDetailPage() {
         open={confirmDeleteOpen}
         onOpenChange={setConfirmDeleteOpen}
         title="删除 Run？"
-        description={`“${run.title || '未命名 Run'}”删除后无法恢复。`}
+        description={run.title || '未命名 Run'}
         busy={acting}
         onConfirm={() => void remove()}
       />
