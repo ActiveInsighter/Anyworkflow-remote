@@ -1,14 +1,23 @@
+import type { LucideIcon } from 'lucide-react'
 import { House, Plus, Settings, Workflow } from 'lucide-react'
 import { NavLink, Outlet } from 'react-router'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { useSession } from '@/lib/session'
 
-const navItems = [
+interface NavItem {
+  to: string
+  label: string
+  mobileLabel?: string
+  icon: LucideIcon
+  end?: boolean
+}
+
+const navItems: NavItem[] = [
   { to: '/', label: '工作流', icon: House, end: true },
   { to: '/runs/new', label: '新建 Run', mobileLabel: '新建', icon: Plus },
   { to: '/settings', label: '连接设置', mobileLabel: '设置', icon: Settings },
-] as const
+]
 
 function navClass({ isActive }: { isActive: boolean }) {
   return cn(
