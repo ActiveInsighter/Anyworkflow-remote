@@ -10,6 +10,7 @@ AnyWorkflow 的响应式 Web 控制端。项目参考 `Anyworkflow-wechat` 的�
 - React Router 8
 - Tailwind CSS 4.3（作为样式基础，当前 UI 主要使用语义化类和 CSS 变量）
 - PocketBase HTTP API
+- Cloudflare Workers Static Assets
 
 ## 已实现
 
@@ -25,6 +26,7 @@ AnyWorkflow 的响应式 Web 控制端。项目参考 `Anyworkflow-wechat` 的�
 - 自动深色模式
 - Web App manifest
 - GitHub Actions 类型检查与构建
+- GitHub Actions 自动部署到 Cloudflare Workers Static Assets
 
 ## 后端兼容
 
@@ -63,4 +65,32 @@ npm run typecheck
 npm run build
 ```
 
-静态产物位于 `dist/`，可部署到 Cloudflare Pages、EdgeOne Pages、Vercel 或任意静态站点服务。
+静态产物位于 `dist/`。
+
+## Cloudflare Workers Static Assets 部署
+
+项目使用根目录 `wrangler.jsonc`，将 `dist/` 作为 Workers Static Assets，并启用 SPA fallback，因此 React Router 的深层链接可直接刷新。
+
+GitHub 仓库需要以下 Actions Secrets：
+
+- `CLOUDFLARE_ACCOUNT_ID`
+- `CLOUDFLARE_API_TOKEN`
+
+其中 API Token 需要允许向目标 Cloudflare Account 部署 Workers。
+
+部署工作流位于：
+
+```text
+.github/workflows/deploy-cloudflare.yml
+```
+
+触发方式：
+
+- 推送到 `main`：自动构建并部署
+- GitHub Actions 页面：可手动运行 `workflow_dispatch`
+
+本地已登录 Wrangler 时也可执行：
+
+```bash
+npm run deploy
+```
