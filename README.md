@@ -66,11 +66,30 @@ npm run typecheck
 npm run build
 ```
 
+完整验证使用：
+
+```bash
+npm run preflight
+```
+
 静态产物位于 `dist/`。
+
+## Agent 工作方式
+
+根目录 `AGENTS.md` 是本项目统一的 Agent 入口，本地 Git checkout 与云端 CI 源码产物都遵循同一套规则。
+
+Agent 应先读取 `AGENTS.md`，再按任务只加载相关的 `.agents/skills/`，不需要预先逐文件遍历整个仓库。
+
+- UI 任务优先从 `ui-style` 开始，再按需组合其他 UI Skill。
+- 后端/API/Run/Task/Event/DSL 使用 `anyworkflow-contract`。
+- 修复、重构、发布前验证使用 `frontend-quality-gate`。
+- Cloudflare / GitHub Actions 使用 `cloudflare-workers-assets`。
+
+本地 Agent 可以利用 Git 状态、diff 和历史；云端源码产物不包含 `.git/`，这是预期行为，不影响完整源码与 Skill 使用。
 
 ## CI 源码与 Skills 产物
 
-`.github/workflows/ci.yml` 在类型检查和构建全部成功后，会自动生成一个 Linux/Unix 友好的源码 ZIP，并上传到当前 GitHub Actions Run 的 Artifacts。
+`.github/workflows/ci.yml` 在类型检查和构建全部成功后，会自动生成 Linux/Unix 友好的源码 ZIP，并上传到当前 GitHub Actions Run 的 Artifacts。
 
 Artifact 名固定为：
 
@@ -78,21 +97,33 @@ Artifact 名固定为：
 anyworkflow-remote-ai-context
 ```
 
-其中包含单个源码包：
+Artifact 内包含：
 
 ```text
+context.json
 anyworkflow-remote-<commit-sha>.zip
 ```
 
-源码包由 `git archive` 直接从本次通过 CI 的 `HEAD` 生成，因此：
+其中：
 
-- 包含当前已跟踪的完整源码、配置、`AGENTS.md` 和 `.agents/skills/`
-- 不包含 `.git/`、`node_modules/`、`dist/` 等运行时或构建目录
-- ZIP 内统一使用 Unix 风格路径，并带有 `Anyworkflow-remote/` 根目录
-- CI 会校验至少存在一个 `.agents/skills/*/SKILL.md`，避免 Skills 被意外漏包
-- Artifact 保留 30 天
+- `context.json` 记录仓库、提交 SHA、Git ref、源码 ZIP 名称与 SHA-256、项目根目录、Agent 指南路径、Skills 根目录和默认验证命令。
+- 源码 ZIP 由 `git archive` 直接从本次通过 CI 的 `HEAD` 生成，与成功构建的代码完全对应。
+- ZIP 包含完整已跟踪源码、配置、`AGENTS.md`、`skills-lock.json` 与 `.agents/skills/`。
+- ZIP 不包含 `.git/`、`node_modules/`、`dist/` 等 Git 元数据、依赖或生成目录。
+- ZIP 内统一使用 Unix 风格路径，并带有 `Anyworkflow-remote/` 根目录。
+- CI 会强制校验 `AGENTS.md`、`ui-style`、`skills-lock.json` 和 Skill 文件是否存在，避免生成不可用的 Agent 上下文包。
+- Artifact 保留 30 天。
 
-云端 Agent 可以先定位最新成功的 `web-ci` Run，再直接下载 `anyworkflow-remote-ai-context`，一次获得与该次测试构建完全对应的代码和 Skills。
+云端 Agent 推荐流程：
+
+1. 找到最新成功的 `web-ci` Run。
+2. 下载 `anyworkflow-remote-ai-context`。
+3. 先读取 `context.json`，确认提交 SHA 和内层 ZIP。
+4. 解压源码 ZIP。
+5. 从 `Anyworkflow-remote/AGENTS.md` 开始工作，并按需加载 Skills。
+6. 不要再通过连接器逐个读取已经存在于源码产物里的文件。
+
+如果需要比当前产物更新的源码，应获取更新提交对应的成功 Artifact，不要混用不同提交的文件。
 
 ## Cloudflare Workers Static Assets 部署
 
@@ -124,21 +155,21 @@ npm run deploy
 
 ## Codex / Agent Skills
 
-仓库内置项目级 Skills，位于 `.agents/skills/`，用于让 Codex 在后续修改时自动加载项目约束：
+仓库内置项目级 Skills，位于 `.agents/skills/`：
 
 - `anyworkflow-contract`：PocketBase / Run / Task / Event / DSL 契约
 - `shadcn-responsive-ui`：shadcn/ui、响应式与可访问性
 - `frontend-quality-gate`：登录、状态、类型检查与构建验证
 - `cloudflare-workers-assets`：Workers Static Assets 部署规则
+- `ui-style`：本项目 UI 总入口，统一项目 UI 约束并按需组合其他设计 Skill
 
-Codex 会从仓库的 `.agents/skills/*/SKILL.md` 发现这些项目级 skills。
+另外随仓库保存的 UI 参考 Skills：
 
-另外已加入以下通用 UI Skills，均随仓库保存：
-
-- `ui-ux-pro-max`：UI/UX Pro Max 的设计系统、可访问性、响应式与栈指南
-- `frontend-design`：Anthropic 的差异化 Web 视觉设计与文案原则
+- `ui-ux-pro-max`：设计系统、可访问性、响应式与栈指南
+- `frontend-design`：视觉层级、构图与差异化 Web 设计原则
 - `tailwind-theme-builder`：Tailwind CSS 4 + shadcn/ui 主题与暗色模式指南
-- `web-design-guidelines`：Vercel Web Interface Guidelines 审查规则
-- `ui-style`：面向本项目的 UI 风格聚合规则，统一以上指南与项目约束
+- `web-design-guidelines`：Web Interface Guidelines 审查规则
+
+支持自动 Skill discovery 的 Agent 可以直接发现 `.agents/skills/*/SKILL.md`；其他 Agent 按 `AGENTS.md` 中的路由规则读取即可。
 
 公开 Skill 的来源和版本哈希记录在根目录 `skills-lock.json`。其中 `tailwind-theme-builder` 的上游元数据标注为 `claude-code-only`，在本项目中作为 Tailwind/shadcn 参考规则保留。
