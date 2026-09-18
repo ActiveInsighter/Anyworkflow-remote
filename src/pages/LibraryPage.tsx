@@ -4,7 +4,6 @@ import { Link, useNavigate } from 'react-router'
 import { AppPage, EmptyState, ErrorBanner, LoadingState, PageHeader, StatusBadge } from '@/components/app/ui'
 import { FolderManagerDialog } from '@/components/app/folder-manager-dialog'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAsyncData } from '@/hooks/useAsyncData'
@@ -100,7 +99,7 @@ export function LibraryPage() {
     setBusy(item.id)
     try {
       const copy = await duplicateWorkflowTemplate(item)
-      navigate(`/templates/${copy.id}`)
+      navigate('/templates/' + copy.id)
     } catch (error) {
       setActionError(toErrorMessage(error))
     } finally {
@@ -146,12 +145,13 @@ export function LibraryPage() {
   return (
     <AppPage>
       <PageHeader
-        eyebrow="资料库"
-        title={tab === 'favorites' ? '收藏' : '模板'}
+        title="资料库"
         actions={
           <>
             <Button variant="outline" onClick={() => setFolderDialog(true)}><FolderCog />目录</Button>
-            <Button variant="outline" onClick={() => void reload()} disabled={state.loading}><RefreshCw className={state.loading ? 'animate-spin' : ''} />刷新</Button>
+            <Button variant="ghost" size="icon" onClick={() => void reload()} disabled={state.loading} aria-label="刷新">
+              <RefreshCw className={state.loading ? 'animate-spin' : ''} />
+            </Button>
           </>
         }
       />
@@ -159,22 +159,23 @@ export function LibraryPage() {
       {state.error ? <ErrorBanner>{state.error}</ErrorBanner> : null}
       {actionError ? <ErrorBanner>{actionError}</ErrorBanner> : null}
 
-      <Tabs value={tab} onValueChange={(value) => setTab(value as Tab)} className="gap-4">
-        <TabsList className="grid w-full grid-cols-2 sm:w-64">
-          <TabsTrigger value="favorites">收藏</TabsTrigger>
-          <TabsTrigger value="templates">模板</TabsTrigger>
-        </TabsList>
-      </Tabs>
+      <div className="flex flex-col gap-3 border-b pb-4 sm:flex-row sm:items-center">
+        <Tabs value={tab} onValueChange={(value) => setTab(value as Tab)}>
+          <TabsList className="w-full sm:w-auto">
+            <TabsTrigger value="favorites">收藏</TabsTrigger>
+            <TabsTrigger value="templates">模板</TabsTrigger>
+          </TabsList>
+        </Tabs>
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-[minmax(0,1fr)_220px]">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={query} onChange={(event) => setQuery(event.target.value)} className="pl-9" placeholder="搜索" />
+        <div className="relative min-w-0 flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input value={query} onChange={(event) => setQuery(event.target.value)} className="h-9 pl-8" placeholder="搜索" />
         </div>
+
         <select
           value={tab === 'favorites' ? favoriteFolder : templateFolder}
           onChange={(event) => tab === 'favorites' ? setFavoriteFolder(event.target.value) : setTemplateFolder(event.target.value)}
-          className="h-10 rounded-lg border border-input bg-background px-3 text-sm"
+          className="h-9 rounded-md border border-input bg-background px-3 text-xs outline-none focus:border-ring"
         >
           <option value="">全部目录</option>
           {(tab === 'favorites' ? favoriteFolders : templateFolders).map((folder) => (
@@ -185,73 +186,81 @@ export function LibraryPage() {
 
       {state.loading && !state.data ? <div className="mt-4"><LoadingState /></div> : null}
 
-      {tab === 'favorites' ? (
-        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+      {tab === 'favorites' && favorites.length ? (
+        <div className="mt-4 overflow-hidden rounded-lg border bg-card">
           {favorites.map((item) => {
             const run = item.runRecord
             const status = run ? runStatusMeta(run.status, run.requestedAction) : { label: '不可用', tone: 'neutral' as const }
             return (
-              <Card key={item.id}>
-                <CardHeader className="gap-2 p-4 pb-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <Star className="size-4 fill-amber-400 text-amber-500" />
-                        <Link to={`/runs/${item.run}`} className="truncate text-sm font-semibold">{run?.title || '未命名 Run'}</Link>
-                      </div>
-                      <div className="mt-1 text-[11px] text-muted-foreground">{item.folderRecord?.name || '未分类'} · {formatDateTime(item.updated)}</div>
-                    </div>
+              <div key={item.id} className="grid gap-3 border-b p-4 last:border-b-0 hover:bg-muted/20 sm:grid-cols-[minmax(0,1fr)_180px_auto] sm:items-center">
+                <div className="min-w-0">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <Star className="size-3.5 shrink-0 fill-amber-400 text-amber-500" />
+                    <Link to={'/runs/' + item.run} className="truncate text-sm font-medium hover:underline">{run?.title || '未命名 Run'}</Link>
                     <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
                   </div>
-                </CardHeader>
-                <CardContent className="px-4 pb-3 pt-0">
-                  <select
-                    value={item.folder}
-                    onChange={(event) => void moveFavorite(item, event.target.value)}
-                    className="h-9 w-full rounded-lg border border-input bg-background px-3 text-xs"
-                    disabled={busy === item.id}
-                  >
-                    <option value="">未分类</option>
-                    {favoriteFolders.map((folder) => <option key={folder.id} value={folder.id}>{'　'.repeat(folder.depth)}{folder.name}</option>)}
-                  </select>
-                </CardContent>
-                <CardFooter className="justify-end gap-1 border-t p-2">
-                  <Button size="sm" variant="ghost" asChild><Link to={`/runs/${item.run}`}><Workflow />打开</Link></Button>
-                  <Button size="sm" variant="ghost" className="text-destructive" onClick={() => void removeFavorite(item)} disabled={busy === item.id}><Trash2 />取消收藏</Button>
-                </CardFooter>
-              </Card>
-            )
-          })}
-        </div>
-      ) : (
-        <div className="mt-4 grid gap-3 lg:grid-cols-2">
-          {templates.map((item) => (
-            <Card key={item.id}>
-              <CardHeader className="gap-2 p-4 pb-3">
-                <Link to={`/templates/${item.id}`} className="truncate text-sm font-semibold">{item.title || '未命名模板'}</Link>
-                <div className="text-[11px] text-muted-foreground">{item.folderRecord?.name || '未分类'} · {formatDateTime(item.updated)}</div>
-                {item.tags.length ? <div className="flex flex-wrap gap-1">{item.tags.map((tag) => <span key={tag} className="rounded-md bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">{tag}</span>)}</div> : null}
-              </CardHeader>
-              <CardContent className="px-4 pb-3 pt-0">
+                  <div className="mt-1 text-[11px] text-muted-foreground">
+                    {(item.folderRecord?.name || '未分类') + ' · ' + formatDateTime(item.updated)}
+                  </div>
+                </div>
+
                 <select
                   value={item.folder}
-                  onChange={(event) => void moveTemplate(item, event.target.value)}
-                  className="h-9 w-full rounded-lg border border-input bg-background px-3 text-xs"
+                  onChange={(event) => void moveFavorite(item, event.target.value)}
+                  className="h-8 rounded-md border border-input bg-background px-2.5 text-xs"
                   disabled={busy === item.id}
                 >
                   <option value="">未分类</option>
-                  {templateFolders.map((folder) => <option key={folder.id} value={folder.id}>{'　'.repeat(folder.depth)}{folder.name}</option>)}
+                  {favoriteFolders.map((folder) => <option key={folder.id} value={folder.id}>{'　'.repeat(folder.depth)}{folder.name}</option>)}
                 </select>
-              </CardContent>
-              <CardFooter className="justify-end gap-1 border-t p-2">
-                <Button size="sm" variant="ghost" asChild><Link to={`/runs/new?templateId=${encodeURIComponent(item.id)}`}><Library />使用</Link></Button>
+
+                <div className="flex items-center gap-1 sm:justify-end">
+                  <Button size="sm" variant="ghost" asChild><Link to={'/runs/' + item.run}><Workflow />打开</Link></Button>
+                  <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => void removeFavorite(item)} disabled={busy === item.id}>
+                    <Trash2 /><span className="sm:hidden">取消收藏</span>
+                  </Button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      ) : null}
+
+      {tab === 'templates' && templates.length ? (
+        <div className="mt-4 overflow-hidden rounded-lg border bg-card">
+          {templates.map((item) => (
+            <div key={item.id} className="grid gap-3 border-b p-4 last:border-b-0 hover:bg-muted/20 sm:grid-cols-[minmax(0,1fr)_180px_auto] sm:items-center">
+              <div className="min-w-0">
+                <Link to={'/templates/' + item.id} className="truncate text-sm font-medium hover:underline">{item.title || '未命名模板'}</Link>
+                <div className="mt-1 text-[11px] text-muted-foreground">
+                  {(item.folderRecord?.name || '未分类') + ' · ' + formatDateTime(item.updated)}
+                </div>
+                {item.tags.length ? (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {item.tags.map((tag) => <span key={tag} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">{tag}</span>)}
+                  </div>
+                ) : null}
+              </div>
+
+              <select
+                value={item.folder}
+                onChange={(event) => void moveTemplate(item, event.target.value)}
+                className="h-8 rounded-md border border-input bg-background px-2.5 text-xs"
+                disabled={busy === item.id}
+              >
+                <option value="">未分类</option>
+                {templateFolders.map((folder) => <option key={folder.id} value={folder.id}>{'　'.repeat(folder.depth)}{folder.name}</option>)}
+              </select>
+
+              <div className="flex flex-wrap items-center gap-1 sm:justify-end">
+                <Button size="sm" variant="ghost" asChild><Link to={'/runs/new?templateId=' + encodeURIComponent(item.id)}><Library />使用</Link></Button>
                 <Button size="sm" variant="ghost" onClick={() => void duplicateTemplate(item)} disabled={busy === item.id}><Copy />复制</Button>
-                <Button size="sm" variant="ghost" className="text-destructive" onClick={() => void removeTemplate(item)} disabled={busy === item.id}><Trash2 />删除</Button>
-              </CardFooter>
-            </Card>
+                <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => void removeTemplate(item)} disabled={busy === item.id}><Trash2 /></Button>
+              </div>
+            </div>
           ))}
         </div>
-      )}
+      ) : null}
 
       {!state.loading && tab === 'favorites' && favorites.length === 0 ? <div className="mt-4"><EmptyState title="暂无收藏" /></div> : null}
       {!state.loading && tab === 'templates' && templates.length === 0 ? <div className="mt-4"><EmptyState title="暂无模板" /></div> : null}
