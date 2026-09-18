@@ -68,6 +68,32 @@ npm run build
 
 静态产物位于 `dist/`。
 
+## CI 源码与 Skills 产物
+
+`.github/workflows/ci.yml` 在类型检查和构建全部成功后，会自动生成一个 Linux/Unix 友好的源码 ZIP，并上传到当前 GitHub Actions Run 的 Artifacts。
+
+Artifact 名固定为：
+
+```text
+anyworkflow-remote-ai-context
+```
+
+其中包含单个源码包：
+
+```text
+anyworkflow-remote-<commit-sha>.zip
+```
+
+源码包由 `git archive` 直接从本次通过 CI 的 `HEAD` 生成，因此：
+
+- 包含当前已跟踪的完整源码、配置、`AGENTS.md` 和 `.agents/skills/`
+- 不包含 `.git/`、`node_modules/`、`dist/` 等运行时或构建目录
+- ZIP 内统一使用 Unix 风格路径，并带有 `Anyworkflow-remote/` 根目录
+- CI 会校验至少存在一个 `.agents/skills/*/SKILL.md`，避免 Skills 被意外漏包
+- Artifact 保留 30 天
+
+云端 Agent 可以先定位最新成功的 `web-ci` Run，再直接下载 `anyworkflow-remote-ai-context`，一次获得与该次测试构建完全对应的代码和 Skills。
+
 ## Cloudflare Workers Static Assets 部署
 
 项目使用根目录 `wrangler.jsonc`，将 `dist/` 作为 Workers Static Assets，并启用 SPA fallback，因此 React Router 的深层链接可直接刷新。
@@ -95,7 +121,6 @@ GitHub 仓库需要以下 Actions Secrets：
 ```bash
 npm run deploy
 ```
-
 
 ## Codex / Agent Skills
 
