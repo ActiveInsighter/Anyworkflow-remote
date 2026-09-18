@@ -6,6 +6,9 @@ const SESSION_KEY = 'anyworkflow.auth.session.v1'
 const BASE_URL_KEY = 'anyworkflow.pocketbase.url.v1'
 const SESSION_EVENT = 'anyworkflow:session-change'
 
+let cachedSessionRaw: string | null | undefined
+let cachedSession: AuthSession | null = null
+
 function normalizeBaseUrl(value: string): string {
   const url = new URL(value.trim())
   if (url.protocol !== 'https:' && url.hostname !== 'localhost' && url.hostname !== '127.0.0.1') {
@@ -27,6 +30,30 @@ function isSession(value: unknown): value is AuthSession {
   )
 }
 
+function readSessionSnapshot(): AuthSession | null {
+  const raw = localStorage.getItem(SESSION_KEY)
+
+  // useSyncExternalStore requires getSnapshot() to return the same reference
+  // while the underlying store has not changed. Parsing JSON on every call
+  // creates a new object and can cause an infinite React render loop.
+  if (raw === cachedSessionRaw) return cachedSession
+
+  cachedSessionRaw = raw
+  if (!raw) {
+    cachedSession = null
+    return cachedSession
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    cachedSession = isSession(parsed) ? parsed : null
+  } catch {
+    cachedSession = null
+  }
+
+  return cachedSession
+}
+
 export function getBaseUrl(): string {
   const raw = localStorage.getItem(BASE_URL_KEY)
   if (!raw) return DEFAULT_POCKETBASE_URL
@@ -44,23 +71,21 @@ export function saveBaseUrl(value: string): string {
 }
 
 export function getSession(): AuthSession | null {
-  try {
-    const raw = localStorage.getItem(SESSION_KEY)
-    if (!raw) return null
-    const parsed: unknown = JSON.parse(raw)
-    return isSession(parsed) ? parsed : null
-  } catch {
-    return null
-  }
+  return readSessionSnapshot()
 }
 
 export function setSession(session: AuthSession): void {
-  localStorage.setItem(SESSION_KEY, JSON.stringify(session))
+  const raw = JSON.stringify(session)
+  localStorage.setItem(SESSION_KEY, raw)
+  cachedSessionRaw = raw
+  cachedSession = session
   window.dispatchEvent(new Event(SESSION_EVENT))
 }
 
 export function clearSession(): void {
   localStorage.removeItem(SESSION_KEY)
+  cachedSessionRaw = null
+  cachedSession = null
   window.dispatchEvent(new Event(SESSION_EVENT))
 }
 
@@ -71,15 +96,21 @@ export function requireSession(): AuthSession {
 }
 
 function subscribe(listener: () => void): () => void {
-  const handler = () => listener()
-  window.addEventListener(SESSION_EVENT, handler)
-  window.addEventListener('storage', handler)
+  const handleSessionChange = () => listener()
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key !== SESSION_KEY && event.key !== null) return
+    cachedSessionRaw = undefined
+    listener()
+  }
+
+  window.addEventListener(SESSION_EVENT, handleSessionChange)
+  window.addEventListener('storage', handleStorage)
   return () => {
-    window.removeEventListener(SESSION_EVENT, handler)
-    window.removeEventListener('storage', handler)
+    window.removeEventListener(SESSION_EVENT, handleSessionChange)
+    window.removeEventListener('storage', handleStorage)
   }
 }
 
 export function useSession(): AuthSession | null {
-  return useSyncExternalStore(subscribe, getSession, () => null)
+  return useSyncExternalStore(subscribe, readSessionSnapshot, () => null)
 }
