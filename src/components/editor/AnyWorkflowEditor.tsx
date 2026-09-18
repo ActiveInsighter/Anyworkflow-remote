@@ -28,7 +28,7 @@ import {
   lineNumbers,
   rectangularSelection,
 } from '@codemirror/view'
-import { Braces, Search, Sparkles, Variable } from 'lucide-react'
+import { Braces, FileCode2, Search, Sparkles, Variable } from 'lucide-react'
 import {
   forwardRef,
   useEffect,
@@ -63,7 +63,7 @@ interface AnyWorkflowEditorProps {
 
 const editorTheme = EditorView.theme({
   '&': {
-    minHeight: '360px',
+    minHeight: '400px',
     backgroundColor: 'var(--cm-bg)',
     color: 'var(--cm-fg)',
     fontSize: '13px',
@@ -73,7 +73,7 @@ const editorTheme = EditorView.theme({
     fontFamily: '"SFMono-Regular", "Cascadia Code", Consolas, "Liberation Mono", monospace',
     lineHeight: '1.7',
   },
-  '.cm-content': { padding: '12px 0 24px', caretColor: 'var(--cm-caret)' },
+  '.cm-content': { padding: '12px 0 28px', caretColor: 'var(--cm-caret)' },
   '.cm-line': { padding: '0 12px' },
   '.cm-gutters': {
     backgroundColor: 'var(--cm-gutter-bg)',
@@ -89,7 +89,7 @@ const editorTheme = EditorView.theme({
     border: '1px solid var(--cm-border)',
     backgroundColor: 'var(--cm-tooltip-bg)',
     color: 'var(--cm-fg)',
-    borderRadius: '8px',
+    borderRadius: '6px',
     overflow: 'hidden',
   },
   '.cm-tooltip-autocomplete > ul > li[aria-selected]': {
@@ -125,18 +125,18 @@ function PromptPalette({
         <DialogHeader>
           <DialogTitle>提示词</DialogTitle>
         </DialogHeader>
-        <div className="grid max-h-[60vh] gap-2 overflow-y-auto">
+        <div className="grid max-h-[60vh] overflow-y-auto rounded-md border">
           {PROMPT_TEMPLATES.map((prompt) => (
             <button
               key={prompt.id}
               type="button"
-              className="rounded-lg border p-3 text-left transition-colors hover:bg-muted"
+              className="border-b px-3 py-3 text-left last:border-b-0 hover:bg-muted/50"
               onClick={() => {
                 onInsert(prompt.text)
                 onOpenChange(false)
               }}
             >
-              <div className="text-sm font-semibold">{prompt.label}</div>
+              <div className="text-sm font-medium">{prompt.label}</div>
               <div className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{prompt.text}</div>
             </button>
           ))}
@@ -148,7 +148,7 @@ function PromptPalette({
 
 function ToolButton({ children, onClick }: { children: ReactNode; onClick: () => void }) {
   return (
-    <Button type="button" size="sm" variant="ghost" className="h-8 shrink-0 gap-1.5 px-2.5 text-xs" onClick={onClick}>
+    <Button type="button" size="sm" variant="ghost" className="h-7 gap-1 px-2 text-[11px]" onClick={onClick}>
       {children}
     </Button>
   )
@@ -217,7 +217,6 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
             ...completionKeymap,
             ...searchKeymap,
             ...lintKeymap,
-            ...foldKeymap,
             ...historyKeymap,
             ...defaultKeymap,
           ]),
@@ -277,9 +276,13 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
     }), [])
 
     return (
-      <div className="overflow-hidden rounded-xl border border-[var(--cm-border)] bg-[var(--cm-bg)]">
-        <div className="flex items-center justify-between gap-2 border-b border-[var(--cm-border)] bg-[var(--cm-toolbar-bg)] px-2 py-1.5">
-          <div className="flex min-w-0 items-center gap-1 overflow-x-auto">
+      <div className="overflow-hidden rounded-lg border border-[var(--cm-border)] bg-[var(--cm-bg)]">
+        <div className="flex min-h-10 flex-wrap items-center justify-between gap-1 border-b border-[var(--cm-border)] bg-[var(--cm-toolbar-bg)] px-2 py-1.5">
+          <div className="flex items-center gap-1">
+            <div className="mr-1 hidden items-center gap-1.5 px-1 text-[11px] font-medium text-muted-foreground sm:flex">
+              <FileCode2 className="size-3.5" />
+              Run DSL
+            </div>
             <ToolButton onClick={() => insert('@task  {\n  @mode=serial\n\n  \n}\n', 6)}>
               <Braces className="size-3.5" />Task
             </ToolButton>
@@ -289,24 +292,37 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
               <Variable className="size-3.5" />变量
             </ToolButton>
           </div>
-          <div className="flex shrink-0 items-center gap-1">
+
+          <div className="flex items-center gap-1">
             <ToolButton onClick={() => setPaletteOpen(true)}>
-              <Sparkles className="size-3.5" /><span className="hidden sm:inline">提示词</span>
+              <Sparkles className="size-3.5" />提示词
             </ToolButton>
-            <ToolButton onClick={() => viewRef.current && openSearchPanel(viewRef.current)}>
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="size-7"
+              onClick={() => viewRef.current && openSearchPanel(viewRef.current)}
+              aria-label="搜索"
+            >
               <Search className="size-3.5" />
-            </ToolButton>
+            </Button>
           </div>
         </div>
 
         <div ref={mountRef} className="aw-code-editor" />
 
-        <div className="flex items-center gap-1 overflow-x-auto border-t border-[var(--cm-border)] bg-[var(--cm-toolbar-bg)] px-2 py-1.5 sm:hidden">
-          <ToolButton onClick={() => viewRef.current && startCompletion(viewRef.current)}>补全</ToolButton>
-          <ToolButton onClick={() => insert('{}', 1)}>{'{ }'}</ToolButton>
-          <ToolButton onClick={() => insert('```\n\n```', 4)}>Prompt</ToolButton>
-          <ToolButton onClick={() => insert('<https://>', 9)}>URL</ToolButton>
-          <ToolButton onClick={() => insert('%name%', 1)}>%变量%</ToolButton>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--cm-border)] bg-[var(--cm-toolbar-bg)] px-2.5 py-1.5 text-[10px] text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <button type="button" className="hover:text-foreground" onClick={() => viewRef.current && startCompletion(viewRef.current)}>Ctrl/⌘ Space · 补全</button>
+            <span className="hidden sm:inline">Ctrl/⌘ S · 保存</span>
+            <span className="hidden sm:inline">/ · 提示词</span>
+          </div>
+          <div className="flex items-center gap-1 sm:hidden">
+            <ToolButton onClick={() => insert('{}', 1)}>{'{ }'}</ToolButton>
+            <ToolButton onClick={() => insert('```\n\n```', 4)}>Prompt</ToolButton>
+            <ToolButton onClick={() => insert('<https://>', 9)}>URL</ToolButton>
+          </div>
         </div>
 
         <PromptPalette open={paletteOpen} onOpenChange={setPaletteOpen} onInsert={(prompt) => insert(prompt)} />
