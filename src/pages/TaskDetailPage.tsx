@@ -1,8 +1,7 @@
 import { ArrowLeft } from 'lucide-react'
 import { Link, useParams } from 'react-router'
-import { AppPage, ErrorBanner, LoadingState, MetaGrid, PageHeader, ProgressBar, SectionHeading, StatusBadge } from '@/components/app/ui'
+import { AppPage, EmptyState, ErrorBanner, LoadingState, MetaGrid, PageHeader, ProgressBar, SectionHeading, StatusBadge } from '@/components/app/ui'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { useAsyncData } from '@/hooks/useAsyncData'
 import { getTask, listAllEventsForTask, toErrorMessage } from '@/lib/api'
 import {
@@ -38,59 +37,65 @@ export function TaskDetailPage() {
   return (
     <AppPage>
       <PageHeader
-        eyebrow="Task"
-        title={task.title || `Task ${task.runIndex + 1}`}
-        actions={<Button variant="outline" asChild><Link to={`/runs/${task.run}`}><ArrowLeft />Run</Link></Button>}
+        title={task.title || 'Task ' + (task.runIndex + 1)}
+        actions={<Button variant="outline" asChild><Link to={'/runs/' + task.run}><ArrowLeft />Run</Link></Button>}
       />
 
       {state.error ? <ErrorBanner>{state.error}</ErrorBanner> : null}
 
-      <Card>
-        <CardHeader className="gap-4 p-4 sm:p-5">
-          <div className="flex items-start justify-between gap-4">
-            <h2 className="text-xl font-semibold tracking-tight">{progressText(task.completedEvents, task.totalEvents, 'Events')}</h2>
-            <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-          </div>
-          <ProgressBar value={progressPercent(task.completedEvents, task.totalEvents)} tone={status.tone} />
-        </CardHeader>
-        <CardContent className="px-4 pb-4 pt-0 sm:px-5 sm:pb-5">
+      <section className="rounded-lg border bg-card p-4 sm:p-5">
+        <div className="flex items-center justify-between gap-4">
+          <div className="text-sm font-semibold">{progressText(task.completedEvents, task.totalEvents, 'Events')}</div>
+          <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+        </div>
+        <ProgressBar className="mt-3" value={progressPercent(task.completedEvents, task.totalEvents)} tone={status.tone} />
+        <div className="mt-4">
           <MetaGrid items={[
             { label: '调度', value: modeLabel(task.executionMode, task.maxConcurrency, '事件') },
             { label: '编排', value: task.orchestrationState },
             { label: '创建', value: formatDateTime(task.created) },
             { label: '更新', value: formatDateTime(task.updated) },
           ]} />
-          {task.compileError || task.lastError ? <div className="mt-4 rounded-lg bg-destructive/10 p-3 text-xs leading-5 text-destructive">{task.compileError || task.lastError}</div> : null}
-        </CardContent>
-      </Card>
+        </div>
+        {task.compileError || task.lastError ? (
+          <div className="mt-4 rounded-md bg-destructive/10 px-3 py-2 text-xs leading-5 text-destructive">
+            {task.compileError || task.lastError}
+          </div>
+        ) : null}
+      </section>
 
       <SectionHeading title="Events" trailing={events.length} />
 
-      <div className="grid gap-2.5">
-        {events.map((event) => {
-          const eventStatus = eventStatusMeta(event.status, event.terminalResult)
-          return (
-            <Link
-              className="grid grid-cols-[40px_minmax(0,1fr)] items-center gap-3 rounded-xl border bg-card p-3.5 transition-colors hover:border-foreground/15 sm:grid-cols-[44px_minmax(0,1fr)] sm:p-4"
-              to={`/events/${event.id}`}
-              key={event.id}
-            >
-              <div className="grid size-10 place-items-center rounded-lg bg-blue-500/10 text-[11px] font-semibold text-blue-600 dark:text-blue-400 sm:size-11">
-                {String(event.eventIndex + 1).padStart(2, '0')}
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-start justify-between gap-3">
-                  <h3 className="truncate text-sm font-semibold">{getEventTitle(event.queueTextOverride, `Event ${event.eventIndex + 1}`)}</h3>
-                  <StatusBadge tone={eventStatus.tone}>{eventStatus.label}</StatusBadge>
+      {events.length ? (
+        <div className="overflow-hidden rounded-lg border bg-card">
+          {events.map((event) => {
+            const eventStatus = eventStatusMeta(event.status, event.terminalResult)
+            return (
+              <Link
+                className="grid gap-3 border-b p-4 last:border-b-0 hover:bg-muted/20 sm:grid-cols-[44px_minmax(0,1fr)_150px] sm:items-center"
+                to={'/events/' + event.id}
+                key={event.id}
+              >
+                <div className="hidden size-9 place-items-center rounded-md bg-muted text-[10px] font-semibold text-muted-foreground sm:grid">
+                  {String(event.eventIndex + 1).padStart(2, '0')}
                 </div>
-                <p className="mt-1 text-[11px] text-muted-foreground">{terminalResultLabel(event.terminalResult)} · {event.attempt}</p>
-              </div>
-            </Link>
-          )
-        })}
-      </div>
-
-      {!events.length ? <Card className="mt-3 border-dashed bg-muted/20 p-5 text-center text-xs text-muted-foreground">暂无 Event</Card> : null}
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="truncate text-sm font-medium">{getEventTitle(event.queueTextOverride, 'Event ' + (event.eventIndex + 1))}</h3>
+                    <StatusBadge tone={eventStatus.tone}>{eventStatus.label}</StatusBadge>
+                  </div>
+                  <div className="mt-1 text-[11px] text-muted-foreground">
+                    {terminalResultLabel(event.terminalResult)}
+                  </div>
+                </div>
+                <div className="text-[11px] text-muted-foreground sm:text-right">
+                  尝试 {event.attempt}
+                </div>
+              </Link>
+            )
+          })}
+        </div>
+      ) : <EmptyState title="暂无 Event" />}
     </AppPage>
   )
 }
