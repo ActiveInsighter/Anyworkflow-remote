@@ -18,7 +18,9 @@ export function parsePlanMeta(source: string): PlanMeta {
 export function applyPlanMeta(source: string, meta: PlanMeta): string {
   const title = meta.title.replace(/[\r\n]+/gu, ' ').trim() || 'Cloud run'
   const mode = meta.mode
-  const maxConcurrency = mode === 'serial' ? 1 : Math.max(1, Math.min(MAX_CONCURRENCY, Math.floor(meta.maxConcurrency || 1)))
+  const maxConcurrency = mode === 'serial'
+    ? 1
+    : Math.max(1, Math.min(MAX_CONCURRENCY, Math.floor(meta.maxConcurrency || 1)))
 
   let body = source
     .replace(titlePattern, '')
@@ -80,7 +82,7 @@ export function parseQueue(source: string): QueuePart[] {
   }
 
   for (const line of lines) {
-    if (/^\s*\`\`\`/u.test(line)) {
+    if (/^\s*```/u.test(line)) {
       if (inFence) {
         flush()
         inFence = false
@@ -90,6 +92,7 @@ export function parseQueue(source: string): QueuePart[] {
       }
       continue
     }
+
     if (inFence) {
       buffer.push(line)
       continue
