@@ -33,7 +33,7 @@ export function AppPage({
   children: ReactNode
   className?: string
 }) {
-  return <div className={cn('mx-auto w-full max-w-6xl px-4 pb-28 pt-6 sm:px-6 sm:pb-16 sm:pt-8 lg:px-8 lg:pt-10', className)}>{children}</div>
+  return <div className={cn('mx-auto w-full max-w-6xl px-4 pb-12 pt-6 sm:px-6 sm:pt-8 lg:px-8 lg:pt-10', className)}>{children}</div>
 }
 
 export function PageHeader({
@@ -51,7 +51,7 @@ export function PageHeader({
     <header className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0">
         {eyebrow ? <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{eyebrow}</p> : null}
-        <h1 className="text-balance text-2xl font-semibold tracking-[-0.035em] sm:text-3xl lg:text-[34px]">{title}</h1>
+        <h1 className="text-balance text-[28px] font-semibold tracking-[-0.035em] sm:text-3xl lg:text-[34px]">{title}</h1>
         {description ? <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{description}</p> : null}
       </div>
       {actions ? <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:shrink-0 sm:justify-end">{actions}</div> : null}

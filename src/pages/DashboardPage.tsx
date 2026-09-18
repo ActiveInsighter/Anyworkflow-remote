@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Copy, MoreHorizontal, Pencil, Plus, RefreshCw, RotateCcw, Trash2 } from 'lucide-react'
+import { Copy, Pencil, Plus, RefreshCw, RotateCcw, Trash2 } from 'lucide-react'
 import { Link, useNavigate } from 'react-router'
 import { AppPage, EmptyState, ErrorBanner, LoadingState, PageHeader, ProgressBar, StatusBadge } from '@/components/app/ui'
 import { ConfirmDeleteDialog } from '@/components/app/confirm-delete-dialog'
@@ -76,7 +76,7 @@ export function DashboardPage() {
 
   if (!session) {
     return (
-      <AppPage>
+      <AppPage className="pb-12">
         <PageHeader
           eyebrow="AnyWorkflow Remote"
           title="远程工作流控制台"
@@ -92,7 +92,7 @@ export function DashboardPage() {
   }
 
   return (
-    <AppPage>
+    <AppPage className="pb-12">
       <PageHeader
         eyebrow="工作流"
         title="我的 Run"
@@ -114,19 +114,21 @@ export function DashboardPage() {
       {actionError ? <ErrorBanner>{actionError}</ErrorBanner> : null}
 
       <Tabs value={filter} onValueChange={(value) => setFilter(value as FilterKey)} className="gap-5">
-        <TabsList className="grid h-auto w-full grid-cols-4 bg-muted/70 p-1 sm:w-fit">
-          {([
-            ['all', '全部', counts.all],
-            ['draft', '草稿', counts.draft],
-            ['active', '进行中', counts.active],
-            ['done', '已结束', counts.done],
-          ] as const).map(([value, label, count]) => (
-            <TabsTrigger key={value} value={value} className="gap-1.5 px-2.5 sm:px-3">
-              <span>{label}</span>
-              <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">{count}</span>
-            </TabsTrigger>
-          ))}
-        </TabsList>
+        <div className="overflow-x-auto">
+          <TabsList className="min-w-full justify-start sm:min-w-0">
+            {([
+              ['all', '全部', counts.all],
+              ['draft', '草稿', counts.draft],
+              ['active', '进行中', counts.active],
+              ['done', '已结束', counts.done],
+            ] as const).map(([value, label, count]) => (
+              <TabsTrigger key={value} value={value} className="min-w-[84px] gap-1.5 px-2 sm:min-w-0 sm:px-3">
+                <span>{label}</span>
+                <span className="text-[10px] tabular-nums text-muted-foreground">{count}</span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
 
         {state.loading && !state.data ? <LoadingState label="正在同步 Run…" /> : null}
 
@@ -138,7 +140,7 @@ export function DashboardPage() {
             const canDelete = run.status === 'draft' || terminal
 
             return (
-              <Card key={run.id} className="overflow-hidden shadow-sm transition-colors hover:border-foreground/15">
+              <Card key={run.id} className="overflow-hidden transition-colors hover:border-foreground/15">
                 <CardHeader className="gap-3 p-4 pb-3 sm:p-5 sm:pb-3">
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
@@ -151,7 +153,9 @@ export function DashboardPage() {
                     </div>
                     <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
                   </div>
-                  <ProgressBar value={percent} tone={status.tone} />
+
+                  <ProgressBar value={percent} tone={status.tone} className="mt-1" />
+
                   <div className="flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
                     <span>{progressText(run.completedTasks, run.totalTasks, 'Tasks')}</span>
                     <span>{formatDateTime(run.updated)}</span>
@@ -159,15 +163,12 @@ export function DashboardPage() {
                 </CardHeader>
 
                 <CardContent className="px-4 pb-3 pt-0 sm:px-5">
-                  <Button variant="ghost" className="h-8 w-full justify-between px-2 text-xs text-muted-foreground" asChild>
-                    <Link to={`/runs/${run.id}`}>
-                      查看详情
-                      <MoreHorizontal />
-                    </Link>
+                  <Button variant="ghost" className="h-8 w-full justify-start px-0 text-xs text-muted-foreground hover:bg-transparent hover:text-foreground" asChild>
+                    <Link to={`/runs/${run.id}`}>查看详情</Link>
                   </Button>
                 </CardContent>
 
-                <CardFooter className="flex flex-wrap justify-end gap-1.5 border-t bg-muted/20 p-2.5">
+                <CardFooter className="flex flex-wrap justify-end gap-1 border-t bg-transparent p-2.5">
                   {run.status === 'draft' ? (
                     <Button size="sm" variant="ghost" onClick={() => navigate(`/runs/${run.id}/edit`)}>
                       <Pencil />编辑
@@ -182,7 +183,7 @@ export function DashboardPage() {
                     </Button>
                   ) : null}
                   {canDelete ? (
-                    <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setDeleteTarget(run)} disabled={Boolean(actingId)}>
+                    <Button size="sm" variant="ghost" className="text-destructive hover:bg-destructive/8 hover:text-destructive" onClick={() => setDeleteTarget(run)} disabled={Boolean(actingId)}>
                       <Trash2 />删除
                     </Button>
                   ) : null}

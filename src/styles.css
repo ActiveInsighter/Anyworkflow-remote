@@ -30,32 +30,32 @@
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 
-  --radius: 12px;
-  --ui-background: #f7f8fa;
-  --ui-foreground: #17191d;
+  --radius: 10px;
+  --ui-background: #f6f7f8;
+  --ui-foreground: #181a1e;
   --ui-card: #ffffff;
-  --ui-card-foreground: #17191d;
-  --ui-primary: #17191d;
+  --ui-card-foreground: #181a1e;
+  --ui-primary: #1b1d21;
   --ui-primary-foreground: #ffffff;
-  --ui-secondary: #f0f2f5;
-  --ui-secondary-foreground: #252a31;
-  --ui-muted: #eef0f3;
-  --ui-muted-foreground: #707782;
-  --ui-accent: #edf5f3;
-  --ui-accent-foreground: #173f3e;
-  --ui-destructive: #b93832;
-  --ui-border: #e1e4e8;
-  --ui-input: #d7dbe0;
-  --ui-ring: #78938f;
+  --ui-secondary: #eceff1;
+  --ui-secondary-foreground: #2c3138;
+  --ui-muted: #eef0f2;
+  --ui-muted-foreground: #737b85;
+  --ui-accent: #e9f2ef;
+  --ui-accent-foreground: #21463f;
+  --ui-destructive: #c4453f;
+  --ui-border: #e2e5e8;
+  --ui-input: #d6dade;
+  --ui-ring: #668980;
 
-  --info: #315f9a;
-  --info-soft: #edf4ff;
-  --success: #287452;
-  --success-soft: #eaf7f1;
-  --warning: #9a6513;
-  --warning-soft: #fff7e6;
-  --danger: #b93832;
-  --danger-soft: #fff0ef;
+  --info: #426f9f;
+  --info-soft: #edf4fb;
+  --success: #34775a;
+  --success-soft: #edf6f1;
+  --warning: #9a6b24;
+  --warning-soft: #fbf5e9;
+  --danger: #c4453f;
+  --danger-soft: #fbefee;
 }
 
 * {
@@ -109,28 +109,28 @@ pre,
   :root {
     --ui-background: #000000;
     --ui-foreground: #f2f3f4;
-    --ui-card: #0b0b0c;
+    --ui-card: #0a0b0c;
     --ui-card-foreground: #f2f3f4;
     --ui-primary: #f2f3f4;
-    --ui-primary-foreground: #080809;
-    --ui-secondary: #17181a;
-    --ui-secondary-foreground: #e8eaed;
-    --ui-muted: #151619;
-    --ui-muted-foreground: #9299a3;
-    --ui-accent: #10211f;
-    --ui-accent-foreground: #a9d8d1;
-    --ui-destructive: #ef817b;
-    --ui-border: #1f2125;
-    --ui-input: #2b2e33;
-    --ui-ring: #89c2b9;
+    --ui-primary-foreground: #090a0b;
+    --ui-secondary: #17191b;
+    --ui-secondary-foreground: #e9ebed;
+    --ui-muted: #141619;
+    --ui-muted-foreground: #969da6;
+    --ui-accent: #10201d;
+    --ui-accent-foreground: #a8d4cb;
+    --ui-destructive: #ed817a;
+    --ui-border: #202226;
+    --ui-input: #2c2f34;
+    --ui-ring: #80b4a8;
 
-    --info: #8bb8ee;
-    --info-soft: #0f1c2b;
-    --success: #82d1aa;
-    --success-soft: #0e2118;
-    --warning: #e8bd6b;
-    --warning-soft: #241c0f;
-    --danger: #f08882;
-    --danger-soft: #251211;
+    --info: #8fb6df;
+    --info-soft: #101b27;
+    --success: #83c8a6;
+    --success-soft: #102019;
+    --warning: #dfb86f;
+    --warning-soft: #221b11;
+    --danger: #ed817a;
+    --danger-soft: #241312;
   }
 }
