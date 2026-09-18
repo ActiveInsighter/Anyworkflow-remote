@@ -5,6 +5,8 @@ import { AppPage, EmptyState } from '@/components/app/ui'
 import { Button } from '@/components/ui/button'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { EventDetailPage } from '@/pages/EventDetailPage'
+import { LibraryPage } from '@/pages/LibraryPage'
+import { TemplateDetailPage } from '@/pages/TemplateDetailPage'
 import { RunDetailPage } from '@/pages/RunDetailPage'
 import { RunEditorPage } from '@/pages/RunEditorPage'
 import { SettingsPage } from '@/pages/SettingsPage'
@@ -32,6 +34,8 @@ export default function App() {
           <Route path="runs/:runId" element={<RunDetailPage />} />
           <Route path="tasks/:taskId" element={<TaskDetailPage />} />
           <Route path="events/:eventId" element={<EventDetailPage />} />
+          <Route path="library" element={<LibraryPage />} />
+          <Route path="templates/:templateId" element={<TemplateDetailPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>

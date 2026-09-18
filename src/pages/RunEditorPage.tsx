@@ -1,11 +1,12 @@
 import { Braces, CircleCheck, Play, Save, SlidersHorizontal } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { AppPage, EmptyState, ErrorBanner, Field, LoadingState, PageHeader, TextArea, TextInput } from '@/components/app/ui'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { createRun, getRun, toErrorMessage, updateRunDraft } from '@/lib/api'
+import { getWorkflowTemplate, updateWorkflowTemplate } from '@/lib/library'
 import { applyPlanMeta, createStarterPlan, parsePlanMeta } from '@/lib/plan'
 import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
@@ -14,17 +15,41 @@ import type { DispatchExecutionMode } from '@/types'
 export function RunEditorPage() {
   const { runId } = useParams()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const templateId = searchParams.get('templateId') || ''
+  const templateMode = searchParams.get('mode') === 'edit' ? 'edit' : templateId ? 'use' : ''
   const session = useSession()
   const [source, setSource] = useState(() => createStarterPlan())
   const initialMeta = parsePlanMeta(source)
   const [title, setTitle] = useState(initialMeta.title)
   const [mode, setMode] = useState<DispatchExecutionMode>(initialMeta.mode)
   const [maxConcurrency, setMaxConcurrency] = useState(initialMeta.maxConcurrency)
-  const [loading, setLoading] = useState(Boolean(runId))
+  const [loading, setLoading] = useState(Boolean(runId || templateId))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [dirty, setDirty] = useState(false)
+  const [templateTitle, setTemplateTitle] = useState('')
   const editorRows = useMemo(() => Math.min(30, Math.max(12, source.split('\n').length + 2)), [source])
+
+  useEffect(() => {
+    if (!templateId || runId) return
+    let active = true
+    setLoading(true)
+    void getWorkflowTemplate(templateId)
+      .then((template) => {
+        if (!active) return
+        const meta = parsePlanMeta(template.planText)
+        setSource(template.planText)
+        setTitle(meta.title)
+        setMode(meta.mode)
+        setMaxConcurrency(meta.maxConcurrency)
+        setTemplateTitle(template.title)
+        setDirty(false)
+      })
+      .catch((cause) => active && setError(toErrorMessage(cause)))
+      .finally(() => active && setLoading(false))
+    return () => { active = false }
+  }, [templateId, runId])
 
   useEffect(() => {
     if (!runId) return
@@ -72,6 +97,16 @@ export function RunEditorPage() {
     setError('')
     try {
       const planText = normalizedSource()
+      if (templateMode === 'edit' && templateId) {
+        await updateWorkflowTemplate(templateId, {
+          title: templateTitle || title || '未命名模板',
+          planText,
+        })
+        setSource(planText)
+        setDirty(false)
+        navigate(`/templates/${templateId}`, { replace: true })
+        return
+      }
       const saved = runId
         ? await updateRunDraft(runId, planText, publish)
         : await createRun(planText, publish ? 'queued' : 'draft')
@@ -98,8 +133,8 @@ export function RunEditorPage() {
   return (
     <AppPage className="max-w-[1320px]">
       <PageHeader
-        eyebrow={runId ? '草稿' : '新建'}
-        title={runId ? title || '未命名 Run' : '创建 Run'}
+        eyebrow={templateMode === 'edit' ? '模板' : runId ? '草稿' : templateMode === 'use' ? '模板' : '新建'}
+        title={templateMode === 'edit' ? templateTitle || '编辑模板' : runId ? title || '未命名 Run' : templateMode === 'use' ? '使用模板' : '创建 Run'}
         actions={
           <Badge variant={dirty ? 'outline' : 'secondary'} className={cn('rounded-full px-3', dirty && 'border-amber-500/30 text-amber-600 dark:text-amber-400')}>
             {dirty ? '未保存' : <><CircleCheck className="mr-1 size-3" />已保存</>}
@@ -118,6 +153,16 @@ export function RunEditorPage() {
             <CardTitle>Run 配置</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-5">
+{templateMode === 'edit' ? (
+              <Field label="模板名称">
+                <TextInput
+                  value={templateTitle}
+                  maxLength={512}
+                  onChange={(event) => { setTemplateTitle(event.target.value); setDirty(true) }}
+                />
+              </Field>
+            ) : null}
+
             <Field label="名称">
               <TextInput
                 value={title}
@@ -192,12 +237,20 @@ export function RunEditorPage() {
       </div>
 
       <div className="mt-4 flex flex-col gap-2 border-t pt-4 sm:sticky sm:bottom-4 sm:z-20 sm:flex-row sm:justify-end sm:rounded-xl sm:border sm:bg-background/95 sm:p-3 sm:backdrop-blur">
-        <Button variant="outline" onClick={() => void persist(false)} disabled={saving}>
-          <Save />{saving ? '保存中…' : '保存草稿'}
-        </Button>
-        <Button onClick={() => void persist(true)} disabled={saving}>
-          <Play />{saving ? '处理中…' : '开始运行'}
-        </Button>
+{templateMode === 'edit' ? (
+          <Button onClick={() => void persist(false)} disabled={saving}>
+            <Save />{saving ? '保存中…' : '保存模板'}
+          </Button>
+        ) : (
+          <>
+            <Button variant="outline" onClick={() => void persist(false)} disabled={saving}>
+              <Save />{saving ? '保存中…' : '保存草稿'}
+            </Button>
+            <Button onClick={() => void persist(true)} disabled={saving}>
+              <Play />{saving ? '处理中…' : '开始运行'}
+            </Button>
+          </>
+        )}
       </div>
     </AppPage>
   )

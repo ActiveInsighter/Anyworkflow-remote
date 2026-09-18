@@ -1,4 +1,4 @@
-import { Copy, Pencil, Pause, Play, RotateCcw, Trash2, XCircle } from 'lucide-react'
+import { BookmarkPlus, BookmarkX, Copy, Pencil, Pause, Play, RotateCcw, Save, Trash2, XCircle } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { AppPage, ErrorBanner, LoadingState, MetaGrid, PageHeader, ProgressBar, SectionHeading, StatusBadge } from '@/components/app/ui'
@@ -15,12 +15,14 @@ import {
   toErrorMessage,
   updateRunDraft,
 } from '@/lib/api'
+import { createRunFavorite, createWorkflowTemplateFromRun, deleteRunFavorite, getRunFavoriteForRun } from '@/lib/library'
 import { formatDateTime, modeLabel, progressPercent, progressText, runStatusMeta } from '@/lib/format'
 import type { DispatchRequestedAction, DispatchRunRecord } from '@/types'
 
 interface RunSnapshot {
   run: DispatchRunRecord
   tasks: Awaited<ReturnType<typeof listAllTasksForRun>>
+  favorite: Awaited<ReturnType<typeof getRunFavoriteForRun>>
 }
 
 export function RunDetailPage() {
@@ -32,8 +34,8 @@ export function RunDetailPage() {
 
   const state = useAsyncData<RunSnapshot>(
     async () => {
-      const [run, tasks] = await Promise.all([getRun(runId), listAllTasksForRun(runId)])
-      return { run, tasks }
+      const [run, tasks, favorite] = await Promise.all([getRun(runId), listAllTasksForRun(runId), getRunFavoriteForRun(runId)])
+      return { run, tasks, favorite }
     },
     [runId],
     { enabled: Boolean(runId), pollMs: 5000, errorMessage: toErrorMessage },
@@ -84,6 +86,35 @@ export function RunDetailPage() {
     }
   }
 
+  async function toggleFavorite() {
+    if (acting) return
+    setActing(true)
+    setActionError('')
+    try {
+      if (favorite) await deleteRunFavorite(favorite.id)
+      else await createRunFavorite(run.id)
+      await state.reload()
+    } catch (error) {
+      setActionError(toErrorMessage(error))
+    } finally {
+      setActing(false)
+    }
+  }
+
+  async function saveTemplate() {
+    if (acting) return
+    setActing(true)
+    setActionError('')
+    try {
+      const template = await createWorkflowTemplateFromRun(run)
+      navigate(`/templates/${template.id}`)
+    } catch (error) {
+      setActionError(toErrorMessage(error))
+    } finally {
+      setActing(false)
+    }
+  }
+
   async function remove() {
     const run = state.data?.run
     if (!run || acting) return
@@ -103,7 +134,7 @@ export function RunDetailPage() {
   if (state.error && !state.data) return <AppPage><ErrorBanner>{state.error}</ErrorBanner></AppPage>
   if (!state.data) return null
 
-  const { run, tasks } = state.data
+  const { run, tasks, favorite } = state.data
   const status = runStatusMeta(run.status, run.requestedAction)
   const totalTasks = Math.max(run.totalTasks, tasks.length)
   const percent = progressPercent(run.completedTasks, totalTasks)
@@ -120,7 +151,11 @@ export function RunDetailPage() {
         title={run.title || '未命名 Run'}
         actions={
           <>
-            {run.status === 'draft' ? <Button variant="outline" asChild><Link to={`/runs/${run.id}/edit`}><Pencil />编辑</Link></Button> : null}
+{run.status === 'draft' ? <Button variant="outline" asChild><Link to={`/runs/${run.id}/edit`}><Pencil />编辑</Link></Button> : null}
+            <Button variant="outline" onClick={() => void toggleFavorite()} disabled={acting}>
+              {favorite ? <BookmarkX /> : <BookmarkPlus />}{favorite ? '取消收藏' : '收藏'}
+            </Button>
+            <Button variant="outline" onClick={() => void saveTemplate()} disabled={acting || !run.planText.trim()}><Save />存模板</Button>
             {run.status === 'draft' ? <Button onClick={() => void publishDraft()} disabled={acting}><Play />运行</Button> : null}
             {canPause ? <Button variant="outline" onClick={() => void control('pause')} disabled={acting}><Pause />暂停</Button> : null}
             {canResume ? <Button onClick={() => void control('resume')} disabled={acting}><Play />继续</Button> : null}

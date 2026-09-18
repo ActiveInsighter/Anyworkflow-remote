@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
-import { House, Menu, Settings, Workflow } from 'lucide-react'
+import { BookMarked, House, Menu, Settings, Workflow } from 'lucide-react'
 import { NavLink, Outlet } from 'react-router'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -16,6 +16,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { to: '/', label: '工作流', icon: House, end: true },
+  { to: '/library', label: '资料库', icon: BookMarked },
   { to: '/settings', label: '设置', icon: Settings },
 ]
 

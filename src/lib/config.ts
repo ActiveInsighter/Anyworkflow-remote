@@ -9,3 +9,8 @@ export const EVENT_COLLECTION = 'aw_dispatch_events'
 export const DEFAULT_PAGE_SIZE = 100
 export const MAX_CONCURRENCY = 16
 export const MAX_PLAN_TEXT_BYTES = 2 * 1024 * 1024
+
+export const LIBRARY_FOLDER_COLLECTION = 'aw_library_folders'
+export const RUN_FAVORITE_COLLECTION = 'aw_run_favorites'
+export const TEMPLATE_COLLECTION = 'aw_templates'
+export const MAX_TITLE_LENGTH = 512

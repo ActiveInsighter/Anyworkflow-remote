@@ -50,7 +50,7 @@ interface RequestOptions {
   signal?: AbortSignal
 }
 
-async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const session = options.baseUrl ? null : requireSession()
   const baseUrl = options.baseUrl || session?.baseUrl || ''
   const token = options.token ?? session?.token
@@ -90,11 +90,11 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   return payload as T
 }
 
-function quoteFilter(value: string): string {
+export function quoteFilter(value: string): string {
   return value.replace(/\\/gu, '\\\\').replace(/"/gu, '\\"')
 }
 
-function assertOwner<T extends { owner: string }>(record: T): T {
+export function assertOwner<T extends { owner: string }>(record: T): T {
   const session = requireSession()
   if (record.owner !== session.record.id) throw new ApiError('接口返回的数据归属无效', 502, 'INVALID_RECORD_OWNER')
   return record
@@ -109,7 +109,7 @@ async function listCollection<T extends { owner: string }>(
   return { ...response, items: response.items.map(assertOwner) }
 }
 
-async function collectPages<T extends { owner: string }>(
+export async function collectPages<T extends { owner: string }>(
   first: PocketBaseListResponse<T>,
   load: (page: number) => Promise<PocketBaseListResponse<T>>,
 ): Promise<T[]> {
