@@ -1,7 +1,7 @@
 import { BookmarkPlus, BookmarkX, Copy, Pencil, Pause, Play, RotateCcw, Save, Trash2, XCircle } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
-import { AppPage, ErrorBanner, LoadingState, MetaGrid, PageHeader, ProgressBar, SectionHeading, StatusBadge } from '@/components/app/ui'
+import { AppPage, EmptyState, ErrorBanner, LoadingState, MetaGrid, PageHeader, ProgressBar, SectionHeading, StatusBadge } from '@/components/app/ui'
 import { ConfirmDeleteDialog } from '@/components/app/confirm-delete-dialog'
 import { Button } from '@/components/ui/button'
 import { useAsyncData } from '@/hooks/useAsyncData'
