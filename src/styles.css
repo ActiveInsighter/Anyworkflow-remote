@@ -56,6 +56,26 @@
   --warning-soft: #fbf5e9;
   --danger: #c34f49;
   --danger-soft: #fbefee;
+
+  --cm-bg: #fbfcfc;
+  --cm-fg: #202625;
+  --cm-gutter-bg: #f3f6f5;
+  --cm-gutter-fg: #8a9491;
+  --cm-toolbar-bg: #f7f9f8;
+  --cm-border: #dfe5e3;
+  --cm-active-line: #eef5f3;
+  --cm-selection: #d9ebe7;
+  --cm-tooltip-bg: #ffffff;
+  --cm-caret: #2f6f66;
+  --cm-keyword: #8a3d8f;
+  --cm-variable: #8a5d15;
+  --cm-string: #337358;
+  --cm-link: #356b9a;
+  --cm-atom: #7658a8;
+  --cm-number: #9b5b36;
+  --cm-function: #356b9a;
+  --cm-comment: #87908d;
+  --cm-bracket: #5e6865;
 }
 
 * {
@@ -138,5 +158,79 @@ pre,
     --warning-soft: #221b11;
     --danger: #ed817a;
     --danger-soft: #241312;
+
+    --cm-bg: #080a0a;
+    --cm-fg: #e8eeec;
+    --cm-gutter-bg: #0d1010;
+    --cm-gutter-fg: #66706e;
+    --cm-toolbar-bg: #0c0f0f;
+    --cm-border: #202725;
+    --cm-active-line: #101716;
+    --cm-selection: #18332f;
+    --cm-tooltip-bg: #101413;
+    --cm-caret: #8fc9bf;
+    --cm-keyword: #d9a2dc;
+    --cm-variable: #e1b875;
+    --cm-string: #93d2ae;
+    --cm-link: #8dbdea;
+    --cm-atom: #b7a2e8;
+    --cm-number: #e4a681;
+    --cm-function: #8dbdea;
+    --cm-comment: #6f7a77;
+    --cm-bracket: #a6b0ad;
+  }
+}
+
+
+.aw-code-editor .cm-editor {
+  min-height: 360px;
+}
+
+.aw-code-editor .cm-scroller {
+  min-height: 360px;
+  max-height: min(68vh, 760px);
+  overflow: auto;
+}
+
+.aw-code-editor .cm-searchMatch {
+  background: color-mix(in srgb, var(--warning) 28%, transparent);
+}
+
+.aw-code-editor .cm-searchMatch.cm-searchMatch-selected {
+  background: color-mix(in srgb, var(--warning) 48%, transparent);
+}
+
+.aw-code-editor .cm-tooltip-autocomplete {
+  max-width: min(92vw, 520px);
+}
+
+.aw-code-editor .cm-tooltip-autocomplete ul {
+  font-family: inherit;
+  max-height: 300px;
+}
+
+.aw-code-editor .cm-completionLabel {
+  font-family: "SFMono-Regular", "Cascadia Code", Consolas, monospace;
+  font-size: 12px;
+}
+
+.aw-code-editor .cm-completionDetail {
+  color: var(--ui-muted-foreground);
+  font-size: 11px;
+}
+
+@media (max-width: 640px) {
+  .aw-code-editor .cm-editor,
+  .aw-code-editor .cm-scroller {
+    min-height: 52vh;
+  }
+
+  .aw-code-editor .cm-gutters {
+    font-size: 10px;
+  }
+
+  .aw-code-editor .cm-line {
+    padding-left: 8px;
+    padding-right: 8px;
   }
 }
