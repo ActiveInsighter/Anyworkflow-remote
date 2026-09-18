@@ -134,7 +134,9 @@ function AccountSummary({ compact = false }: { compact?: boolean }) {
     )
   }
 
-  const name = session?.record.name || session?.record.email || '未连接'
+  // The dot already turns green whenever a session exists, so the label must never contradict it:
+  // a record without a name or email still means "signed in", not "not connected".
+  const name = session ? session.record.name || session.record.email || '已登录' : '未连接'
   let host = ''
   if (session?.baseUrl) {
     try {
@@ -149,7 +151,7 @@ function AccountSummary({ compact = false }: { compact?: boolean }) {
       <span
         className={cn(
           'size-2 shrink-0 rounded-full bg-muted-foreground/40',
-          session && 'bg-[var(--success)]',
+          session && 'bg-success',
         )}
         aria-hidden="true"
       />
@@ -270,7 +272,7 @@ function AppSidebarRail() {
         <span
           className={cn(
             'mt-0.5 size-2 rounded-full bg-muted-foreground/40',
-            session && 'bg-[var(--success)]',
+            session && 'bg-success',
           )}
           title={session ? '已连接' : '未连接'}
         />

@@ -12,7 +12,7 @@ function ConnectionDot({ className }: { className?: string }) {
   return (
     <>
       <span
-        className={cn('size-2 rounded-full bg-muted-foreground/40', session && 'bg-[var(--success)]', className)}
+        className={cn('size-2 rounded-full bg-muted-foreground/40', session && 'bg-success', className)}
         aria-hidden="true"
       />
       <span className="sidebar-sr-only">{label}</span>

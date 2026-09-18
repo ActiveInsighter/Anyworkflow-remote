@@ -14,8 +14,8 @@ const badgeVariants = cva(
         outline: 'text-foreground',
         /** No colors of its own so callers can supply a semantic tone without conflicts. */
         plain: 'border-transparent',
-        warning: 'border-[var(--warning)]/30 bg-[var(--warning-soft)] text-[var(--warning)]',
-        success: 'border-[var(--success)]/30 bg-[var(--success-soft)] text-[var(--success)]',
+        warning: 'border-warning/30 bg-warning-soft text-warning',
+        success: 'border-success/30 bg-success-soft text-success',
         ghost: 'border-transparent hover:bg-accent hover:text-accent-foreground',
       },
     },

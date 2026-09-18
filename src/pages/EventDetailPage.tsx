@@ -111,7 +111,7 @@ export function EventDetailPage() {
                 </div>
                 {item.url ? (
                   <a
-                    className="mb-2 inline-flex max-w-full items-center gap-1.5 break-all text-xs text-[var(--info)] hover:underline"
+                    className="mb-2 inline-flex max-w-full items-center gap-1.5 break-all text-xs text-info hover:underline"
                     href={item.url}
                     target="_blank"
                     rel="noreferrer"

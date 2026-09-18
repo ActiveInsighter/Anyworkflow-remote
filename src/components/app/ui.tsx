@@ -13,18 +13,18 @@ import { cn } from '@/lib/utils'
 
 const toneClasses: Record<StatusTone, string> = {
   neutral: 'border-transparent bg-muted text-muted-foreground',
-  info: 'border-transparent bg-[var(--info-soft)] text-[var(--info)]',
-  success: 'border-transparent bg-[var(--success-soft)] text-[var(--success)]',
-  danger: 'border-transparent bg-[var(--danger-soft)] text-[var(--danger)]',
-  warning: 'border-transparent bg-[var(--warning-soft)] text-[var(--warning)]',
+  info: 'border-transparent bg-info-soft text-info',
+  success: 'border-transparent bg-success-soft text-success',
+  danger: 'border-transparent bg-danger-soft text-danger',
+  warning: 'border-transparent bg-warning-soft text-warning',
 }
 
 const progressToneClasses: Record<StatusTone, string> = {
   neutral: 'bg-muted-foreground',
-  info: 'bg-[var(--info)]',
-  success: 'bg-[var(--success)]',
-  danger: 'bg-[var(--danger)]',
-  warning: 'bg-[var(--warning)]',
+  info: 'bg-info',
+  success: 'bg-success',
+  danger: 'bg-danger',
+  warning: 'bg-warning',
 }
 
 /* ------------------------------------------------------------------ layout */
@@ -282,7 +282,7 @@ export function MetaGrid({
 /** Inline note for a failure that belongs to the surrounding panel rather than the page. */
 export function InlineError({ children }: { children: ReactNode }) {
   return (
-    <div className="flex items-start gap-2 rounded-md border border-[var(--danger)]/25 bg-[var(--danger-soft)] px-3 py-2 text-xs leading-5 text-[var(--danger)]">
+    <div className="flex items-start gap-2 rounded-md border border-danger/25 bg-danger-soft px-3 py-2 text-xs leading-5 text-danger">
       <TriangleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
       <span className="min-w-0 break-words">{children}</span>
     </div>
@@ -391,7 +391,7 @@ export function CodeBlock({
           {actions ? <div className="flex shrink-0 items-center gap-1">{actions}</div> : null}
         </div>
       ) : null}
-      <pre className="m-0 max-h-[620px] min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-words bg-[var(--cm-bg)] p-4 font-mono text-xs leading-6 text-[var(--cm-fg)]">
+      <pre className="m-0 max-h-[620px] min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-words bg-cm-bg p-4 font-mono text-xs leading-6 text-cm-fg">
         {children}
       </pre>
     </Panel>

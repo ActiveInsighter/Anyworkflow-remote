@@ -1,6 +1,6 @@
-import { CircleCheck, Play, Save } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
+import { CircleCheck, History, Play, Save } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useBlocker, useNavigate, useParams, useSearchParams } from 'react-router'
 import { AnyWorkflowEditor, type AnyWorkflowEditorHandle } from '@/components/editor/AnyWorkflowEditor'
 import { validateAnyWorkflowSource } from '@/components/editor/anyworkflow-dsl'
 import {
@@ -14,9 +14,21 @@ import {
   Segmented,
   TextInput,
 } from '@/components/app/ui'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { createRun, getRun, toErrorMessage, updateRunDraft } from '@/lib/api'
+import { clearEditorDraft, draftScopeFor, readEditorDraft, writeEditorDraft, type EditorDraft } from '@/lib/draft'
+import { formatDateTime } from '@/lib/format'
 import { getWorkflowTemplate, updateWorkflowTemplate } from '@/lib/library'
 import { applyPlanMeta, createStarterPlan, parsePlanMeta } from '@/lib/plan'
 import { useSession } from '@/lib/session'
@@ -27,6 +39,14 @@ const modeOptions = [
   { value: 'parallel' as DispatchExecutionMode, label: '并行' },
 ]
 
+const UNSAFE_FILENAME = /[\\/:*?"<>|\u0000-\u001f]/gu
+
+/** Keeps the downloaded plan recognisable without letting a title break the filename. */
+function editorFileName(title: string): string {
+  const base = title.trim().replace(UNSAFE_FILENAME, '-').replace(/\s+/gu, ' ').slice(0, 60).trim()
+  return `${base || 'plan'}.aw`
+}
+
 export function RunEditorPage() {
   const { runId } = useParams()
   const navigate = useNavigate()
@@ -35,6 +55,8 @@ export function RunEditorPage() {
   const templateMode = searchParams.get('mode') === 'edit' ? 'edit' : templateId ? 'use' : ''
   const session = useSession()
   const editorRef = useRef<AnyWorkflowEditorHandle | null>(null)
+
+  const scope = draftScopeFor(runId, templateId)
 
   const [source, setSource] = useState(createStarterPlan)
   const initialMeta = parsePlanMeta(source)
@@ -46,6 +68,10 @@ export function RunEditorPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [dirty, setDirty] = useState(false)
+  const [restorable, setRestorable] = useState<EditorDraft | null>(null)
+
+  const sourceRef = useRef(source)
+  sourceRef.current = source
 
   const diagnostics = useMemo(() => validateAnyWorkflowSource(source), [source])
   const errorCount = diagnostics.filter((item) => item.severity === 'error').length
@@ -90,6 +116,29 @@ export function RunEditorPage() {
     return () => { active = false }
   }, [runId])
 
+  /**
+   * Offer the local draft once the server content is known. It is never applied automatically:
+   * silently replacing what the server holds would be worse than losing an autosave.
+   */
+  useEffect(() => {
+    if (loading) return
+    const draft = readEditorDraft(scope)
+    if (!draft) return
+    if (draft.source.trim() === sourceRef.current.trim()) {
+      clearEditorDraft(scope)
+      return
+    }
+    setRestorable(draft)
+  }, [loading, scope])
+
+  useEffect(() => {
+    if (!dirty) return
+    const timer = window.setTimeout(() => {
+      writeEditorDraft(scope, { source, title, mode, maxConcurrency, templateTitle })
+    }, 700)
+    return () => window.clearTimeout(timer)
+  }, [dirty, scope, source, title, mode, maxConcurrency, templateTitle])
+
   useEffect(() => {
     const beforeUnload = (event: BeforeUnloadEvent) => {
       if (dirty) event.preventDefault()
@@ -97,6 +146,23 @@ export function RunEditorPage() {
     window.addEventListener('beforeunload', beforeUnload)
     return () => window.removeEventListener('beforeunload', beforeUnload)
   }, [dirty])
+
+  /** Set just before a save-triggered navigation so the guard does not block our own redirect. */
+  const bypassBlockRef = useRef(false)
+
+  const blocker = useBlocker(useCallback(() => dirty && !bypassBlockRef.current, [dirty]))
+
+  useEffect(() => {
+    bypassBlockRef.current = false
+  }, [runId, templateId])
+
+  function stayOnPage() {
+    if (blocker.state === 'blocked') blocker.reset()
+  }
+
+  function leavePage() {
+    if (blocker.state === 'blocked') blocker.proceed()
+  }
 
   function syncMeta(nextSource: string) {
     const meta = parsePlanMeta(nextSource)
@@ -127,6 +193,23 @@ export function RunEditorPage() {
     setDirty(true)
   }
 
+  function restoreDraft() {
+    if (!restorable) return
+    const meta = parsePlanMeta(restorable.source)
+    setSource(restorable.source)
+    setTitle(meta.title)
+    setMode(meta.mode)
+    setMaxConcurrency(meta.maxConcurrency)
+    if (restorable.templateTitle) setTemplateTitle(restorable.templateTitle)
+    setDirty(true)
+    setRestorable(null)
+  }
+
+  function discardDraft() {
+    clearEditorDraft(scope)
+    setRestorable(null)
+  }
+
   async function persist(publish: boolean) {
     if (!session || saving) return
     if (errorCount > 0) {
@@ -145,8 +228,10 @@ export function RunEditorPage() {
           title: templateTitle || title || '未命名模板',
           planText,
         })
+        clearEditorDraft(scope)
         setSource(planText)
         setDirty(false)
+        bypassBlockRef.current = true
         navigate('/templates/' + templateId, { replace: true })
         return
       }
@@ -155,8 +240,10 @@ export function RunEditorPage() {
         ? await updateRunDraft(runId, planText, publish)
         : await createRun(planText, publish ? 'queued' : 'draft')
 
+      clearEditorDraft(scope)
       setSource(planText)
       setDirty(false)
+      bypassBlockRef.current = true
       navigate(publish ? '/runs/' + saved.id : '/runs/' + saved.id + '/edit', { replace: true })
     } catch (cause) {
       setError(toErrorMessage(cause))
@@ -212,6 +299,24 @@ export function RunEditorPage() {
       />
 
       {error ? <ErrorBanner>{error}</ErrorBanner> : null}
+
+      {restorable ? (
+        <div className="mb-3 flex flex-col gap-3 rounded-lg border bg-info-soft px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-2.5">
+            <History className="mt-0.5 size-4 shrink-0 text-info" aria-hidden="true" />
+            <div className="min-w-0">
+              <p className="text-[13px] font-medium">发现上次未保存的本地草稿</p>
+              <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
+                保存于 {formatDateTime(new Date(restorable.savedAt).toISOString())}。恢复后可继续编辑，服务端内容不会被自动覆盖。
+              </p>
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <Button size="sm" onClick={restoreDraft}>恢复草稿</Button>
+            <Button size="sm" variant="outline" onClick={discardDraft}>丢弃</Button>
+          </div>
+        </div>
+      ) : null}
 
       <Panel className="mb-3 p-3 sm:p-4">
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(200px,1.2fr)_minmax(200px,1fr)_190px_150px] xl:items-end">
@@ -271,24 +376,40 @@ export function RunEditorPage() {
         value={source}
         onChange={onEditorChange}
         onSave={() => void persist(false)}
+        downloadName={editorFileName(title)}
       />
 
       <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3 sm:sticky sm:bottom-3 sm:z-20 sm:flex-row sm:justify-end sm:gap-2 sm:rounded-lg sm:border sm:border-border sm:bg-background/95 sm:p-2 sm:shadow-md sm:backdrop-blur">
         {templateMode === 'edit' ? (
-          <Button onClick={() => void persist(false)} disabled={saving || errorCount > 0}>
+          <Button className="h-11 sm:h-9" onClick={() => void persist(false)} disabled={saving || errorCount > 0}>
             <Save />{saving ? '保存中…' : '保存模板'}
           </Button>
         ) : (
           <>
-            <Button variant="outline" onClick={() => void persist(false)} disabled={saving || errorCount > 0}>
+            <Button className="h-11 sm:h-9" variant="outline" onClick={() => void persist(false)} disabled={saving || errorCount > 0}>
               <Save />{saving ? '保存中…' : '保存草稿'}
             </Button>
-            <Button onClick={() => void persist(true)} disabled={saving || errorCount > 0}>
+            <Button className="h-11 sm:h-9" onClick={() => void persist(true)} disabled={saving || errorCount > 0}>
               <Play />{saving ? '处理中…' : '开始运行'}
             </Button>
           </>
         )}
       </div>
+
+      <AlertDialog open={blocker.state === 'blocked'} onOpenChange={(open) => { if (!open) stayOnPage() }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>放弃未保存的修改？</AlertDialogTitle>
+            <AlertDialogDescription>
+              当前 DSL 有未保存的修改，离开后服务端不会保存这些内容。本地已自动保留一份草稿，下次回到这个页面时可以恢复。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={stayOnPage}>继续编辑</AlertDialogCancel>
+            <AlertDialogAction onClick={leavePage}>放弃并离开</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppPage>
   )
 }

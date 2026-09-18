@@ -29,7 +29,7 @@ export function ConfirmDeleteDialog({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <div className="mb-1 grid size-10 place-items-center rounded-lg bg-[var(--danger-soft)] text-[var(--danger)]">
+          <div className="mb-1 grid size-10 place-items-center rounded-lg bg-danger-soft text-danger">
             <Trash2 className="size-4" aria-hidden="true" />
           </div>
           <AlertDialogTitle>{title}</AlertDialogTitle>

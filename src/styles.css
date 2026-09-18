@@ -20,6 +20,28 @@
   --color-input: var(--ui-input);
   --color-ring: var(--ui-ring);
 
+  /*
+   * Status tones and editor surfaces are declared as real colour tokens rather than used as
+   * arbitrary values. Tailwind v4 cannot infer the property for a `text-` or `bg-` utility whose
+   * arbitrary value is a bare `var()` — `text-` is ambiguous between font-size and colour, `bg-`
+   * between colour and image — so the declaration is dropped silently and the element falls back
+   * to the inherited colour. Naming them here makes `text-danger`, `bg-success-soft`,
+   * `border-warning/30` and friends generate the rule they claim to.
+   */
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+
+  --color-cm-bg: var(--cm-bg);
+  --color-cm-fg: var(--cm-fg);
+  --color-cm-border: var(--cm-border);
+  --color-cm-toolbar-bg: var(--cm-toolbar-bg);
+
   --radius-sm: calc(var(--radius) - 3px);
   --radius-md: calc(var(--radius) - 1px);
   --radius-lg: var(--radius);
@@ -237,7 +259,25 @@
  * bare `border` / `border-b` / `border-t` far too heavily. Pin it to the semantic token so
  * every hairline in the app stays quiet and theme aware.
  */
+/*
+ * Everything below lives in `@layer base` on purpose.
+ *
+ * Unlayered rules always outrank layered ones regardless of specificity. When these element
+ * selectors sat outside every layer they silently beat every `@layer utilities` class — a
+ * `<button className="text-[11px] text-danger">` still computed to 16px/400 in the inherited
+ * colour, because `button { font: inherit }` / `button { color: inherit }` won the cascade.
+ * Layering them keeps the reset as a baseline that Tailwind utilities can override.
+ */
 @layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  /*
+   * Tailwind v4 preflight resolves the default border color to `currentColor`, which renders
+   * bare `border` / `border-b` / `border-t` far too heavily. Pin it to the semantic token so
+   * every hairline in the app stays quiet and theme aware.
+   */
   *,
   ::after,
   ::before,
@@ -245,84 +285,84 @@
   ::file-selector-button {
     border-color: var(--ui-border);
   }
-}
 
-html,
-body,
-#root {
-  width: 100%;
-  max-width: 100%;
-  min-width: 320px;
-  min-height: 100%;
-  overflow-x: hidden;
-}
+  html,
+  body,
+  #root {
+    width: 100%;
+    max-width: 100%;
+    min-width: 320px;
+    min-height: 100%;
+    overflow-x: hidden;
+  }
 
-html {
-  background: var(--ui-background);
-}
+  html {
+    background: var(--ui-background);
+  }
 
-body {
-  margin: 0;
-  min-height: 100dvh;
-  background: var(--ui-background);
-  color: var(--ui-foreground);
-}
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    background: var(--ui-background);
+    color: var(--ui-foreground);
+  }
 
-body,
-button,
-input,
-textarea,
-select {
-  font: inherit;
-}
+  body,
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
 
-button,
-a,
-input,
-textarea,
-select {
-  -webkit-tap-highlight-color: transparent;
-}
+  button,
+  a,
+  input,
+  textarea,
+  select {
+    -webkit-tap-highlight-color: transparent;
+  }
 
-button,
-select {
-  color: inherit;
-}
+  button,
+  select {
+    color: inherit;
+  }
 
-a {
-  color: inherit;
-  text-decoration: none;
-}
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
 
-code,
-pre,
-.code-editor {
-  font-family: 'SFMono-Regular', 'Cascadia Code', Consolas, 'Liberation Mono', monospace;
-}
+  code,
+  pre,
+  .code-editor {
+    font-family: 'SFMono-Regular', 'Cascadia Code', Consolas, 'Liberation Mono', monospace;
+  }
 
-::selection {
-  background: color-mix(in srgb, var(--ui-ring) 24%, transparent);
-}
+  ::selection {
+    background: color-mix(in srgb, var(--ui-ring) 24%, transparent);
+  }
 
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
 
-::-webkit-scrollbar-thumb {
-  border: 3px solid transparent;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--ui-muted-foreground) 34%, transparent);
-  background-clip: padding-box;
-}
+  ::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--ui-muted-foreground) 34%, transparent);
+    background-clip: padding-box;
+  }
 
-::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--ui-muted-foreground) 55%, transparent);
-  background-clip: padding-box;
-}
+  ::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--ui-muted-foreground) 55%, transparent);
+    background-clip: padding-box;
+  }
 
-::-webkit-scrollbar-track {
-  background: transparent;
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
 }
 
 /* ---------------------------------------------------------------- code editor */
@@ -339,6 +379,26 @@ pre,
 
 .aw-code-editor .cm-editor.cm-focused {
   outline: none;
+}
+
+/*
+ * Fullscreen mode. The shell becomes a fixed flex column, so the code area has to take the height
+ * left over by the toolbar, the issue panel and the status bar instead of its own 400px minimum.
+ */
+.aw-editor-shell[data-fullscreen='true'] .aw-code-editor {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.aw-editor-shell[data-fullscreen='true'] .aw-code-editor .cm-editor {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.aw-editor-shell[data-fullscreen='true'] .aw-code-editor .cm-scroller {
+  min-height: 0;
+  max-height: none;
 }
 
 .aw-code-editor .cm-searchMatch {

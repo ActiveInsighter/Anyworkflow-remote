@@ -1,5 +1,5 @@
 import { House } from 'lucide-react'
-import { BrowserRouter, Link, Route, Routes } from 'react-router'
+import { createBrowserRouter, Link, RouterProvider } from 'react-router'
 import { AppShell } from '@/components/AppShell'
 import { AppPage, EmptyState } from '@/components/app/ui'
 import { Button } from '@/components/ui/button'
@@ -24,23 +24,30 @@ function NotFoundPage() {
   )
 }
 
+/**
+ * A data router is required for `useBlocker`, which the Run editor uses so an in-app navigation
+ * cannot silently discard unsaved DSL. The route tree itself is unchanged from the declarative
+ * version.
+ */
+const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <AppShell />,
+    children: [
+      { index: true, element: <DashboardPage /> },
+      { path: 'runs/new', element: <RunEditorPage /> },
+      { path: 'runs/:runId/edit', element: <RunEditorPage /> },
+      { path: 'runs/:runId', element: <RunDetailPage /> },
+      { path: 'tasks/:taskId', element: <TaskDetailPage /> },
+      { path: 'events/:eventId', element: <EventDetailPage /> },
+      { path: 'library', element: <LibraryPage /> },
+      { path: 'templates/:templateId', element: <TemplateDetailPage /> },
+      { path: 'settings', element: <SettingsPage /> },
+      { path: '*', element: <NotFoundPage /> },
+    ],
+  },
+])
+
 export default function App() {
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route element={<AppShell />}>
-          <Route index element={<DashboardPage />} />
-          <Route path="runs/new" element={<RunEditorPage />} />
-          <Route path="runs/:runId/edit" element={<RunEditorPage />} />
-          <Route path="runs/:runId" element={<RunDetailPage />} />
-          <Route path="tasks/:taskId" element={<TaskDetailPage />} />
-          <Route path="events/:eventId" element={<EventDetailPage />} />
-          <Route path="library" element={<LibraryPage />} />
-          <Route path="templates/:templateId" element={<TemplateDetailPage />} />
-          <Route path="settings" element={<SettingsPage />} />
-          <Route path="*" element={<NotFoundPage />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
-  )
+  return <RouterProvider router={router} />
 }

@@ -236,7 +236,7 @@ export function LibraryPage() {
               >
                 <div className="min-w-0">
                   <div className="flex min-w-0 items-center gap-2">
-                    <Star className="size-3.5 shrink-0 fill-[var(--warning)] text-[var(--warning)]" aria-hidden="true" />
+                    <Star className="size-3.5 shrink-0 fill-warning text-warning" aria-hidden="true" />
                     <Link
                       to={'/runs/' + item.run}
                       className="truncate text-[13px] font-medium outline-none hover:underline focus-visible:underline"
