@@ -1,4 +1,4 @@
-import { FileQuestion } from 'lucide-react'
+import { House } from 'lucide-react'
 import { BrowserRouter, Link, Route, Routes } from 'react-router'
 import { AppShell } from '@/components/AppShell'
 import { AppPage, EmptyState } from '@/components/app/ui'
@@ -17,7 +17,8 @@ function NotFoundPage() {
     <AppPage>
       <EmptyState
         title="页面不存在"
-        action={<Button asChild><Link to="/"><FileQuestion />工作流</Link></Button>}
+        description="这个地址没有对应的页面，可能已被移动或删除。"
+        action={<Button asChild><Link to="/"><House />返回工作流</Link></Button>}
       />
     </AppPage>
   )

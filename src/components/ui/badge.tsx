@@ -12,6 +12,10 @@ const badgeVariants = cva(
         secondary: 'border-transparent bg-secondary text-secondary-foreground',
         destructive: 'border-transparent bg-destructive text-white',
         outline: 'text-foreground',
+        /** No colors of its own so callers can supply a semantic tone without conflicts. */
+        plain: 'border-transparent',
+        warning: 'border-[var(--warning)]/30 bg-[var(--warning-soft)] text-[var(--warning)]',
+        success: 'border-[var(--success)]/30 bg-[var(--success-soft)] text-[var(--success)]',
         ghost: 'border-transparent hover:bg-accent hover:text-accent-foreground',
       },
     },

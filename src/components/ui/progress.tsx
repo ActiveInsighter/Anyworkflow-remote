@@ -11,12 +11,17 @@ function Progress({
   return (
     <ProgressPrimitive.Root
       data-slot="progress"
-      className={cn('relative h-2 w-full overflow-hidden rounded-full bg-primary/12', className)}
+      className={cn('relative h-2 w-full overflow-hidden rounded-full bg-muted', className)}
       {...props}
     >
       <ProgressPrimitive.Indicator
         data-slot="progress-indicator"
-        className={cn('h-full w-full flex-1 bg-primary transition-all', indicatorClassName)}
+        className={cn(
+          'h-full w-full flex-1 transition-all',
+          // Fall back only when the caller gave no tone, so a single `background-color`
+          // is ever emitted instead of two competing utilities.
+          indicatorClassName ?? 'bg-primary',
+        )}
         style={{ transform: `translateX(-${100 - (value || 0)}%)` }}
       />
     </ProgressPrimitive.Root>

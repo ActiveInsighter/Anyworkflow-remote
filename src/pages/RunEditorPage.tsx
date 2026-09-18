@@ -3,15 +3,29 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { AnyWorkflowEditor, type AnyWorkflowEditorHandle } from '@/components/editor/AnyWorkflowEditor'
 import { validateAnyWorkflowSource } from '@/components/editor/anyworkflow-dsl'
-import { AppPage, EmptyState, ErrorBanner, Field, LoadingState, PageHeader, TextInput } from '@/components/app/ui'
+import {
+  AppPage,
+  EmptyState,
+  ErrorBanner,
+  Field,
+  LoadingState,
+  PageHeader,
+  Panel,
+  Segmented,
+  TextInput,
+} from '@/components/app/ui'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { createRun, getRun, toErrorMessage, updateRunDraft } from '@/lib/api'
 import { getWorkflowTemplate, updateWorkflowTemplate } from '@/lib/library'
 import { applyPlanMeta, createStarterPlan, parsePlanMeta } from '@/lib/plan'
 import { useSession } from '@/lib/session'
-import { cn } from '@/lib/utils'
 import type { DispatchExecutionMode } from '@/types'
+
+const modeOptions = [
+  { value: 'serial' as DispatchExecutionMode, label: '串行' },
+  { value: 'parallel' as DispatchExecutionMode, label: '并行' },
+]
 
 export function RunEditorPage() {
   const { runId } = useParams()
@@ -152,7 +166,15 @@ export function RunEditorPage() {
   }
 
   if (!session) {
-    return <AppPage><EmptyState title="未连接" action={<Button asChild><Link to="/settings">连接</Link></Button>} /></AppPage>
+    return (
+      <AppPage>
+        <EmptyState
+          title="未连接"
+          description="连接 AnyWorkflow 后端后才能创建 Run。"
+          action={<Button asChild><Link to="/settings">前往设置</Link></Button>}
+        />
+      </AppPage>
+    )
   }
 
   if (loading) return <AppPage><LoadingState /></AppPage>
@@ -165,18 +187,25 @@ export function RunEditorPage() {
         ? '使用模板'
         : '创建 Run'
 
+  const pageDescription = templateMode === 'edit'
+    ? '修改 DSL 并保存模板，不会创建新的 Run。'
+    : '用 AnyWorkflow DSL 描述任务，保存为草稿或直接运行。'
+
   return (
-    <AppPage className="max-w-[1380px]">
+    <AppPage className="max-w-[1320px]">
       <PageHeader
+        eyebrow={
+          <Link to={templateMode ? '/library?tab=templates' : '/'} className="outline-none hover:text-foreground focus-visible:underline">
+            {templateMode ? '资料库' : '工作流'}
+          </Link>
+        }
         title={pageTitle}
+        description={pageDescription}
         actions={
           <div className="flex items-center gap-2">
             {errorCount > 0 ? <Badge variant="destructive" className="rounded-md">{errorCount} 错误</Badge> : null}
-            <Badge
-              variant={dirty ? 'outline' : 'secondary'}
-              className={cn('rounded-md', dirty && 'border-amber-500/30 text-amber-600 dark:text-amber-400')}
-            >
-              {dirty ? '未保存' : <><CircleCheck className="mr-1 size-3" />已保存</>}
+            <Badge variant={dirty ? 'warning' : 'secondary'} className="rounded-md">
+              {dirty ? '未保存' : <><CircleCheck className="me-1 size-3" />已保存</>}
             </Badge>
           </div>
         }
@@ -184,52 +213,42 @@ export function RunEditorPage() {
 
       {error ? <ErrorBanner>{error}</ErrorBanner> : null}
 
-      <div className="mb-3 rounded-lg border bg-card p-3">
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(240px,1fr)_220px_190px_130px] xl:items-end">
+      <Panel className="mb-3 p-3 sm:p-4">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(200px,1.2fr)_minmax(200px,1fr)_190px_150px] xl:items-end">
           {templateMode === 'edit' ? (
-            <Field label="模板名称">
-              <TextInput
-                value={templateTitle}
-                maxLength={512}
-                onChange={(event) => { setTemplateTitle(event.target.value); setDirty(true) }}
-              />
-            </Field>
+            <>
+              <Field label="模板名称">
+                <TextInput
+                  value={templateTitle}
+                  maxLength={512}
+                  onChange={(event) => {
+                    setTemplateTitle(event.target.value)
+                    setDirty(true)
+                  }}
+                />
+              </Field>
+              <Field label="Run 名称">
+                <TextInput value={title} maxLength={512} onChange={(event) => updateMeta({ title: event.target.value })} />
+              </Field>
+            </>
           ) : (
-            <Field label="名称">
-              <TextInput value={title} maxLength={512} onChange={(event) => updateMeta({ title: event.target.value })} />
-            </Field>
-          )}
-
-          {templateMode === 'edit' ? (
-            <Field label="Run 名称">
-              <TextInput value={title} maxLength={512} onChange={(event) => updateMeta({ title: event.target.value })} />
-            </Field>
-          ) : (
-            <div className="hidden xl:block" />
+            <>
+              <Field label="名称">
+                <TextInput value={title} maxLength={512} onChange={(event) => updateMeta({ title: event.target.value })} />
+              </Field>
+              <div className="hidden xl:block" aria-hidden="true" />
+            </>
           )}
 
           <Field label="调度">
-            <div className="grid h-9 grid-cols-2 rounded-md bg-muted p-1">
-              {([
-                ['serial', '串行'],
-                ['parallel', '并行'],
-              ] as const).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  className={cn(
-                    'rounded text-xs font-medium text-muted-foreground transition-colors',
-                    mode === value && 'bg-background text-foreground',
-                  )}
-                  onClick={() => updateMeta({
-                    mode: value,
-                    maxConcurrency: value === 'serial' ? 1 : Math.max(2, maxConcurrency),
-                  })}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+            <Segmented
+              label="执行方式"
+              value={mode}
+              onChange={(next) =>
+                updateMeta({ mode: next, maxConcurrency: next === 'serial' ? 1 : Math.max(2, maxConcurrency) })
+              }
+              options={modeOptions}
+            />
           </Field>
 
           <Field label="最大并发">
@@ -239,13 +258,13 @@ export function RunEditorPage() {
               max={16}
               disabled={mode !== 'parallel'}
               value={mode === 'parallel' ? maxConcurrency : 1}
-              onChange={(event) => updateMeta({
-                maxConcurrency: Math.max(1, Math.min(16, Number(event.target.value) || 1)),
-              })}
+              onChange={(event) =>
+                updateMeta({ maxConcurrency: Math.max(1, Math.min(16, Number(event.target.value) || 1)) })
+              }
             />
           </Field>
         </div>
-      </div>
+      </Panel>
 
       <AnyWorkflowEditor
         ref={editorRef}
@@ -254,7 +273,7 @@ export function RunEditorPage() {
         onSave={() => void persist(false)}
       />
 
-      <div className="mt-3 flex flex-col gap-2 border-t pt-3 sm:sticky sm:bottom-3 sm:z-20 sm:flex-row sm:justify-end sm:border sm:bg-background/95 sm:p-2 sm:backdrop-blur">
+      <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3 sm:sticky sm:bottom-3 sm:z-20 sm:flex-row sm:justify-end sm:gap-2 sm:rounded-lg sm:border sm:border-border sm:bg-background/95 sm:p-2 sm:shadow-md sm:backdrop-blur">
         {templateMode === 'edit' ? (
           <Button onClick={() => void persist(false)} disabled={saving || errorCount > 0}>
             <Save />{saving ? '保存中…' : '保存模板'}

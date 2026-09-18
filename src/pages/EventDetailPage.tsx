@@ -1,11 +1,31 @@
 import { ArrowLeft, Copy, ExternalLink } from 'lucide-react'
 import { Link, useParams } from 'react-router'
-import { AppPage, EmptyState, ErrorBanner, LoadingState, MetaGrid, PageHeader, SectionHeading, StatusBadge } from '@/components/app/ui'
+import {
+  AppPage,
+  CodeBlock,
+  EmptyState,
+  ErrorBanner,
+  InlineError,
+  ListRow,
+  LoadingState,
+  MetaGrid,
+  PageHeader,
+  Panel,
+  SectionHeading,
+  StatusBadge,
+} from '@/components/app/ui'
 import { Button } from '@/components/ui/button'
 import { useAsyncData } from '@/hooks/useAsyncData'
 import { getEvent, toErrorMessage } from '@/lib/api'
 import { eventProgressLabel, eventStatusMeta, formatDateTime, terminalResultLabel } from '@/lib/format'
 import { getEventTitle, parseQueue } from '@/lib/plan'
+
+const queueTypeLabels: Record<string, string> = {
+  message: '消息',
+  url: '网址',
+  act: '动作',
+  queue: '队列',
+}
 
 export function EventDetailPage() {
   const { eventId = '' } = useParams()
@@ -31,73 +51,98 @@ export function EventDetailPage() {
   return (
     <AppPage>
       <PageHeader
+        eyebrow={
+          <Link to={'/tasks/' + event.task} className="outline-none hover:text-foreground focus-visible:underline">
+            Task
+          </Link>
+        }
         title={title}
         actions={
           <>
-            <Button variant="outline" asChild><Link to={'/tasks/' + event.task}><ArrowLeft />Task</Link></Button>
-            <Button variant="outline" onClick={() => void copyQueue()}><Copy />复制</Button>
+            <Button variant="outline" asChild>
+              <Link to={'/tasks/' + event.task}><ArrowLeft />返回 Task</Link>
+            </Button>
+            <Button variant="outline" onClick={() => void copyQueue()}><Copy />复制队列</Button>
           </>
         }
       />
 
       {state.error ? <ErrorBanner>{state.error}</ErrorBanner> : null}
 
-      <section className="rounded-lg border bg-card p-4 sm:p-5">
+      <Panel className="p-4 sm:p-5">
         <div className="flex items-center justify-between gap-4">
-          <div className="text-sm font-semibold">{terminalResultLabel(event.terminalResult)}</div>
+          <div className="min-w-0">
+            <div className="text-[13px] font-semibold">{terminalResultLabel(event.terminalResult)}</div>
+            <div className="mt-0.5 text-[11px] text-muted-foreground">终态结果</div>
+          </div>
           <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
         </div>
         <div className="mt-4">
-          <MetaGrid items={[
-            { label: '尝试', value: event.attempt },
-            { label: '进度', value: eventProgressLabel(event.status, event.progress) },
-            { label: '电脑', value: event.workerId || '—' },
-            { label: '标签页', value: event.tabId || '—' },
-            { label: '心跳', value: formatDateTime(event.lastHeartbeatAt) },
-            { label: '更新', value: formatDateTime(event.updated) },
-          ]} />
+          <MetaGrid
+            columns={3}
+            items={[
+              { label: '尝试', value: event.attempt },
+              { label: '进度', value: eventProgressLabel(event.status, event.progress) },
+              { label: '电脑', value: event.workerId || '—' },
+              { label: '标签页', value: event.tabId || '—' },
+              { label: '心跳', value: formatDateTime(event.lastHeartbeatAt) },
+              { label: '更新', value: formatDateTime(event.updated) },
+            ]}
+          />
         </div>
-        {event.lastError ? <div className="mt-4 rounded-md bg-destructive/10 px-3 py-2 text-xs leading-5 text-destructive">{event.lastError}</div> : null}
-      </section>
+        {event.lastError ? <div className="mt-4"><InlineError>{event.lastError}</InlineError></div> : null}
+      </Panel>
 
       <SectionHeading title="Queue" trailing={queue.length} />
 
       {queue.length ? (
-        <div className="overflow-hidden rounded-lg border bg-card">
+        <Panel>
           {queue.map((item, index) => (
-            <div className="grid gap-3 border-b p-4 last:border-b-0 sm:grid-cols-[44px_minmax(0,1fr)]" key={String(index) + '-' + item.type}>
-              <div className="hidden size-9 place-items-center rounded-md bg-muted text-[10px] font-semibold text-muted-foreground sm:grid">
+            <ListRow
+              key={String(index) + '-' + item.type}
+              className="grid gap-3 sm:grid-cols-[44px_minmax(0,1fr)] sm:gap-5"
+            >
+              <div className="hidden size-9 place-items-center rounded-md bg-muted text-[11px] font-semibold tabular-nums text-muted-foreground sm:grid">
                 {String(index + 1).padStart(2, '0')}
               </div>
               <div className="min-w-0">
-                <div className="mb-2 text-[10px] font-medium text-muted-foreground">
-                  {item.type === 'message' ? '消息' : item.type === 'url' ? '网址' : item.type === 'act' ? item.title : '队列'}
+                <div className="mb-1.5 text-[11px] font-medium text-muted-foreground">
+                  {queueTypeLabels[item.type] ?? '队列'}
                 </div>
                 {item.url ? (
-                  <a className="mb-2 inline-flex items-center gap-1.5 break-all text-xs text-[var(--info)] hover:underline" href={item.url} target="_blank" rel="noreferrer">
-                    {item.url}<ExternalLink className="size-3" />
+                  <a
+                    className="mb-2 inline-flex max-w-full items-center gap-1.5 break-all text-xs text-[var(--info)] hover:underline"
+                    href={item.url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {item.url}
+                    <ExternalLink className="size-3 shrink-0" aria-hidden="true" />
                   </a>
                 ) : null}
                 <pre className="m-0 whitespace-pre-wrap break-words font-mono text-xs leading-6 text-foreground">
                   {item.text.length > 4000 ? item.text.slice(0, 4000) + '\n…' : item.text}
                 </pre>
               </div>
-            </div>
+            </ListRow>
           ))}
-        </div>
-      ) : <EmptyState title="暂无内容" />}
+        </Panel>
+      ) : (
+        <EmptyState title="暂无内容" description="该 Event 的队列为空。" />
+      )}
 
-      <details className="mt-6 rounded-lg border bg-card">
-        <summary className="cursor-pointer px-4 py-3 text-sm font-medium">Runtime</summary>
-        <div className="border-t px-4 pb-4">
-          <MetaGrid items={[
-            { label: 'Lease ID', value: event.leaseId || '—' },
-            { label: 'Local Run ID', value: event.localRunId || '—' },
-            { label: 'Local Attempt', value: event.localAttempt || '—' },
-            { label: 'Last Seq', value: event.lastSeq },
-          ]} />
-        </div>
-      </details>
+      <SectionHeading title="Runtime" />
+
+      <CodeBlock label="运行时信息">
+        {[
+          'Lease ID      ' + (event.leaseId || '—'),
+          'Lease Until   ' + (event.leaseUntil ? formatDateTime(event.leaseUntil) : '—'),
+          'Local Run ID  ' + (event.localRunId || '—'),
+          'Local Attempt ' + (event.localAttempt || '—'),
+          'Last Seq      ' + event.lastSeq,
+          'Created       ' + formatDateTime(event.created),
+        ].join('\n')}
+      </CodeBlock>
     </AppPage>
   )
 }

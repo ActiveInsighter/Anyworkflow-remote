@@ -1,6 +1,19 @@
 import { ArrowLeft } from 'lucide-react'
 import { Link, useParams } from 'react-router'
-import { AppPage, EmptyState, ErrorBanner, LoadingState, MetaGrid, PageHeader, ProgressBar, SectionHeading, StatusBadge } from '@/components/app/ui'
+import {
+  AppPage,
+  EmptyState,
+  ErrorBanner,
+  InlineError,
+  ListRow,
+  LoadingState,
+  MetaGrid,
+  PageHeader,
+  Panel,
+  ProgressBar,
+  SectionHeading,
+  StatusBadge,
+} from '@/components/app/ui'
 import { Button } from '@/components/ui/button'
 import { useAsyncData } from '@/hooks/useAsyncData'
 import { getTask, listAllEventsForTask, toErrorMessage } from '@/lib/api'
@@ -33,69 +46,88 @@ export function TaskDetailPage() {
 
   const { task, events } = state.data
   const status = runStatusMeta(task.status, task.requestedAction)
+  const failure = task.compileError || task.lastError
 
   return (
     <AppPage>
       <PageHeader
+        eyebrow={
+          <Link to={'/runs/' + task.run} className="outline-none hover:text-foreground focus-visible:underline">
+            Run
+          </Link>
+        }
         title={task.title || 'Task ' + (task.runIndex + 1)}
-        actions={<Button variant="outline" asChild><Link to={'/runs/' + task.run}><ArrowLeft />Run</Link></Button>}
+        actions={
+          <Button variant="outline" asChild>
+            <Link to={'/runs/' + task.run}><ArrowLeft />返回 Run</Link>
+          </Button>
+        }
       />
 
       {state.error ? <ErrorBanner>{state.error}</ErrorBanner> : null}
 
-      <section className="rounded-lg border bg-card p-4 sm:p-5">
+      <Panel className="p-4 sm:p-5">
         <div className="flex items-center justify-between gap-4">
-          <div className="text-sm font-semibold">{progressText(task.completedEvents, task.totalEvents, 'Events')}</div>
+          <div className="min-w-0">
+            <div className="text-[13px] font-semibold">{progressText(task.completedEvents, task.totalEvents, 'Events')}</div>
+            <div className="mt-0.5 text-[11px] text-muted-foreground">已完成的 Event 数量</div>
+          </div>
           <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
         </div>
-        <ProgressBar className="mt-3" value={progressPercent(task.completedEvents, task.totalEvents)} tone={status.tone} />
+        <ProgressBar
+          className="mt-3"
+          value={progressPercent(task.completedEvents, task.totalEvents)}
+          tone={status.tone}
+        />
         <div className="mt-4">
-          <MetaGrid items={[
-            { label: '调度', value: modeLabel(task.executionMode, task.maxConcurrency, '事件') },
-            { label: '编排', value: task.orchestrationState },
-            { label: '创建', value: formatDateTime(task.created) },
-            { label: '更新', value: formatDateTime(task.updated) },
-          ]} />
+          <MetaGrid
+            items={[
+              { label: '调度', value: modeLabel(task.executionMode, task.maxConcurrency, '事件') },
+              { label: '编排', value: task.orchestrationState },
+              { label: '创建', value: formatDateTime(task.created) },
+              { label: '更新', value: formatDateTime(task.updated) },
+            ]}
+          />
         </div>
-        {task.compileError || task.lastError ? (
-          <div className="mt-4 rounded-md bg-destructive/10 px-3 py-2 text-xs leading-5 text-destructive">
-            {task.compileError || task.lastError}
-          </div>
-        ) : null}
-      </section>
+        {failure ? <div className="mt-4"><InlineError>{failure}</InlineError></div> : null}
+      </Panel>
 
       <SectionHeading title="Events" trailing={events.length} />
 
       {events.length ? (
-        <div className="overflow-hidden rounded-lg border bg-card">
+        <Panel>
           {events.map((event) => {
             const eventStatus = eventStatusMeta(event.status, event.terminalResult)
             return (
-              <Link
-                className="grid gap-3 border-b p-4 last:border-b-0 hover:bg-muted/20 sm:grid-cols-[44px_minmax(0,1fr)_150px] sm:items-center"
-                to={'/events/' + event.id}
+              <ListRow
                 key={event.id}
+                className="grid gap-3 sm:grid-cols-[44px_minmax(0,1fr)_140px] sm:items-center sm:gap-5"
+                render={<Link to={'/events/' + event.id} />}
               >
-                <div className="hidden size-9 place-items-center rounded-md bg-muted text-[10px] font-semibold text-muted-foreground sm:grid">
+                <div className="hidden size-9 place-items-center rounded-md bg-muted text-[11px] font-semibold tabular-nums text-muted-foreground sm:grid">
                   {String(event.eventIndex + 1).padStart(2, '0')}
                 </div>
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="truncate text-sm font-medium">{getEventTitle(event.queueTextOverride, 'Event ' + (event.eventIndex + 1))}</h3>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <h3 className="truncate text-[13px] font-medium">
+                      {getEventTitle(event.queueTextOverride, 'Event ' + (event.eventIndex + 1))}
+                    </h3>
                     <StatusBadge tone={eventStatus.tone}>{eventStatus.label}</StatusBadge>
                   </div>
-                  <div className="mt-1 text-[11px] text-muted-foreground">
+                  <div className="mt-1 truncate text-[11px] text-muted-foreground">
                     {terminalResultLabel(event.terminalResult)}
                   </div>
                 </div>
-                <div className="text-[11px] text-muted-foreground sm:text-right">
+                <div className="text-[11px] tabular-nums text-muted-foreground sm:text-right">
                   尝试 {event.attempt}
                 </div>
-              </Link>
+              </ListRow>
             )
           })}
-        </div>
-      ) : <EmptyState title="暂无 Event" />}
+        </Panel>
+      ) : (
+        <EmptyState title="暂无 Event" description="Task 被编排后会生成待执行的 Event 队列。" />
+      )}
     </AppPage>
   )
 }
