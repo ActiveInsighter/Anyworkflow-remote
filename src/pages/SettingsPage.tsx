@@ -3,7 +3,6 @@ import { useState } from 'react'
 import { AppPage, ErrorBanner, Field, PageHeader, TextInput } from '@/components/app/ui'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { login, toErrorMessage } from '@/lib/api'
 import { clearSession, getBaseUrl, useSession } from '@/lib/session'
 
@@ -32,27 +31,26 @@ export function SettingsPage() {
 
   return (
     <AppPage>
-      <PageHeader eyebrow="设置" title="连接" />
+      <PageHeader title="设置" />
 
       {error ? <ErrorBanner>{error}</ErrorBanner> : null}
 
-      <Card className="max-w-2xl">
-        <CardHeader className="gap-3">
-          <div className="flex items-center justify-between gap-4">
-            <CardTitle>AnyWorkflow</CardTitle>
-            <Badge variant={session ? 'secondary' : 'outline'} className="rounded-full">
-              {session ? '已连接' : '未连接'}
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
+      <div className="max-w-2xl overflow-hidden rounded-lg border bg-card">
+        <div className="flex items-center justify-between gap-4 border-b px-4 py-3">
+          <div className="text-sm font-semibold">连接</div>
+          <Badge variant={session ? 'secondary' : 'outline'} className="rounded-md">
+            {session ? '已连接' : '未连接'}
+          </Badge>
+        </div>
+
+        <div className="p-4 sm:p-5">
           {session ? (
-            <div className="mb-5 flex items-center gap-3 rounded-lg border bg-muted/20 p-3">
-              <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-[var(--ui-primary)] text-[var(--ui-primary-foreground)]">
+            <div className="mb-5 flex items-center gap-3 border-b pb-4">
+              <div className="grid size-9 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground">
                 <UserRound className="size-4" />
               </div>
               <div className="min-w-0">
-                <div className="truncate text-sm font-semibold">{session.record.name || session.record.email}</div>
+                <div className="truncate text-sm font-medium">{session.record.name || session.record.email}</div>
                 <div className="mt-0.5 truncate text-xs text-muted-foreground">{session.record.email}</div>
               </div>
             </div>
@@ -74,7 +72,7 @@ export function SettingsPage() {
               />
             </Field>
 
-            <div className="flex flex-col gap-2 pt-1 sm:flex-row">
+            <div className="flex flex-col gap-2 border-t pt-4 sm:flex-row">
               <Button type="submit" disabled={submitting}>
                 <Database />
                 {submitting ? '连接中…' : session ? '重新连接' : '连接'}
@@ -86,8 +84,8 @@ export function SettingsPage() {
               ) : null}
             </div>
           </form>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </AppPage>
   )
 }
