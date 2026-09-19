@@ -70,8 +70,6 @@
   --ui-font-mono: 'SFMono-Regular', 'Cascadia Code', Consolas, 'Liberation Mono', monospace;
   --ui-editor-font-size: 14px;
   --ui-editor-line-height: 1.7;
-  --ui-page-gutter: 1rem;
-  --ui-compact-row: 2.5rem;
 
   font-family: var(--ui-font-sans);
   font-synthesis: none;
@@ -177,8 +175,6 @@
 
   --cm-bg: #080a09;
   --cm-fg: #e7ecea;
-  --cm-gutter-bg: #0c0f0e;
-  --cm-gutter-fg: #69716f;
   --cm-toolbar-bg: #0b0e0d;
   --cm-border: #202624;
   --cm-active-line: #101715;
