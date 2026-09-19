@@ -1,4 +1,5 @@
 import { ArrowLeft, ChevronRight, Menu } from 'lucide-react'
+import { useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
 import { SidebarTrigger } from '@/components/sidebar'
 import { breadcrumbsFor, fallbackParent } from '@/lib/navigation'
@@ -10,6 +11,11 @@ export function AppTopBar() {
   const session = useSession()
   const crumbs = breadcrumbsFor(location.pathname)
   const showBack = location.pathname !== '/'
+
+  useEffect(() => {
+    const current = crumbs.at(-1)?.label
+    document.title = current ? `${current} · AnyWorkflow Remote` : 'AnyWorkflow Remote'
+  }, [crumbs])
 
   function goBack() {
     if (location.key && location.key !== 'default') navigate(-1)
