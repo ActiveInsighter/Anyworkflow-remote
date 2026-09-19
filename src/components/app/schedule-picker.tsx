@@ -7,7 +7,6 @@ import {
   describeSchedule,
   fromLocalInputValue,
   minimumScheduleTime,
-  resolveDelay,
   toLocalInputValue,
   type DelayUnit,
   type ScheduleMode,
