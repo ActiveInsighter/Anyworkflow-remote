@@ -9,7 +9,7 @@ interface DslState {
 }
 
 // Compatibility shim for the editor module; prompt presets are intentionally disabled.
-export const PROMPT_TEMPLATES = [] as const
+export const PROMPT_TEMPLATES: ReadonlyArray<{ id: string; label: string; text: string }> = []
 
 export const anyWorkflowLanguage = StreamLanguage.define<DslState>({
   startState: () => ({ inFence: false, fence: '' }),
