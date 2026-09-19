@@ -122,10 +122,18 @@ export function DashboardPage() {
         title="工作流"
         actions={
           <>
-            <Button variant="ghost" size="icon" onClick={() => void state.reload()} disabled={state.loading || state.refreshing} aria-label="刷新">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => void state.reload()}
+              disabled={state.loading || state.refreshing}
+              aria-label="刷新"
+            >
               <RefreshCw className={state.refreshing ? 'animate-spin' : undefined} />
             </Button>
-            <Button asChild variant="secondary"><Link to="/runs/new"><Plus />新建</Link></Button>
+            <Button asChild variant="secondary">
+              <Link to="/runs/new"><Plus />新建</Link>
+            </Button>
           </>
         }
       />
@@ -147,7 +155,7 @@ export function DashboardPage() {
       {state.loading && !state.data ? <LoadingState /> : null}
 
       {runs.length ? (
-        <div className="grid gap-3">
+        <Panel>
           {runs.map((run) => {
             const status = runStatusMeta(run.status, run.requestedAction)
             const percent = progressPercent(run.completedTasks, run.totalTasks)
@@ -155,8 +163,11 @@ export function DashboardPage() {
             const canDelete = run.status === 'draft' || terminal
 
             return (
-              <Panel key={run.id} className="p-4">
-                <div className="flex items-start gap-3">
+              <article
+                key={run.id}
+                className="grid min-h-[132px] grid-rows-[auto_auto_32px] gap-3 border-b border-border p-4 last:border-b-0"
+              >
+                <div className="flex min-w-0 items-start gap-3">
                   <Link
                     to={'/runs/' + run.id}
                     className="min-w-0 flex-1 truncate text-[14px] font-semibold tracking-[-0.015em] outline-none hover:underline focus-visible:underline"
@@ -166,7 +177,7 @@ export function DashboardPage() {
                   <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
                 </div>
 
-                <div className="mt-3">
+                <div className="self-center">
                   <div className="mb-1.5 flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
                     <span className="tabular-nums">{progressText(run.completedTasks, run.totalTasks, 'Tasks')}</span>
                     <span className="tabular-nums">{Math.round(percent)}%</span>
@@ -174,11 +185,12 @@ export function DashboardPage() {
                   <ProgressBar value={percent} tone={status.tone} />
                 </div>
 
-                <div className="mt-3 flex items-end justify-between gap-3">
-                  <div className="min-w-0 text-[11px] tabular-nums text-muted-foreground">
+                <div className="flex h-8 items-center justify-between gap-3">
+                  <time className="min-w-0 truncate text-[11px] leading-none tabular-nums text-muted-foreground">
                     {formatDateTime(run.updated)}
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1">
+                  </time>
+
+                  <div className="flex h-8 shrink-0 items-center justify-end gap-0.5">
                     {run.status === 'draft' ? (
                       <Button
                         size="icon"
@@ -191,6 +203,7 @@ export function DashboardPage() {
                         <Pencil className="size-4" />
                       </Button>
                     ) : null}
+
                     <Button
                       size="icon"
                       variant="ghost"
@@ -202,6 +215,7 @@ export function DashboardPage() {
                     >
                       <Copy className="size-4" />
                     </Button>
+
                     {terminal ? (
                       <Button
                         size="icon"
@@ -215,6 +229,7 @@ export function DashboardPage() {
                         <RotateCcw className="size-4" />
                       </Button>
                     ) : null}
+
                     {canDelete ? (
                       <Button
                         size="icon"
@@ -230,16 +245,20 @@ export function DashboardPage() {
                     ) : null}
                   </div>
                 </div>
-              </Panel>
+              </article>
             )
           })}
-        </div>
+        </Panel>
       ) : null}
 
       {!state.loading && state.data && runs.length === 0 ? (
         <EmptyState
           title={filter === 'all' ? '还没有 Run' : '没有匹配的 Run'}
-          action={filter === 'all' ? <Button asChild variant="secondary"><Link to="/runs/new"><Plus />新建</Link></Button> : <Button variant="outline" onClick={() => updateQuery({ filter: 'all' })}>查看全部</Button>}
+          action={
+            filter === 'all'
+              ? <Button asChild variant="secondary"><Link to="/runs/new"><Plus />新建</Link></Button>
+              : <Button variant="outline" onClick={() => updateQuery({ filter: 'all' })}>查看全部</Button>
+          }
         />
       ) : null}
 
@@ -247,8 +266,22 @@ export function DashboardPage() {
         <div className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-3 text-xs text-muted-foreground">
           <span>{state.data.totalItems} 条 · 第 {state.data.page}/{state.data.totalPages} 页</span>
           <div className="flex items-center gap-1">
-            <Button size="sm" variant="ghost" disabled={page <= 1} onClick={() => updateQuery({ page: page - 1 })}><ChevronLeft />上一页</Button>
-            <Button size="sm" variant="ghost" disabled={page >= state.data.totalPages} onClick={() => updateQuery({ page: page + 1 })}>下一页<ChevronRight /></Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={page <= 1}
+              onClick={() => updateQuery({ page: page - 1 })}
+            >
+              <ChevronLeft />上一页
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={page >= state.data.totalPages}
+              onClick={() => updateQuery({ page: page + 1 })}
+            >
+              下一页<ChevronRight />
+            </Button>
           </div>
         </div>
       ) : null}
