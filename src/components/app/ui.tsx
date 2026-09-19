@@ -350,10 +350,18 @@ export function Field({
   children: ReactNode
   className?: string
 }) {
+  const generatedId = React.useId()
+  const child = React.isValidElement(children)
+    ? React.cloneElement(children as ReactElement<{ id?: string }>, {
+        id: (children.props as { id?: string }).id || generatedId,
+      })
+    : children
+  const controlId = React.isValidElement(child) ? (child.props as { id?: string }).id : undefined
+
   return (
     <div className={cn('grid gap-1.5', className)}>
-      <Label className="text-[11px] font-medium text-muted-foreground">{label}</Label>
-      {children}
+      <Label htmlFor={controlId} className="text-[11px] font-medium text-muted-foreground">{label}</Label>
+      {child}
       {hint ? <p className="text-[11px] leading-4 text-muted-foreground">{hint}</p> : null}
     </div>
   )
