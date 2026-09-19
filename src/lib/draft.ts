@@ -19,10 +19,11 @@ export interface EditorDraft {
  */
 export type DraftScope = string
 
-export function draftScopeFor(runId?: string, templateId?: string): DraftScope {
-  if (runId) return `run:${runId}`
-  if (templateId) return `template:${templateId}`
-  return 'new'
+export function draftScopeFor(ownerId: string | undefined, runId?: string, templateId?: string): DraftScope {
+  const owner = ownerId?.trim() || 'anonymous'
+  if (runId) return `${owner}:run:${runId}`
+  if (templateId) return `${owner}:template:${templateId}`
+  return `${owner}:new`
 }
 
 /**
