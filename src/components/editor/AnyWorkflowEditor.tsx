@@ -239,18 +239,13 @@ const SEVERITY_META = {
   hint: { label: '建议', Icon: Info, tone: 'text-muted-foreground' },
 } as const
 
-/**
- * Toolbar control. Labels are shown from `lg` upward; below that the icon carries the meaning and
- * the tooltip plus `aria-label` keep it discoverable. Height drops to the mobile touch target only
- * where the header can still wrap without pushing the editor off screen.
- */
+/** Toolbar controls always show short text labels; tooltips add the longer explanation. */
 function ToolButton({
   icon,
   label,
   hint,
   onClick,
   disabled,
-  showLabel = false,
   className,
 }: {
   icon: ReactNode
@@ -258,7 +253,6 @@ function ToolButton({
   hint?: string
   onClick: () => void
   disabled?: boolean
-  showLabel?: boolean
   className?: string
 }) {
   return (
@@ -625,49 +619,42 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
                   icon={<Braces className="size-3.5" />}
                   label="Task"
                   hint="插入 Task"
-                  showLabel
                   onClick={() => insert('@task  {\n  @mode=serial\n\n}\n', 6)}
                 />
                 <ToolButton
                   icon={<Zap className="size-3.5" />}
                   label="Event"
                   hint="插入 Event"
-                  showLabel
                   onClick={() => insert('@event  {\n  {\n\n  }\n}\n', 7)}
                 />
                 <ToolButton
                   icon={<ListTree className="size-3.5" />}
                   label="Act"
                   hint="插入 Act，并可给 Act 命名"
-                  showLabel
                   onClick={() => insert('@act {\n  @action=\n  {\n\n  }\n}\n', 17)}
                 />
                 <ToolButton
                   icon={<Repeat className="size-3.5" />}
                   label="循环"
                   hint="插入循环"
-                  showLabel
                   onClick={() => insert('@for i in range(1, 3) {\n  \n}\n', 29)}
                 />
                 <ToolButton
                   icon={<Variable className="size-3.5" />}
                   label="变量"
                   hint="插入变量"
-                  showLabel
                   onClick={() => insert('@var name=value', 5)}
                 />
                 <ToolButton
                   icon={<MessageSquareText className="size-3.5" />}
                   label="消息"
                   hint="插入 { } 消息块"
-                  showLabel
                   onClick={() => insert('{\n\n}', 2)}
                 />
                 <ToolButton
                   icon={<LinkIcon className="size-3.5" />}
                   label="链接"
                   hint="插入打开页面链接"
-                  showLabel
                   onClick={() => insert('<https://>', 9)}
                 />
                 <ToolDivider />
