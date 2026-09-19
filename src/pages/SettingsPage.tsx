@@ -96,6 +96,7 @@ export function SettingsPage() {
               <form className="grid gap-4" onSubmit={submit}>
                 <Field label="PocketBase" hint="必须使用 HTTPS，或本地 localhost / 127.0.0.1。">
                   <TextInput
+                    name="pocketbase-url"
                     value={baseUrl}
                     onChange={(event) => setBaseUrl(event.target.value)}
                     autoComplete="url"
@@ -106,6 +107,7 @@ export function SettingsPage() {
                   <Field label="邮箱">
                     <TextInput
                       type="email"
+                      name="email"
                       value={email}
                       onChange={(event) => setEmail(event.target.value)}
                       autoComplete="username"
@@ -115,6 +117,7 @@ export function SettingsPage() {
                   <Field label="密码">
                     <TextInput
                       type="password"
+                      name="password"
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
                       autoComplete="current-password"
