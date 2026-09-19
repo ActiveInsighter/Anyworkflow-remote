@@ -44,11 +44,13 @@ import {
   ChevronDown,
   ChevronUp,
   CircleAlert,
+  ClipboardPaste,
   Copy,
   Download,
   FileCode2,
   Info,
   Link as LinkIcon,
+  ListTree,
   Maximize2,
   MessageSquareText,
   Minimize2,
@@ -79,6 +81,7 @@ import {
   validateAnyWorkflowSource,
 } from '@/components/editor/anyworkflow-dsl'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 
 export interface AnyWorkflowEditorHandle {
   focus: () => void
@@ -135,12 +138,12 @@ const editorTheme = EditorView.theme({
     minHeight: 'min(62vh, 680px)',
     backgroundColor: 'var(--cm-bg)',
     color: 'var(--cm-fg)',
-    fontSize: '14px',
+    fontSize: 'var(--ui-editor-font-size)',
   },
   '&.cm-focused': { outline: 'none' },
   '.cm-scroller': {
-    fontFamily: '"SFMono-Regular", "Cascadia Code", Consolas, "Liberation Mono", monospace',
-    lineHeight: '1.7',
+    fontFamily: 'var(--ui-font-mono)',
+    lineHeight: 'var(--ui-editor-line-height)',
   },
   '.cm-content': { padding: '12px 0 28px', caretColor: 'var(--cm-caret)' },
   '.cm-line': { padding: '0 12px' },
@@ -180,6 +183,11 @@ const editorTheme = EditorView.theme({
 })
 
 /** Clipboard access needs a secure context and can still be refused; fall back before failing. */
+async function readClipboard(): Promise<string> {
+  if (!navigator.clipboard?.readText) throw new Error('Clipboard read is unavailable')
+  return navigator.clipboard.readText()
+}
+
 async function writeClipboard(text: string): Promise<boolean> {
   try {
     if (navigator.clipboard?.writeText) {
@@ -263,10 +271,10 @@ function ToolButton({
           onClick={onClick}
           disabled={disabled}
           aria-label={label}
-          className={cn('h-10 min-w-10 gap-1 px-2 text-[11px] font-medium sm:h-7 sm:min-w-7', className)}
+          className={cn('h-8 min-w-fit gap-1.5 px-2 text-[11px] font-medium', className)}
         >
           {icon}
-          {showLabel ? <span className="hidden xl:inline">{label}</span> : null}
+          <span>{label}</span>
         </Button>
       </TooltipTrigger>
       <TooltipContent side="bottom">{hint ? `${label} · ${hint}` : label}</TooltipContent>
@@ -295,7 +303,6 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
     const [issues, setIssues] = useState<EditorIssue[]>([])
     const [issuesOpen, setIssuesOpen] = useState(false)
     const [copied, setCopied] = useState(false)
-    const [notice, setNotice] = useState('')
 
     changeRef.current = onChange
     saveRef.current = onSave
@@ -438,12 +445,6 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
     }, [copied])
 
     useEffect(() => {
-      if (!notice) return
-      const timer = window.setTimeout(() => setNotice(''), 3200)
-      return () => window.clearTimeout(timer)
-    }, [notice])
-
-    useEffect(() => {
       if (!fullscreen) return
       /**
        * Capture phase on purpose: this has to decide *before* CodeMirror and Radix see the key.
@@ -504,7 +505,7 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
       const current = view.state.doc.toString()
       const next = formatAnyWorkflowSource(current)
       if (next === current) {
-        setNotice('格式已经整齐了')
+        toast.info('格式已经整齐了')
         return
       }
       const selection = view.state.selection.main
@@ -533,9 +534,27 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
       const text = viewRef.current?.state.doc.toString() ?? ''
       if (!text) return
       const ok = await writeClipboard(text)
-      if (ok) setCopied(true)
-      else setNotice('浏览器拒绝了剪贴板写入，请手动选择后复制')
+      if (ok) {
+        setCopied(true)
+        toast.success('已复制工作流')
+      } else {
+        toast.error('复制失败', { description: '浏览器拒绝了剪贴板写入，请手动选择后复制。' })
+      }
     }, [])
+
+    const runPaste = useCallback(async () => {
+      try {
+        const text = await readClipboard()
+        if (!text) {
+          toast.info('剪贴板为空')
+          return
+        }
+        insert(text)
+        toast.success('已粘贴到光标位置')
+      } catch {
+        toast.error('无法读取剪贴板', { description: '请允许浏览器访问剪贴板，或使用系统粘贴快捷键。' })
+      }
+    }, [insert])
 
     const runDownload = useCallback(() => {
       const text = viewRef.current?.state.doc.toString() ?? ''
@@ -548,6 +567,7 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
       anchor.click()
       anchor.remove()
       URL.revokeObjectURL(url)
+      toast.success('已下载工作流')
     }, [downloadName])
 
     useImperativeHandle(
@@ -593,8 +613,8 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
             fullscreen ? 'fixed inset-0 z-50 rounded-none' : 'rounded-lg',
           )}
         >
-          <div className="flex shrink-0 items-center gap-0.5 overflow-x-auto border-b border-cm-border bg-cm-toolbar-bg px-2 py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <div className="mr-1 hidden items-center gap-1.5 px-1 text-[11px] font-medium text-muted-foreground xl:flex">
+          <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-cm-border bg-cm-toolbar-bg px-2 py-1.5">
+            <div className="mr-1 hidden items-center gap-1.5 px-1 text-[11px] font-medium text-muted-foreground lg:flex">
               <FileCode2 className="size-3.5" />
               Run DSL
             </div>
@@ -603,43 +623,50 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
               <>
                 <ToolButton
                   icon={<Braces className="size-3.5" />}
-                  label="任务"
-                  hint="插入 @task 任务块"
+                  label="Task"
+                  hint="插入 Task"
                   showLabel
-                  onClick={() => insert('@task 任务名 {\n  @mode=serial\n\n  \n}\n', 6)}
+                  onClick={() => insert('@task  {\n  @mode=serial\n\n}\n', 6)}
                 />
                 <ToolButton
                   icon={<Zap className="size-3.5" />}
-                  label="执行单元"
-                  hint="插入 @event 执行单元"
+                  label="Event"
+                  hint="插入 Event"
                   showLabel
-                  onClick={() => insert('@event 执行单元 {\n  ```\n\n  ```\n}\n', 7)}
+                  onClick={() => insert('@event  {\n  {\n\n  }\n}\n', 7)}
+                />
+                <ToolButton
+                  icon={<ListTree className="size-3.5" />}
+                  label="Act"
+                  hint="插入 Act，并可给 Act 命名"
+                  showLabel
+                  onClick={() => insert('@act {\n  @action=\n  {\n\n  }\n}\n', 17)}
                 />
                 <ToolButton
                   icon={<Repeat className="size-3.5" />}
                   label="循环"
-                  hint="插入 @for 循环块"
+                  hint="插入循环"
                   showLabel
                   onClick={() => insert('@for i in range(1, 3) {\n  \n}\n', 29)}
                 />
                 <ToolButton
                   icon={<Variable className="size-3.5" />}
                   label="变量"
-                  hint="插入 @var 变量声明"
+                  hint="插入变量"
                   showLabel
                   onClick={() => insert('@var name=value', 5)}
                 />
                 <ToolButton
                   icon={<MessageSquareText className="size-3.5" />}
-                  label="文本块"
-                  hint="插入 ``` 原样文本块"
+                  label="消息"
+                  hint="插入 { } 消息块"
                   showLabel
-                  onClick={() => insert('```\n\n```', 4)}
+                  onClick={() => insert('{\n\n}', 2)}
                 />
                 <ToolButton
                   icon={<LinkIcon className="size-3.5" />}
                   label="链接"
-                  hint="插入 <https://> 打开页面指令"
+                  hint="插入打开页面链接"
                   showLabel
                   onClick={() => insert('<https://>', 9)}
                 />
@@ -647,7 +674,7 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
               </>
             )}
 
-            <div className="ms-auto flex shrink-0 items-center gap-0.5">
+            <div className="flex flex-wrap items-center gap-0.5 sm:ms-auto">
               {readOnly ? null : (
                 <>
                   <ToolButton
@@ -663,6 +690,12 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
                     hint="Ctrl/⌘ Shift Z"
                     onClick={runRedo}
                     disabled={!status.canRedo}
+                  />
+                  <ToolButton
+                    icon={<ClipboardPaste className="size-3.5" />}
+                    label="粘贴"
+                    hint="粘贴到当前光标位置"
+                    onClick={() => void runPaste()}
                   />
                   <ToolDivider />
                   <ToolButton
@@ -707,12 +740,6 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
           </div>
 
           <div ref={mountRef} className="aw-code-editor min-h-0" />
-
-          {notice ? (
-            <p role="status" className="shrink-0 border-t border-cm-border bg-cm-toolbar-bg px-2.5 py-1.5 text-[11px] text-muted-foreground">
-              {notice}
-            </p>
-          ) : null}
 
           {issuesOpen ? (
             <div className="max-h-56 shrink-0 overflow-y-auto border-t border-cm-border bg-cm-toolbar-bg">
