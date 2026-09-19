@@ -33,7 +33,7 @@ export function RunEditorPage() {
   const templateMode = searchParams.get('mode') === 'edit' ? 'edit' : templateId ? 'use' : ''
   const session = useSession()
   const editorRef = useRef<AnyWorkflowEditorHandle | null>(null)
-  const scope = draftScopeFor(runId, templateId)
+  const scope = draftScopeFor(session?.record.id, runId, templateId)
 
   const [source, setSource] = useState(createStarterPlan)
   const [templateTitle, setTemplateTitle] = useState('')
