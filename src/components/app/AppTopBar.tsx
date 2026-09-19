@@ -10,12 +10,12 @@ export function AppTopBar() {
   const navigate = useNavigate()
   const session = useSession()
   const crumbs = breadcrumbsFor(location.pathname)
+  const currentTitle = crumbs.at(-1)?.label
   const showBack = location.pathname !== '/'
 
   useEffect(() => {
-    const current = crumbs.at(-1)?.label
-    document.title = current ? `${current} · AnyWorkflow Remote` : 'AnyWorkflow Remote'
-  }, [crumbs])
+    document.title = currentTitle ? `${currentTitle} · AnyWorkflow Remote` : 'AnyWorkflow Remote'
+  }, [currentTitle])
 
   function goBack() {
     if (location.key && location.key !== 'default') navigate(-1)
