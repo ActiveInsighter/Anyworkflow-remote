@@ -35,6 +35,8 @@ export function breadcrumbsFor(pathname: string): BreadcrumbItem[] {
 }
 
 export function fallbackParent(pathname: string): string {
+  const runEdit = pathname.match(/^\/runs\/([^/]+)\/edit$/u)
+  if (runEdit) return `/runs/${runEdit[1]}`
   if (pathname.startsWith('/runs/') || pathname.startsWith('/tasks/') || pathname.startsWith('/events/')) return '/'
   if (pathname.startsWith('/templates/')) return '/library?tab=templates'
   if (pathname === '/library' || pathname === '/settings') return '/'
