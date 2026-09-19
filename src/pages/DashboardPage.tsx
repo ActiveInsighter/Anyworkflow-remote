@@ -23,7 +23,7 @@ import type { DispatchRunRecord } from '@/types'
 import { toast } from 'sonner'
 
 const filterKeys: readonly RunListFilter[] = ['all', 'draft', 'active', 'done']
-const PAGE_SIZE = 24
+const PAGE_SIZE = 20
 
 function readFilter(value: string | null): RunListFilter {
   return filterKeys.includes(value as RunListFilter) ? (value as RunListFilter) : 'all'
