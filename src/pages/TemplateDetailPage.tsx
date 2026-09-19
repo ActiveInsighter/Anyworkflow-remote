@@ -16,6 +16,7 @@ import { useAsyncData } from '@/hooks/useAsyncData'
 import { toErrorMessage } from '@/lib/api'
 import { formatDateTime } from '@/lib/format'
 import { deleteWorkflowTemplate, duplicateWorkflowTemplate, getWorkflowTemplate } from '@/lib/library'
+import { toast } from 'sonner'
 
 export function TemplateDetailPage() {
   const { templateId = '' } = useParams()
@@ -41,9 +42,12 @@ export function TemplateDetailPage() {
     setError('')
     try {
       const result = await duplicateWorkflowTemplate(template)
+      toast.success('模板已复制')
       navigate('/templates/' + result.id)
     } catch (cause) {
-      setError(toErrorMessage(cause))
+      const message = toErrorMessage(cause)
+      setError(message)
+      toast.error('复制模板失败', { description: message })
     } finally {
       setActing(false)
     }
@@ -55,9 +59,12 @@ export function TemplateDetailPage() {
     setError('')
     try {
       await deleteWorkflowTemplate(template.id)
+      toast.success('模板已删除')
       navigate('/library?tab=templates')
     } catch (cause) {
-      setError(toErrorMessage(cause))
+      const message = toErrorMessage(cause)
+      setError(message)
+      toast.error('删除模板失败', { description: message })
       setActing(false)
     }
   }
