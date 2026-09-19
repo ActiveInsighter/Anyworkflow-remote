@@ -3,6 +3,7 @@ import {
   Copy,
   Folder,
   FolderCog,
+  FolderInput,
   Home,
   Library,
   RefreshCw,
@@ -22,11 +23,11 @@ import {
   LoadingState,
   PageHeader,
   Panel,
-  SelectInput,
   StatusBadge,
   Toolbar,
 } from '@/components/app/ui'
 import { FolderManagerDialog } from '@/components/app/folder-manager-dialog'
+import { MoveToFolderDialog } from '@/components/app/move-to-folder-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -37,14 +38,12 @@ import {
   deleteRunFavorite,
   deleteWorkflowTemplate,
   duplicateWorkflowTemplate,
-  flattenLibraryFolders,
   listLibrary,
   moveRunFavorite,
   updateWorkflowTemplate,
 } from '@/lib/library'
 import { useSession } from '@/lib/session'
 import type {
-  FlattenedLibraryFolder,
   LibraryFolderRecord,
   LibraryFolderScope,
   RunFavoriteRecord,
@@ -74,10 +73,6 @@ function folderPath(folderId: string, folders: LibraryFolderRecord[]): LibraryFo
   return path
 }
 
-function folderLabel(folder: FlattenedLibraryFolder) {
-  return '　'.repeat(folder.depth) + folder.name
-}
-
 export function LibraryPage() {
   const session = useSession()
   const navigate = useNavigate()
@@ -86,6 +81,11 @@ export function LibraryPage() {
   const requestedFolder = searchParams.get('folder') || ''
   const [query, setQuery] = useState('')
   const [folderDialog, setFolderDialog] = useState(false)
+  const [moveTarget, setMoveTarget] = useState<
+    | { kind: 'favorite'; item: RunFavoriteRecord }
+    | { kind: 'template'; item: WorkflowTemplateRecord }
+    | null
+  >(null)
   const [actionError, setActionError] = useState('')
   const [busy, setBusy] = useState('')
 
@@ -104,7 +104,6 @@ export function LibraryPage() {
     () => tab === 'favorites' ? state.data?.favoriteFolders ?? [] : state.data?.templateFolders ?? [],
     [state.data?.favoriteFolders, state.data?.templateFolders, tab],
   )
-  const flattenedFolders = useMemo(() => flattenLibraryFolders(activeFolders), [activeFolders])
   const activeFolder = activeFolders.find((folder) => folder.id === requestedFolder)
   const currentFolder = activeFolder?.id || ''
   const path = useMemo(() => folderPath(currentFolder, activeFolders), [currentFolder, activeFolders])
@@ -346,7 +345,7 @@ export function LibraryPage() {
             const run = item.runRecord
             const status = run ? runStatusMeta(run.status, run.requestedAction) : { label: '不可用', tone: 'neutral' as const }
             return (
-              <ListRow key={item.id} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_170px_auto] sm:items-center sm:gap-5">
+              <ListRow key={item.id} className="grid gap-3">
                 <div className="min-w-0">
                   <div className="flex min-w-0 items-center gap-2">
                     <Star className="size-3.5 shrink-0 fill-warning text-warning" aria-hidden="true" />
@@ -356,33 +355,33 @@ export function LibraryPage() {
                     <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
                   </div>
                   <div className="mt-1 truncate text-[10px] text-muted-foreground">
-                    {normalizedQuery && item.folderRecord?.name ? item.folderRecord.name + ' · ' : ''}{formatDateTime(item.updated)}
+                    {item.folderRecord?.name ? item.folderRecord.name + ' · ' : ''}{formatDateTime(item.updated)}
                   </div>
                 </div>
 
-                <SelectInput
-                  value={item.folder}
-                  onChange={(event) => void moveFavorite(item, event.target.value)}
-                  disabled={busy === item.id}
-                  aria-label="移动收藏"
-                >
-                  <option value="">根目录</option>
-                  {flattenedFolders.map((folder) => (
-                    <option key={folder.id} value={folder.id}>{folderLabel(folder)}</option>
-                  ))}
-                </SelectInput>
-
-                <div className="flex items-center gap-1 sm:justify-end">
+                <div className="flex items-center gap-1">
                   <Button size="sm" variant="ghost" asChild><Link to={'/runs/' + item.run}><Workflow />打开</Link></Button>
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="text-destructive hover:text-destructive"
+                    className="size-8"
+                    onClick={() => setMoveTarget({ kind: 'favorite', item })}
+                    disabled={busy === item.id}
+                    aria-label="移动收藏"
+                    title="移动"
+                  >
+                    <FolderInput className="size-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="size-8 text-destructive hover:text-destructive"
                     onClick={() => void removeFavorite(item)}
                     disabled={busy === item.id}
                     aria-label="取消收藏"
+                    title="取消收藏"
                   >
-                    <Trash2 />
+                    <Trash2 className="size-4" />
                   </Button>
                 </div>
               </ListRow>
@@ -394,13 +393,13 @@ export function LibraryPage() {
       {tab === 'templates' && templates.length ? (
         <Panel>
           {templates.map((item) => (
-            <ListRow key={item.id} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_170px_auto] sm:items-center sm:gap-5">
+            <ListRow key={item.id} className="grid gap-3">
               <div className="min-w-0">
                 <Link to={'/templates/' + item.id} className="block truncate text-[13px] font-medium outline-none hover:underline focus-visible:underline">
                   {item.title || '未命名模板'}
                 </Link>
                 <div className="mt-1 truncate text-[10px] text-muted-foreground">
-                  {normalizedQuery && item.folderRecord?.name ? item.folderRecord.name + ' · ' : ''}{formatDateTime(item.updated)}
+                  {item.folderRecord?.name ? item.folderRecord.name + ' · ' : ''}{formatDateTime(item.updated)}
                 </div>
                 {item.tags.length ? (
                   <div className="mt-1.5 flex flex-wrap gap-1">
@@ -411,34 +410,34 @@ export function LibraryPage() {
                 ) : null}
               </div>
 
-              <SelectInput
-                value={item.folder}
-                onChange={(event) => void moveTemplate(item, event.target.value)}
-                disabled={busy === item.id}
-                aria-label="移动模板"
-              >
-                <option value="">根目录</option>
-                {flattenedFolders.map((folder) => (
-                  <option key={folder.id} value={folder.id}>{folderLabel(folder)}</option>
-                ))}
-              </SelectInput>
-
-              <div className="flex items-center gap-1 sm:justify-end">
+              <div className="flex items-center gap-1">
                 <Button size="sm" variant="ghost" asChild>
                   <Link to={'/runs/new?templateId=' + encodeURIComponent(item.id)}><Library />使用</Link>
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => void duplicateTemplate(item)} disabled={busy === item.id}>
-                  <Copy />复制
+                <Button size="icon" variant="ghost" className="size-8" onClick={() => void duplicateTemplate(item)} disabled={busy === item.id} aria-label="复制模板" title="复制">
+                  <Copy className="size-4" />
                 </Button>
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="text-destructive hover:text-destructive"
+                  className="size-8"
+                  onClick={() => setMoveTarget({ kind: 'template', item })}
+                  disabled={busy === item.id}
+                  aria-label="移动模板"
+                  title="移动"
+                >
+                  <FolderInput className="size-4" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="size-8 text-destructive hover:text-destructive"
                   onClick={() => void removeTemplate(item)}
                   disabled={busy === item.id}
                   aria-label={'删除模板 ' + (item.title || '未命名模板')}
+                  title="删除"
                 >
-                  <Trash2 />
+                  <Trash2 className="size-4" />
                 </Button>
               </div>
             </ListRow>
@@ -452,6 +451,22 @@ export function LibraryPage() {
       {!state.loading && (normalizedQuery || childFolders.length === 0) && tab === 'templates' && templates.length === 0 ? (
         <EmptyState title={normalizedQuery ? '没有匹配的模板' : currentFolder ? '目录为空' : '暂无模板'} />
       ) : null}
+
+      <MoveToFolderDialog
+        open={Boolean(moveTarget)}
+        onOpenChange={(open) => { if (!open) setMoveTarget(null) }}
+        folders={activeFolders}
+        currentFolder={moveTarget?.item.folder || ''}
+        title={moveTarget?.kind === 'favorite'
+          ? moveTarget.item.runRecord?.title || '未命名 Run'
+          : moveTarget?.item.title || '未命名模板'}
+        busy={Boolean(moveTarget && busy === moveTarget.item.id)}
+        onMove={async (folder) => {
+          if (!moveTarget) return
+          if (moveTarget.kind === 'favorite') await moveFavorite(moveTarget.item, folder)
+          else await moveTemplate(moveTarget.item, folder)
+        }}
+      />
 
       <FolderManagerDialog
         open={folderDialog}
