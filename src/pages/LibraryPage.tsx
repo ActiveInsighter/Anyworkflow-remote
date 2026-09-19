@@ -108,10 +108,15 @@ export function LibraryPage() {
   const activeFolder = activeFolders.find((folder) => folder.id === requestedFolder)
   const currentFolder = activeFolder?.id || ''
   const path = useMemo(() => folderPath(currentFolder, activeFolders), [currentFolder, activeFolders])
-  const childFolders = useMemo(
-    () => activeFolders.filter((folder) => folder.parent === currentFolder).slice().sort(folderSort),
-    [activeFolders, currentFolder],
-  )
+  const childFolders = useMemo(() => {
+    const ids = new Set(activeFolders.map((folder) => folder.id))
+    return activeFolders
+      .filter((folder) => currentFolder
+        ? folder.parent === currentFolder
+        : !folder.parent || folder.parent === folder.id || !ids.has(folder.parent))
+      .slice()
+      .sort(folderSort)
+  }, [activeFolders, currentFolder])
   const normalizedQuery = query.trim().toLocaleLowerCase()
 
   const favorites = useMemo(() => {
