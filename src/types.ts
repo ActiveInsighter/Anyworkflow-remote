@@ -27,6 +27,11 @@ export interface DispatchRunRecord {
   status: DispatchStatus
   requestedAction: DispatchRequestedAction
   commandVersion: number
+  /**
+   * One-shot not-before boundary as a UTC ISO-8601 instant. Empty means "start immediately".
+   * Immutable once the Run leaves `draft`; cancel the Run to stop a pending execution.
+   */
+  scheduledAt: string
   totalTasks: number
   completedTasks: number
   lastError: string

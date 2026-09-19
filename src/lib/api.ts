@@ -7,6 +7,7 @@ import {
 } from './config'
 import { clearSession, requireSession, saveBaseUrl, setSession } from './session'
 import { parsePlanMeta } from './plan'
+import { isValidScheduledAt } from './schedule'
 import type {
   AuthSession,
   DispatchEventRecord,
@@ -100,13 +101,36 @@ export function assertOwner<T extends { owner: string }>(record: T): T {
   return record
 }
 
+/**
+ * `scheduledAt` was added to the deployment after some Runs already existed, and PocketBase's
+ * date field reads back as an empty string. Normalising on the way in keeps every downstream
+ * truthiness check off the `undefined` case.
+ */
+function normalizeRun<T extends DispatchRunRecord>(run: T): T {
+  return { ...run, scheduledAt: typeof run.scheduledAt === 'string' ? run.scheduledAt : '' }
+}
+
+/**
+ * Rejects a schedule before it reaches the API. The PocketBase hook performs the same check and
+ * answers with an opaque 400, so failing here is what turns a bad instant into an actionable
+ * message. Empty is always valid: it means "no boundary, start immediately".
+ */
+function checkedScheduledAt(value: string): string {
+  const trimmed = value.trim()
+  if (!isValidScheduledAt(trimmed)) {
+    throw new ApiError('执行时间格式无效，需要带时区偏移的 ISO-8601 时刻', 400, 'INVALID_SCHEDULED_AT')
+  }
+  return trimmed
+}
+
 async function listCollection<T extends { owner: string }>(
   collection: string,
   query: Record<string, string | number | boolean | undefined>,
+  normalize: (record: T) => T = (record) => record,
 ): Promise<PocketBaseListResponse<T>> {
   const response = await request<PocketBaseListResponse<T>>(`/api/collections/${collection}/records`, { query })
   if (!response || !Array.isArray(response.items)) throw new ApiError('接口返回的数据格式无效', 502, 'INVALID_API_RESPONSE')
-  return { ...response, items: response.items.map(assertOwner) }
+  return { ...response, items: response.items.map((item) => normalize(assertOwner(item))) }
 }
 
 export async function collectPages<T extends { owner: string }>(
@@ -137,12 +161,16 @@ export async function login(identity: string, password: string, baseUrlValue: st
 
 export async function listRuns(page = 1, perPage = DEFAULT_PAGE_SIZE): Promise<PocketBaseListResponse<DispatchRunRecord>> {
   const session = requireSession()
-  return listCollection<DispatchRunRecord>(RUN_COLLECTION, {
-    page,
-    perPage,
-    sort: '-updated',
-    filter: `owner="${quoteFilter(session.record.id)}"`,
-  })
+  return listCollection<DispatchRunRecord>(
+    RUN_COLLECTION,
+    {
+      page,
+      perPage,
+      sort: '-updated',
+      filter: `owner="${quoteFilter(session.record.id)}"`,
+    },
+    normalizeRun,
+  )
 }
 
 export async function listAllRuns(): Promise<DispatchRunRecord[]> {
@@ -151,13 +179,19 @@ export async function listAllRuns(): Promise<DispatchRunRecord[]> {
 }
 
 export async function getRun(id: string): Promise<DispatchRunRecord> {
-  return assertOwner(await request<DispatchRunRecord>(`/api/collections/${RUN_COLLECTION}/records/${encodeURIComponent(id)}`))
+  return normalizeRun(
+    assertOwner(await request<DispatchRunRecord>(`/api/collections/${RUN_COLLECTION}/records/${encodeURIComponent(id)}`)),
+  )
 }
 
-export async function createRun(planText: string, status: 'draft' | 'queued'): Promise<DispatchRunRecord> {
+export async function createRun(
+  planText: string,
+  status: 'draft' | 'queued',
+  scheduledAt = '',
+): Promise<DispatchRunRecord> {
   const session = requireSession()
   const meta = parsePlanMeta(planText)
-  return assertOwner(await request<DispatchRunRecord>(`/api/collections/${RUN_COLLECTION}/records`, {
+  return normalizeRun(assertOwner(await request<DispatchRunRecord>(`/api/collections/${RUN_COLLECTION}/records`, {
     method: 'POST',
     data: {
       owner: session.record.id,
@@ -169,23 +203,36 @@ export async function createRun(planText: string, status: 'draft' | 'queued'): P
       status,
       requestedAction: 'none',
       commandVersion: 0,
+      scheduledAt: checkedScheduledAt(scheduledAt),
     },
-  }))
+  })))
 }
 
-export async function updateRunDraft(id: string, planText: string, publish = false): Promise<DispatchRunRecord> {
+/**
+ * `scheduledAt` is deliberately optional rather than defaulting to `''`: omitting it leaves the
+ * stored value untouched, so publishing a draft that is already scheduled keeps its moment.
+ * Passing `''` explicitly is how a schedule is cleared.
+ */
+export async function updateRunDraft(
+  id: string,
+  planText: string,
+  options: { publish?: boolean; scheduledAt?: string } = {},
+): Promise<DispatchRunRecord> {
   const meta = parsePlanMeta(planText)
-  return assertOwner(await request<DispatchRunRecord>(`/api/collections/${RUN_COLLECTION}/records/${encodeURIComponent(id)}`, {
+  const data: Record<string, unknown> = {
+    title: meta.title,
+    planText,
+    planChecksum: '',
+    executionMode: meta.mode,
+    maxConcurrency: meta.maxConcurrency,
+  }
+  if (options.publish) data.status = 'queued'
+  if (options.scheduledAt !== undefined) data.scheduledAt = checkedScheduledAt(options.scheduledAt)
+
+  return normalizeRun(assertOwner(await request<DispatchRunRecord>(`/api/collections/${RUN_COLLECTION}/records/${encodeURIComponent(id)}`, {
     method: 'PATCH',
-    data: {
-      title: meta.title,
-      planText,
-      planChecksum: '',
-      executionMode: meta.mode,
-      maxConcurrency: meta.maxConcurrency,
-      ...(publish ? { status: 'queued' as const } : {}),
-    },
-  }))
+    data,
+  })))
 }
 
 export async function commandRun(
@@ -197,10 +244,10 @@ export async function commandRun(
   if (!['queued', 'running'].includes(run.status)) throw new ApiError('当前状态不能执行 Run 控制命令', 409, 'INVALID_RUN_STATE')
   if (!Number.isSafeInteger(run.commandVersion)) throw new ApiError('Run 命令版本无效', 409, 'INVALID_COMMAND_VERSION')
 
-  return assertOwner(await request<DispatchRunRecord>(`/api/collections/${RUN_COLLECTION}/records/${encodeURIComponent(run.id)}`, {
+  return normalizeRun(assertOwner(await request<DispatchRunRecord>(`/api/collections/${RUN_COLLECTION}/records/${encodeURIComponent(run.id)}`, {
     method: 'PATCH',
     data: { requestedAction: action, commandVersion: run.commandVersion + 1 },
-  }))
+  })))
 }
 
 export async function deleteRun(run: Pick<DispatchRunRecord, 'id' | 'owner' | 'status'>): Promise<void> {

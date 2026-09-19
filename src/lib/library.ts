@@ -174,6 +174,17 @@ export async function listAllWorkflowTemplates(): Promise<WorkflowTemplateRecord
   return collectPages(first, listTemplatesPage)
 }
 
+/**
+ * The visible tree for one tab. Two rules, in order:
+ *
+ *   1. A folder tagged with this scope is always visible. That is what makes a freshly created,
+ *      still empty folder appear straight away instead of waiting for its first item.
+ *   2. A legacy folder with no scope stays visible wherever an item references it or one of its
+ *      descendants, so folders created before `scope` existed keep rendering as they did.
+ *
+ * A folder tagged with the *other* scope is never pulled in by rule 2, so the two trees stay
+ * separate even when old data nests one tab's folder under the other tab's ancestor.
+ */
 function scopedFolders(
   folders: LibraryFolderRecord[],
   scope: LibraryFolderScope,
@@ -188,11 +199,18 @@ function scopedFolders(
       seen.add(current)
       const folder = byId.get(current)
       if (!folder) break
-      included.add(folder.id)
+      if (!folder.scope || folder.scope === scope) included.add(folder.id)
       current = folder.parent
     }
   }
   return folders.filter((folder) => included.has(folder.id))
+}
+
+/** The sibling tree, used to keep a delete from reaching across the separation. */
+function otherScope(scope?: LibraryFolderScope): LibraryFolderScope | undefined {
+  if (scope === 'favorite') return 'template'
+  if (scope === 'template') return 'favorite'
+  return undefined
 }
 
 export async function listLibrary() {
@@ -276,17 +294,27 @@ export async function updateLibraryFolder(
   ))
 }
 
-export async function deleteLibraryFolder(id: string): Promise<void> {
+/**
+ * Deleting a folder never orphans anything: child folders move to the root and filed items fall
+ * back to 未分类. `scope` narrows that cleanup to the tab the folder belongs to, so removing a
+ * 收藏 directory cannot detach a 模板 that happens to sit in it.
+ */
+export async function deleteLibraryFolder(id: string, scope?: LibraryFolderScope): Promise<void> {
   const folderId = requiredId(id, '目录 ID')
+  const foreignScope = otherScope(scope)
   const library = await listLibrary()
-  for (const child of library.folders.filter((folder) => folder.parent === folderId)) {
+  for (const child of library.folders.filter((folder) => folder.parent === folderId && folder.scope !== foreignScope)) {
     await updateLibraryFolder(child.id, { parent: '' })
   }
-  for (const favorite of library.favorites.filter((item) => item.folder === folderId)) {
-    await moveRunFavorite(favorite.id, '')
+  if (scope !== 'template') {
+    for (const favorite of library.favorites.filter((item) => item.folder === folderId)) {
+      await moveRunFavorite(favorite.id, '')
+    }
   }
-  for (const template of library.templates.filter((item) => item.folder === folderId)) {
-    await updateWorkflowTemplate(template.id, { folder: '' })
+  if (scope !== 'favorite') {
+    for (const template of library.templates.filter((item) => item.folder === folderId)) {
+      await updateWorkflowTemplate(template.id, { folder: '' })
+    }
   }
   await request<void>(
     `/api/collections/${LIBRARY_FOLDER_COLLECTION}/records/${encodeURIComponent(folderId)}`,
