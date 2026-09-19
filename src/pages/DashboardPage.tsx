@@ -5,7 +5,6 @@ import {
   AppPage,
   EmptyState,
   ErrorBanner,
-  ListRow,
   LoadingState,
   PageHeader,
   Panel,
@@ -14,13 +13,11 @@ import {
   Toolbar,
 } from '@/components/app/ui'
 import { ConfirmDeleteDialog } from '@/components/app/confirm-delete-dialog'
-import { ScheduleBadge } from '@/components/app/schedule-picker'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { invalidateAsyncDataCache, useAsyncData } from '@/hooks/useAsyncData'
-import { useNow } from '@/hooks/useNow'
 import { cloneRun, deleteRun, listRuns, toErrorMessage, type RunListFilter } from '@/lib/api'
-import { formatDateTime, modeLabel, progressPercent, progressText, runStatusMeta } from '@/lib/format'
+import { formatDateTime, progressPercent, progressText, runStatusMeta } from '@/lib/format'
 import { useSession } from '@/lib/session'
 import type { DispatchRunRecord } from '@/types'
 
@@ -45,7 +42,6 @@ export function DashboardPage() {
   const [actingId, setActingId] = useState('')
   const [actionError, setActionError] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<DispatchRunRecord | null>(null)
-  const now = useNow()
 
   const state = useAsyncData(
     async () => listRuns(page, PAGE_SIZE, filter),
@@ -151,7 +147,7 @@ export function DashboardPage() {
       {state.loading && !state.data ? <LoadingState /> : null}
 
       {runs.length ? (
-        <Panel>
+        <div className="grid gap-3">
           {runs.map((run) => {
             const status = runStatusMeta(run.status, run.requestedAction)
             const percent = progressPercent(run.completedTasks, run.totalTasks)
@@ -159,44 +155,85 @@ export function DashboardPage() {
             const canDelete = run.status === 'draft' || terminal
 
             return (
-              <ListRow key={run.id} className="grid gap-3 md:grid-cols-[minmax(0,1.6fr)_170px_112px_auto] md:items-center md:gap-5">
-                <div className="min-w-0">
-                  <div className="flex min-w-0 flex-wrap items-center gap-2">
-                    <Link to={'/runs/' + run.id} className="min-w-0 truncate text-[13px] font-semibold tracking-[-0.015em] outline-none hover:underline focus-visible:underline">
-                      {run.title || '未命名 Run'}
-                    </Link>
-                    <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-                    <ScheduleBadge value={run.scheduledAt} now={now} />
-                  </div>
-                  <div className="mt-1 truncate text-[11px] text-muted-foreground">{modeLabel(run.executionMode, run.maxConcurrency, '任务')}</div>
+              <Panel key={run.id} className="p-4">
+                <div className="flex items-start gap-3">
+                  <Link
+                    to={'/runs/' + run.id}
+                    className="min-w-0 flex-1 truncate text-[14px] font-semibold tracking-[-0.015em] outline-none hover:underline focus-visible:underline"
+                  >
+                    {run.title || '未命名 Run'}
+                  </Link>
+                  <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
                 </div>
 
-                <div className="min-w-0">
-                  <div className="mb-1.5 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                <div className="mt-3">
+                  <div className="mb-1.5 flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
                     <span className="tabular-nums">{progressText(run.completedTasks, run.totalTasks, 'Tasks')}</span>
                     <span className="tabular-nums">{Math.round(percent)}%</span>
                   </div>
                   <ProgressBar value={percent} tone={status.tone} />
                 </div>
 
-                <div className="text-[11px] tabular-nums text-muted-foreground md:text-right">{formatDateTime(run.updated)}</div>
-
-                <div className="flex flex-wrap items-center gap-1 md:justify-end">
-                  {run.status === 'draft' ? (
-                    <Button size="sm" variant="ghost" onClick={() => navigate('/runs/' + run.id + '/edit')}><Pencil />编辑</Button>
-                  ) : null}
-                  <Button size="sm" variant="ghost" onClick={() => void copyRun(run, 'draft')} disabled={Boolean(actingId) || !run.planText.trim()}><Copy />复制</Button>
-                  {terminal ? (
-                    <Button size="sm" variant="ghost" onClick={() => void copyRun(run, 'queued')} disabled={Boolean(actingId) || !run.planText.trim()}><RotateCcw />重跑</Button>
-                  ) : null}
-                  {canDelete ? (
-                    <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setDeleteTarget(run)} disabled={Boolean(actingId)} aria-label={'删除 ' + (run.title || '未命名 Run')}><Trash2 /></Button>
-                  ) : null}
+                <div className="mt-3 flex items-end justify-between gap-3">
+                  <div className="min-w-0 text-[11px] tabular-nums text-muted-foreground">
+                    {formatDateTime(run.updated)}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    {run.status === 'draft' ? (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="size-8"
+                        onClick={() => navigate('/runs/' + run.id + '/edit')}
+                        aria-label="编辑"
+                        title="编辑"
+                      >
+                        <Pencil className="size-4" />
+                      </Button>
+                    ) : null}
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="size-8"
+                      onClick={() => void copyRun(run, 'draft')}
+                      disabled={Boolean(actingId) || !run.planText.trim()}
+                      aria-label="复制"
+                      title="复制"
+                    >
+                      <Copy className="size-4" />
+                    </Button>
+                    {terminal ? (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="size-8"
+                        onClick={() => void copyRun(run, 'queued')}
+                        disabled={Boolean(actingId) || !run.planText.trim()}
+                        aria-label="重跑"
+                        title="重跑"
+                      >
+                        <RotateCcw className="size-4" />
+                      </Button>
+                    ) : null}
+                    {canDelete ? (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="size-8 text-destructive hover:text-destructive"
+                        onClick={() => setDeleteTarget(run)}
+                        disabled={Boolean(actingId)}
+                        aria-label={'删除 ' + (run.title || '未命名 Run')}
+                        title="删除"
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
-              </ListRow>
+              </Panel>
             )
           })}
-        </Panel>
+        </div>
       ) : null}
 
       {!state.loading && state.data && runs.length === 0 ? (
