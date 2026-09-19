@@ -55,7 +55,6 @@ import {
   Redo2,
   Repeat,
   Search,
-  Sparkles,
   TriangleAlert,
   Undo2,
   Variable,
@@ -71,14 +70,12 @@ import {
   type ReactNode,
 } from 'react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   anyWorkflowCompletion,
   anyWorkflowHighlightStyle,
   anyWorkflowLanguage,
   formatAnyWorkflowSource,
-  PROMPT_TEMPLATES,
   validateAnyWorkflowSource,
 } from '@/components/editor/anyworkflow-dsl'
 import { cn } from '@/lib/utils'
@@ -135,10 +132,10 @@ const EMPTY_STATUS: EditorStatus = {
 
 const editorTheme = EditorView.theme({
   '&': {
-    minHeight: '400px',
+    minHeight: 'min(62vh, 680px)',
     backgroundColor: 'var(--cm-bg)',
     color: 'var(--cm-fg)',
-    fontSize: '13px',
+    fontSize: '14px',
   },
   '&.cm-focused': { outline: 'none' },
   '.cm-scroller': {
@@ -234,42 +231,6 @@ const SEVERITY_META = {
   hint: { label: '建议', Icon: Info, tone: 'text-muted-foreground' },
 } as const
 
-function PromptPalette({
-  open,
-  onOpenChange,
-  onInsert,
-}: {
-  open: boolean
-  onOpenChange: (value: boolean) => void
-  onInsert: (value: string) => void
-}) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>提示词库</DialogTitle>
-        </DialogHeader>
-        <div className="grid max-h-[60vh] overflow-y-auto rounded-md border">
-          {PROMPT_TEMPLATES.map((prompt) => (
-            <button
-              key={prompt.id}
-              type="button"
-              className="border-b px-3 py-3 text-left last:border-b-0 hover:bg-muted/50"
-              onClick={() => {
-                onInsert(prompt.text)
-                onOpenChange(false)
-              }}
-            >
-              <div className="text-sm font-medium">{prompt.label}</div>
-              <div className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{prompt.text}</div>
-            </button>
-          ))}
-        </div>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
 /**
  * Toolbar control. Labels are shown from `lg` upward; below that the icon carries the meaning and
  * the tooltip plus `aria-label` keep it discoverable. Height drops to the mobile touch target only
@@ -329,7 +290,6 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
     const saveRef = useRef(onSave)
     const copiedTimerRef = useRef<number | null>(null)
 
-    const [paletteOpen, setPaletteOpen] = useState(false)
     const [fullscreen, setFullscreen] = useState(false)
     const [status, setStatus] = useState<EditorStatus>(EMPTY_STATUS)
     const [issues, setIssues] = useState<EditorIssue[]>([])
@@ -633,7 +593,7 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
             fullscreen ? 'fixed inset-0 z-50 rounded-none' : 'rounded-lg',
           )}
         >
-          <div className="flex shrink-0 flex-wrap items-center gap-0.5 border-b border-cm-border bg-cm-toolbar-bg px-2 py-1.5">
+          <div className="flex shrink-0 items-center gap-0.5 overflow-x-auto border-b border-cm-border bg-cm-toolbar-bg px-2 py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <div className="mr-1 hidden items-center gap-1.5 px-1 text-[11px] font-medium text-muted-foreground xl:flex">
               <FileCode2 className="size-3.5" />
               Run DSL
@@ -684,23 +644,7 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
                   onClick={() => insert('<https://>', 9)}
                 />
                 <ToolDivider />
-                {/*
-                 * The prompt library inserts text too, so it belongs with the insert group rather
-                 * than after the file actions — that also balances the toolbar into two even rows
-                 * on a 375px screen instead of leaving one control stranded on a third row.
-                 */}
-                <ToolButton
-                  icon={<Sparkles className="size-3.5" />}
-                  label="提示词库"
-                  hint="从预设提示词中挑选并插入"
-                  showLabel
-                  onClick={() => setPaletteOpen(true)}
-                />
-                <ToolDivider />
-              </>
-            )}
-
-            <div className="ms-auto flex flex-wrap items-center gap-0.5">
+            <div className="ms-auto flex shrink-0 items-center gap-0.5">
               {readOnly ? null : (
                 <>
                   <ToolButton
@@ -833,7 +777,6 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
             </button>
           </div>
 
-          <PromptPalette open={paletteOpen} onOpenChange={setPaletteOpen} onInsert={(prompt) => insert(prompt)} />
         </div>
       </TooltipProvider>
     )
