@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { createLibraryFolder, deleteLibraryFolder, flattenLibraryFolders, updateLibraryFolder } from '@/lib/library'
+import { toErrorMessage } from '@/lib/api'
 import type { LibraryFolderRecord, LibraryFolderScope } from '@/types'
 
 function canMoveInto(folderId: string, candidateId: string, folders: LibraryFolderRecord[]): boolean {
@@ -55,8 +56,8 @@ export function FolderManagerDialog({
       setParent('')
       await onChanged()
       toast.success('目录已创建')
-    } catch {
-      toast.error('新建目录失败')
+    } catch (error) {
+      toast.error('新建目录失败', { description: toErrorMessage(error) })
     } finally {
       setBusy('')
     }
@@ -71,8 +72,8 @@ export function FolderManagerDialog({
       setEditingName('')
       await onChanged()
       toast.success('目录已重命名')
-    } catch {
-      toast.error('重命名失败')
+    } catch (error) {
+      toast.error('重命名失败', { description: toErrorMessage(error) })
     } finally {
       setBusy('')
     }
@@ -87,8 +88,8 @@ export function FolderManagerDialog({
       setMovingParent('')
       await onChanged()
       toast.success('目录已移动')
-    } catch {
-      toast.error('移动目录失败')
+    } catch (error) {
+      toast.error('移动目录失败', { description: toErrorMessage(error) })
     } finally {
       setBusy('')
     }
@@ -102,8 +103,8 @@ export function FolderManagerDialog({
       setConfirming('')
       await onChanged()
       toast.success('目录已删除')
-    } catch {
-      toast.error('删除目录失败')
+    } catch (error) {
+      toast.error('删除目录失败', { description: toErrorMessage(error) })
     } finally {
       setBusy('')
     }
