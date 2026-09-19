@@ -33,7 +33,7 @@ const router = createBrowserRouter([
       { path: 'runs/new', element: <RunEditorPage /> },
       { path: 'runs/:runId/edit', element: <RunEditorPage /> },
       { path: 'runs/:runId', element: <RunDetailPage /> },
-      { path: 'tasks/:taskId', ement: <TaskDetailPage /> },
+      { path: 'tasks/:taskId', element: <TaskDetailPage /> },
       { path: 'events/:eventId', element: <EventDetailPage /> },
       { path: 'library', element: <LibraryPage /> },
       { path: 'templates/:templateId', element: <TemplateDetailPage /> },
