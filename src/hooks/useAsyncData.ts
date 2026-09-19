@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type DependencyList, type Dispatch, type SetStateAction } from 'react'
+import { SESSION_CHANGE_EVENT, SESSION_STORAGE_KEY } from '@/lib/session'
 
 export interface AsyncState<T> {
   data: T | null
@@ -16,6 +17,22 @@ interface CacheEntry<T> {
 
 const CACHE_LIMIT = 100
 const cache = new Map<string, CacheEntry<unknown>>()
+let sessionCacheListenersInstalled = false
+
+function clearCacheForSessionChange() {
+  cache.clear()
+}
+
+function ensureSessionCacheIsolation() {
+  if (sessionCacheListenersInstalled || typeof window === 'undefined') return
+  sessionCacheListenersInstalled = true
+  window.addEventListener(SESSION_CHANGE_EVENT, clearCacheForSessionChange)
+  window.addEventListener('storage', (event) => {
+    if (event.key === SESSION_STORAGE_KEY || event.key === null) clearCacheForSessionChange()
+  })
+}
+
+ensureSessionCacheIsolation()
 
 function readCache<T>(key?: string): CacheEntry<T> | null {
   if (!key) return null
@@ -72,6 +89,7 @@ export function useAsyncData<T>(
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
   const controllerRef = useRef<AbortController | null>(null)
+  const activeCacheKeyRef = useRef(cacheKey)
 
   const setData: Dispatch<SetStateAction<T | null>> = useCallback((value) => {
     setDataState((current) => {
@@ -127,6 +145,8 @@ export function useAsyncData<T>(
       return
     }
 
+    const keyChanged = activeCacheKeyRef.current !== cacheKey
+    activeCacheKeyRef.current = cacheKey
     const cached = readCache<T>(cacheKey)
     if (cached) {
       dataRef.current = cached.data
@@ -135,6 +155,14 @@ export function useAsyncData<T>(
       setRefreshing(false)
       if (Date.now() - cached.updatedAt >= staleMs) void reload()
     } else {
+      if (keyChanged) {
+        controllerRef.current?.abort()
+        dataRef.current = null
+        setDataState(null)
+        setLoading(true)
+        setRefreshing(false)
+        setError('')
+      }
       void reload()
     }
 
