@@ -56,6 +56,7 @@ import {
 } from '@/lib/format'
 import { describeSchedule } from '@/lib/schedule'
 import type { DispatchEventRecord, DispatchRequestedAction, DispatchRunRecord, DispatchTaskRecord } from '@/types'
+import { toast } from 'sonner'
 
 const PAGE_SIZE = 20
 
@@ -289,8 +290,11 @@ export function RunDetailPage() {
       invalidateAsyncDataCache('tasks:' + run.id + ':')
       await state.reload()
       await tasksState.reload()
+      toast.success(action === 'pause' ? '已请求暂停' : action === 'resume' ? '已请求继续' : '已请求取消')
     } catch (error) {
-      setActionError(toErrorMessage(error))
+      const message = toErrorMessage(error)
+      setActionError(message)
+      toast.error('操作失败', { description: message })
     } finally {
       setActing(false)
     }
@@ -305,8 +309,11 @@ export function RunDetailPage() {
       invalidateAsyncDataCache('run:' + run.id)
       invalidateAsyncDataCache('runs:')
       await state.reload()
+      toast.success(run.scheduledAt ? '已按计划提交执行' : '已提交执行')
     } catch (error) {
-      setActionError(toErrorMessage(error))
+      const message = toErrorMessage(error)
+      setActionError(message)
+      toast.error('提交失败', { description: message })
     } finally {
       setActing(false)
     }
@@ -321,8 +328,11 @@ export function RunDetailPage() {
       invalidateAsyncDataCache('run:' + run.id)
       invalidateAsyncDataCache('runs:')
       await state.reload()
+      toast.success('已立即提交执行')
     } catch (error) {
-      setActionError(toErrorMessage(error))
+      const message = toErrorMessage(error)
+      setActionError(message)
+      toast.error('提交失败', { description: message })
     } finally {
       setActing(false)
     }
@@ -335,9 +345,12 @@ export function RunDetailPage() {
     try {
       const copied = await cloneRun(run, status)
       invalidateAsyncDataCache('runs:')
+      toast.success(status === 'draft' ? '已复制为草稿' : '已创建重跑')
       navigate(status === 'draft' ? '/runs/' + copied.id + '/edit' : '/runs/' + copied.id)
     } catch (error) {
-      setActionError(toErrorMessage(error))
+      const message = toErrorMessage(error)
+      setActionError(message)
+      toast.error('复制失败', { description: message })
     } finally {
       setActing(false)
     }
@@ -352,8 +365,11 @@ export function RunDetailPage() {
       else await createRunFavorite(state.data.run.id)
       invalidateAsyncDataCache('run:' + state.data.run.id)
       await state.reload()
+      toast.success(state.data.favorite ? '已取消收藏' : '已收藏')
     } catch (error) {
-      setActionError(toErrorMessage(error))
+      const message = toErrorMessage(error)
+      setActionError(message)
+      toast.error('收藏操作失败', { description: message })
     } finally {
       setActing(false)
     }
@@ -365,9 +381,12 @@ export function RunDetailPage() {
     setActionError('')
     try {
       const template = await createWorkflowTemplateFromRun(run)
+      toast.success('已保存为模板')
       navigate('/templates/' + template.id)
     } catch (error) {
-      setActionError(toErrorMessage(error))
+      const message = toErrorMessage(error)
+      setActionError(message)
+      toast.error('保存模板失败', { description: message })
     } finally {
       setActing(false)
     }
@@ -382,9 +401,12 @@ export function RunDetailPage() {
       invalidateAsyncDataCache('run:' + run.id)
       invalidateAsyncDataCache('runs:')
       setConfirmDeleteOpen(false)
+      toast.success('Run 已删除')
       navigate('/')
     } catch (error) {
-      setActionError(toErrorMessage(error))
+      const message = toErrorMessage(error)
+      setActionError(message)
+      toast.error('删除失败', { description: message })
       setActing(false)
     }
   }
