@@ -19,11 +19,13 @@ AnyWorkflow 的响应式 Web 控制端。项目参考 `Anyworkflow-wechat` 的�
 - Run 列表与状态筛选
 - Run 新建、草稿编辑、发布、复制、重跑、删除
 - Run 暂停、继续、取消命令
-- Run / Task / Event 详情
-- Event 队列解析、复制和运行时状态展示
-- 进行中数据自动轮询刷新
+- Run → Task → Event 层级详情与运行时状态展示
+- Event 执行内容按需查看
+- 进行中数据自动轮询刷新与有界跨页缓存
+- 收藏、模板与层级资料库目录
+- CodeMirror DSL 编辑器、本地草稿与括号消息语法
 - 桌面侧栏布局
-- 手机底部导航与触控优化
+- 手机侧边导航、顶部路径导航与触控优化
 - 自动深色模式
 - Web App manifest
 - GitHub Actions 类型检查与构建
@@ -142,10 +144,12 @@ GitHub 仓库需要以下 Actions Secrets：
 .github/workflows/deploy-cloudflare.yml
 ```
 
-触发方式：
+生产部署触发方式：
 
 - 推送到 `main`：自动构建并部署
 - GitHub Actions 页面：可手动运行 `workflow_dispatch`
+
+预览部署工作流位于 `.github/workflows/deploy-preview.yml`。推送到 `codex/**` 或 `feat/**` 分支会更新共享预览 Worker，也可手动触发。
 
 本地已登录 Wrangler 时也可执行：
 
