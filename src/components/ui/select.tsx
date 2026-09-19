@@ -17,7 +17,7 @@ export function Select({ className, containerClassName, children, ...props }: Se
       <select
         data-slot="select"
         className={cn(
-          'h-9 w-full min-w-0 appearance-none rounded-md border border-input bg-transparent ps-3 pe-8 text-xs outline-none',
+          'h-9 w-full min-w-0 appearance-none rounded-md border border-input bg-transparent ps-3 pe-8 text-base outline-none sm:text-xs',
           'transition-colors hover:border-border-strong focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30',
           'disabled:cursor-not-allowed disabled:opacity-55',
           className,
