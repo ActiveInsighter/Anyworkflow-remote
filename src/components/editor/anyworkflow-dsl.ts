@@ -129,7 +129,8 @@ export function collectUsableVariables(source: string, at: number): string[] {
     }
     if (inFence || !line || line.startsWith('#') || line.startsWith('//')) continue
 
-    const closes = line.match(/^}+(?:\*\d+)?$/u)?.[0].match(/^}+/u)?.[0].length ?? 0
+    const closeMatch = line.match(/^(\}+)(?:\*\d+)?$/u)
+    const closes = closeMatch?.[1]?.length ?? 0
     if (closes > 0) {
       for (let index = 0; index < closes && frames.length > 1; index += 1) frames.pop()
       continue
