@@ -34,7 +34,6 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useAsyncData, invalidateAsyncDataCache } from '@/hooks/useAsyncData'
 import { useNow } from '@/hooks/useNow'
-import { deriveEventProgress } from '@/lib/event-structure'
 import {
   cloneRun,
   commandRun,
@@ -47,6 +46,7 @@ import {
 } from '@/lib/api'
 import { createRunFavorite, createWorkflowTemplateFromRun, deleteRunFavorite, getRunFavoriteForRun } from '@/lib/library'
 import {
+  eventProgressLabel,
   eventStatusMeta,
   formatDateTime,
   modeLabel,
@@ -77,10 +77,6 @@ function EventNode({ event, deepLinked }: { event: DispatchEventRecord; deepLink
   }, [deepLinked])
 
   const status = eventStatusMeta(event.status, event.terminalResult)
-  const structure = deriveEventProgress(event.queueTextOverride, event.progress, event.terminalResult)
-  const progressLabel = structure.totalActs
-    ? `${structure.completedActs}/${structure.totalActs} Acts · ${structure.percent}%`
-    : '暂无 Act'
 
   return (
     <div id={'event-' + event.id} className="border-b border-border last:border-b-0">
@@ -96,7 +92,9 @@ function EventNode({ event, deepLinked }: { event: DispatchEventRecord; deepLink
         </span>
         <span className="min-w-0 flex-1 truncate text-[12px] font-medium">{eventTitle(event)}</span>
         <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-        <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">{progressLabel}</span>
+        <span className="hidden max-w-[38%] shrink-0 truncate text-[10px] text-muted-foreground sm:block">
+          {eventProgressLabel(event.status, event.progress)}
+        </span>
       </button>
 
       {open ? (
@@ -117,29 +115,7 @@ function EventNode({ event, deepLinked }: { event: DispatchEventRecord; deepLink
               </Button>
             ) : null}
           </div>
-
           {event.lastError ? <div className="mt-2"><InlineError>{event.lastError}</InlineError></div> : null}
-
-          {structure.acts.length ? (
-            <div className="mt-2 overflow-hidden rounded-md border border-border bg-card">
-              {structure.acts.map((act) => {
-                const actTone = act.state === 'completed' ? 'success' : act.state === 'running' ? 'warning' : 'neutral'
-                const actLabel = act.state === 'completed' ? '已完成' : act.state === 'running' ? '执行中' : '等待'
-                return (
-                  <div key={act.id} className="flex items-center gap-2 border-b border-border px-2.5 py-2 last:border-b-0">
-                    <span className="min-w-0 flex-1 truncate text-[11px] font-medium">{act.title}</span>
-                    <StatusBadge tone={actTone}>{actLabel}</StatusBadge>
-                    <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
-                      {act.completedMessages}/{act.messageCount} 消息 · {act.percent}%
-                    </span>
-                    <ProgressBar className="hidden w-16 sm:block" value={act.percent} tone={actTone} />
-                  </div>
-                )
-              })}
-            </div>
-          ) : (
-            <div className="mt-2 text-[11px] text-muted-foreground">暂无可执行 Act</div>
-          )}
         </div>
       ) : null}
 
