@@ -12,7 +12,6 @@ export function Toaster(props: ToasterProps) {
       swipeDirections={['top', 'left', 'right']}
       toastOptions={{
         duration: 2400,
-        dismissible: true,
         classNames: {
           toast: 'border border-border bg-card text-card-foreground shadow-md',
           title: 'text-[13px] font-medium',
