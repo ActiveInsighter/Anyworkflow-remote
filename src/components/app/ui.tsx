@@ -33,7 +33,7 @@ export function AppPage({ children, className }: { children: ReactNode; classNam
   return (
     <div
       className={cn(
-        'mx-auto w-full max-w-[1180px] px-4 pb-12 pt-4 sm:px-6 sm:pb-16 sm:pt-7 lg:px-10 lg:pt-9',
+        'mx-auto w-full max-w-[1180px] px-4 pb-[calc(3rem+env(safe-area-inset-bottom))] pt-4 sm:px-6 sm:pb-16 sm:pt-7 lg:px-10 lg:pt-9',
         className,
       )}
     >
