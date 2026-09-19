@@ -294,9 +294,8 @@ const INDENT = '  '
  * into a code block, and two trailing spaces are a hard line break. Rewriting that text would
  * silently change what runs.
  *
- * Fence delimiters themselves *are* aligned to their block, because both parsers in this
- * repository accept leading whitespace before a fence (`/(?:```|~~~)/` is always tested against a
- * trimmed line, and `parseQueue` matches `/^\s*```/`), so an aligned fence stays parseable.
+ * Fence delimiters themselves *are* aligned to their block because the DSL validator treats
+ * fence markers after trimming line indentation, so an aligned legacy fence stays parseable.
  *
  * The result is idempotent: formatting already-formatted source returns it unchanged, so callers
  * can use a string comparison to decide whether a transaction is worth dispatching.
