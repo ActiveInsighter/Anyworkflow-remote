@@ -1,7 +1,7 @@
 import { FolderInput } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Select } from '@/components/ui/select'
 import { flattenLibraryFolders } from '@/lib/library'
 import type { LibraryFolderRecord } from '@/types'
@@ -43,6 +43,7 @@ export function MoveToFolderDialog({
             <FolderInput className="size-4 text-muted-foreground" />
             移动
           </DialogTitle>
+          <DialogDescription className="sr-only">选择目标目录后移动当前项目。</DialogDescription>
         </DialogHeader>
 
         <div className="min-w-0 truncate text-xs text-muted-foreground">{title}</div>
