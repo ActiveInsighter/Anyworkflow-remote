@@ -42,15 +42,6 @@ export function createStarterPlan(): string {
   return `@run=新工作流
 @mode=serial
 
-@task 示例任务 {
-@mode=serial
-
-@event 示例执行单元 {
-\`\`\`
-在这里填写要发送给 AnyWorkflow 执行器的消息。
-\`\`\`
-}
-}
 `
 }
 
