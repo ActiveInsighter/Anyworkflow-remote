@@ -22,7 +22,7 @@ import {
   syntaxHighlighting,
 } from '@codemirror/language'
 import { forEachDiagnostic, linter, lintKeymap, type Diagnostic } from '@codemirror/lint'
-import { highlightSelectionMatches, openSearchPanel, searchKeymap } from '@codemirror/search'
+import { highlightSelectionMatches } from '@codemirror/search'
 import { EditorState } from '@codemirror/state'
 import {
   crosshairCursor,
@@ -43,8 +43,6 @@ import {
   CircleAlert,
   ClipboardPaste,
   Copy,
-  Download,
-  FileCode2,
   Info,
   Link as LinkIcon,
   ListTree,
@@ -53,7 +51,6 @@ import {
   Percent,
   Redo2,
   Repeat,
-  Search,
   Trash2,
   TriangleAlert,
   Undo2,
@@ -89,7 +86,6 @@ export interface AnyWorkflowEditorHandle {
   focus: () => void
   insert: (text: string, cursorOffset?: number, selectionLength?: number) => void
   complete: () => void
-  search: () => void
   undo: () => void
   redo: () => void
   format: () => void
@@ -111,8 +107,6 @@ interface AnyWorkflowEditorProps {
   onChange: (value: string) => void
   onSave?: () => void
   readOnly?: boolean
-  /** Filename used by the download action. */
-  downloadName?: string
 }
 
 interface EditorStatus {
@@ -171,7 +165,6 @@ const editorTheme = EditorView.theme({
     color: 'var(--cm-fg)',
   },
   '.cm-panels': { backgroundColor: 'var(--cm-tooltip-bg)', color: 'var(--cm-fg)' },
-  '.cm-panel.cm-search': { padding: '8px' },
   '.cm-lintRange-error': {
     backgroundImage: 'none',
     textDecoration: 'underline wavy var(--danger)',
@@ -241,7 +234,7 @@ const SEVERITY_META = {
   hint: { label: '建议', Icon: Info, tone: 'text-muted-foreground' },
 } as const
 
-/** Toolbar controls always show short text labels; tooltips add the longer explanation. */
+/** Compact icon-only toolbar controls; labels remain available to screen readers and tooltips. */
 function ToolButton({
   icon,
   label,
@@ -267,10 +260,9 @@ function ToolButton({
           onClick={onClick}
           disabled={disabled}
           aria-label={label}
-          className={cn('h-8 min-w-fit gap-1.5 px-2 text-[11px] font-medium', className)}
+          className={cn('size-8 shrink-0 p-0', className)}
         >
           {icon}
-          <span>{label}</span>
         </Button>
       </TooltipTrigger>
       <TooltipContent side="bottom">{hint ? `${label} · ${hint}` : label}</TooltipContent>
@@ -284,7 +276,7 @@ function ToolDivider() {
 
 export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflowEditorProps>(
   function AnyWorkflowEditor(
-    { value, onChange, onSave, readOnly = false, downloadName = 'plan.aw' },
+    { value, onChange, onSave, readOnly = false },
     ref,
   ) {
     const mountRef = useRef<HTMLDivElement | null>(null)
@@ -397,7 +389,6 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
             indentWithTab,
             ...closeBracketsKeymap,
             ...completionKeymap,
-            ...searchKeymap,
             ...lintKeymap,
             ...foldKeymap,
             ...historyKeymap,
@@ -610,20 +601,6 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
       startCompletion(view)
     }, [])
 
-    const runDownload = useCallback(() => {
-      const text = viewRef.current?.state.doc.toString() ?? ''
-      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
-      const url = URL.createObjectURL(blob)
-      const anchor = document.createElement('a')
-      anchor.href = url
-      anchor.download = downloadName
-      document.body.appendChild(anchor)
-      anchor.click()
-      anchor.remove()
-      URL.revokeObjectURL(url)
-      toast.success('已下载工作流')
-    }, [downloadName])
-
     useImperativeHandle(
       ref,
       () => ({
@@ -637,13 +614,6 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
           if (view) {
             view.focus()
             startCompletion(view)
-          }
-        },
-        search() {
-          const view = viewRef.current
-          if (view) {
-            view.focus()
-            openSearchPanel(view)
           }
         },
         reveal: revealRange,
@@ -669,14 +639,9 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
               : 'h-[clamp(620px,78dvh,820px)] rounded-lg sm:h-[clamp(640px,76dvh,860px)]',
           )}
         >
-          <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-cm-border bg-cm-toolbar-bg px-2 py-1.5">
-            <div className="mr-1 hidden items-center gap-1.5 px-1 text-[11px] font-medium text-muted-foreground lg:flex">
-              <FileCode2 className="size-3.5" />
-              Run DSL
-            </div>
-
+          <div className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-cm-border bg-cm-toolbar-bg px-2 py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {readOnly ? null : (
-              <>
+              <div className="flex shrink-0 items-center gap-0.5">
                 <ToolButton
                   icon={<Braces className="size-3.5" />}
                   label="Task"
@@ -732,10 +697,10 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
                   onClick={runSmartDelete}
                 />
                 <ToolDivider />
-              </>
+              </div>
             )}
 
-            <div className="flex flex-wrap items-center gap-0.5 sm:ms-auto">
+            <div className="ms-auto flex shrink-0 items-center gap-0.5">
               {readOnly ? null : (
                 <>
                   <ToolButton
@@ -768,27 +733,10 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
                 </>
               )}
               <ToolButton
-                icon={<Search className="size-3.5" />}
-                label="查找"
-                hint="Ctrl/⌘ F"
-                onClick={() => {
-                  const view = viewRef.current
-                  if (!view) return
-                  view.focus()
-                  openSearchPanel(view)
-                }}
-              />
-              <ToolButton
                 icon={copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
                 label={copied ? '已复制' : '复制'}
                 hint="复制全文"
                 onClick={() => void runCopy()}
-              />
-              <ToolButton
-                icon={<Download className="size-3.5" />}
-                label="下载"
-                hint={`保存为 ${downloadName}`}
-                onClick={runDownload}
               />
               <ToolDivider />
               <ToolButton
@@ -844,7 +792,7 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
               <span>
                 {status.chars} 字符 · {status.lines} 行
               </span>
-              <span className="hidden xl:inline">Ctrl/⌘ S 保存 · Ctrl/⌘ Z 撤销 · Ctrl/⌘ F 查找</span>
+              <span className="hidden xl:inline">Ctrl/⌘ S 保存 · Ctrl/⌘ Z 撤销</span>
             </div>
 
             <button
