@@ -136,9 +136,12 @@ async function listCollection<T extends { owner: string }>(
 export async function collectPages<T extends { owner: string }>(
   first: PocketBaseListResponse<T>,
   load: (page: number) => Promise<PocketBaseListResponse<T>>,
+  maxItems = 500,
 ): Promise<T[]> {
-  const items = [...first.items]
-  for (let page = 2; page <= first.totalPages; page += 1) items.push(...(await load(page)).items)
+  const items = [...first.items].slice(0, maxItems)
+  for (let page = 2; page <= first.totalPages && items.length < maxItems; page += 1) {
+    items.push(...(await load(page)).items.slice(0, maxItems - items.length))
+  }
   return items
 }
 
@@ -159,7 +162,21 @@ export async function login(identity: string, password: string, baseUrlValue: st
   return session
 }
 
-export async function listRuns(page = 1, perPage = DEFAULT_PAGE_SIZE): Promise<PocketBaseListResponse<DispatchRunRecord>> {
+export type RunListFilter = 'all' | 'draft' | 'active' | 'done'
+
+function runFilterExpression(ownerId: string, filter: RunListFilter): string {
+  const owner = `owner="${quoteFilter(ownerId)}"`
+  if (filter === 'draft') return `${owner} && status="draft"`
+  if (filter === 'active') return `${owner} && (status="queued" || status="running")`
+  if (filter === 'done') return `${owner} && (status="succeeded" || status="failed" || status="canceled")`
+  return owner
+}
+
+export async function listRuns(
+  page = 1,
+  perPage = 30,
+  filter: RunListFilter = 'all',
+): Promise<PocketBaseListResponse<DispatchRunRecord>> {
   const session = requireSession()
   return listCollection<DispatchRunRecord>(
     RUN_COLLECTION,
@@ -167,15 +184,10 @@ export async function listRuns(page = 1, perPage = DEFAULT_PAGE_SIZE): Promise<P
       page,
       perPage,
       sort: '-updated',
-      filter: `owner="${quoteFilter(session.record.id)}"`,
+      filter: runFilterExpression(session.record.id, filter),
     },
     normalizeRun,
   )
-}
-
-export async function listAllRuns(): Promise<DispatchRunRecord[]> {
-  const first = await listRuns()
-  return collectPages(first, (page) => listRuns(page, first.perPage))
 }
 
 export async function getRun(id: string): Promise<DispatchRunRecord> {

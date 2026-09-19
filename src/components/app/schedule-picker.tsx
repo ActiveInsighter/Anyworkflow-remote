@@ -31,6 +31,7 @@ export function SchedulePicker({
   onValueChange,
   now,
   className,
+  compact = false,
 }: {
   mode: ScheduleMode
   value: string
@@ -38,6 +39,7 @@ export function SchedulePicker({
   onValueChange: (value: string) => void
   now: number
   className?: string
+  compact?: boolean
 }) {
   const clock = new Date(now)
   const summary = describeSchedule(value, clock)
@@ -93,7 +95,7 @@ export function SchedulePicker({
         ) : null}
       </div>
 
-      <p className="flex items-center gap-1.5 text-[11px] leading-4 text-muted-foreground">
+      {compact ? null : <p className="flex items-center gap-1.5 text-[11px] leading-4 text-muted-foreground">
         {unresolved ? (
           <>
             <TriangleAlert className="size-3.5 shrink-0 text-warning" aria-hidden="true" />
@@ -117,7 +119,7 @@ export function SchedulePicker({
             <span className="text-warning">该时刻已过，运行时会立即开始</span>
           </>
         )}
-      </p>
+      </p>}
     </div>
   )
 }

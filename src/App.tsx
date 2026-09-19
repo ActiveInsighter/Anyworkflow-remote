@@ -24,11 +24,6 @@ function NotFoundPage() {
   )
 }
 
-/**
- * A data router is required for `useBlocker`, which the Run editor uses so an in-app navigation
- * cannot silently discard unsaved DSL. The route tree itself is unchanged from the declarative
- * version.
- */
 const router = createBrowserRouter([
   {
     path: '/',
