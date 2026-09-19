@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button'
 import { login, toErrorMessage } from '@/lib/api'
 import { clearSession, getBaseUrl, useSession } from '@/lib/session'
 import { setThemePreference, useThemePreference, type ThemePreference } from '@/lib/theme'
+import { toast } from 'sonner'
 
 const themeOptions = [
   { value: 'system' as ThemePreference, label: '跟随系统' },
@@ -48,8 +49,11 @@ export function SettingsPage() {
     try {
       await login(email, password, baseUrl)
       setPassword('')
+      toast.success(session ? '已重新连接' : '连接成功')
     } catch (cause) {
-      setError(toErrorMessage(cause, '登录失败'))
+      const message = toErrorMessage(cause, '登录失败')
+      setError(message)
+      toast.error('连接失败', { description: message })
     } finally {
       setSubmitting(false)
     }
@@ -125,7 +129,14 @@ export function SettingsPage() {
                     {submitting ? '连接中…' : session ? '重新连接' : '连接'}
                   </Button>
                   {session ? (
-                    <Button type="button" variant="outline" onClick={() => clearSession()}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        clearSession()
+                        toast.success('已退出登录')
+                      }}
+                    >
                       <LogOut />退出登录
                     </Button>
                   ) : null}
