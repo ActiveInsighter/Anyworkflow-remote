@@ -139,15 +139,15 @@ function directiveOptions(context: DslContext): Completion[] {
   if (context === 'task') {
     return [
       ...shared,
-      snippetCompletion('@event ${执行单元} {\n```\n${消息}\n```\n}', { label: '@event', type: 'keyword', detail: 'Event 块' }),
-      snippetCompletion('@for ${i} in range(1, 3) {\n  @event ${执行单元} {\n```\n${消息}\n```\n  }\n}', { label: '@for', type: 'keyword', detail: 'Event 循环' }),
+      snippetCompletion('@event ${执行单元} {\n  {\n    ${消息}\n  }\n}', { label: '@event', type: 'keyword', detail: 'Event 块' }),
+      snippetCompletion('@for ${i} in range(1, 3) {\n  @event ${执行单元} {\n    {\n      ${消息}\n    }\n  }\n}', { label: '@for', type: 'keyword', detail: 'Event 循环' }),
     ]
   }
 
   return [
-    snippetCompletion('@act {\n${}\n}', { label: '@act', type: 'keyword', detail: '动作块' }),
+    snippetCompletion('@act {\n  @action=${动作名称}\n  {\n    ${消息}\n  }\n}', { label: '@act', type: 'keyword', detail: 'Act 块' }),
     snippetCompletion('@var ${name}=${value}', { label: '@var', type: 'keyword', detail: '变量' }),
-    snippetCompletion('```\n${消息}\n```', { label: '``` text', type: 'text', detail: '文本块' }),
+    snippetCompletion('{\n  ${消息}\n}', { label: '{ message }', type: 'text', detail: '消息块' }),
     snippetCompletion('<https://${url}>', { label: '<https://…>', type: 'text', detail: '打开页面' }),
   ]
 }
@@ -273,7 +273,7 @@ export function validateAnyWorkflowSource(source: string): Diagnostic[] {
     }
   })
 
-  if (inFence) add(fenceLine || lines.length, '文本代码块没有闭合')
+  if (inFence) add(fenceLine || lines.length, '兼容文本块没有闭合')
   if (queueDepth > 0) add(lines.length, 'Event 内部块没有闭合')
   for (const block of stack) {
     const label = block.type === 'task' ? 'Task' : block.type === 'event' ? 'Event' : '@for'
