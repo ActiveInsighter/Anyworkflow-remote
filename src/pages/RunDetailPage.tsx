@@ -434,7 +434,7 @@ export function RunDetailPage() {
         actions={
           <>
             {run.status === 'draft' ? <Button variant="outline" asChild><Link to={'/runs/' + run.id + '/edit'}><Pencil />编辑</Link></Button> : null}
-            {run.status === 'draft' ? <Button variant="secondary" onClick={() => void publishDraft()} disabled={acting}><Play />{schedule.pending ? '按计划运行' : '运行'}</Button> : null}
+            {run.status === 'draft' ? <Button variant="secondary" onClick={() => void (schedule.pending ? publishDraft() : runImmediately())} disabled={acting}><Play />{schedule.pending ? '按计划运行' : '运行'}</Button> : null}
             {canPause ? <Button variant="outline" onClick={() => void control('pause')} disabled={acting}><Pause />暂停</Button> : null}
             {canResume ? <Button variant="secondary" onClick={() => void control('resume')} disabled={acting}><Play />继续</Button> : null}
             {canCancel ? <Button variant="destructive" onClick={() => void control('cancel')} disabled={acting}><XCircle />取消</Button> : null}

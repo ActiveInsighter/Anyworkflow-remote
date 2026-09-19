@@ -22,7 +22,7 @@ import {
   syntaxHighlighting,
 } from '@codemirror/language'
 import { forEachDiagnostic, linter, lintKeymap, type Diagnostic } from '@codemirror/lint'
-import { highlightSelectionMatches, openSearchPanel, searchKeymap } from '@codemirror/search'
+import { highlightSelectionMatches } from '@codemirror/search'
 import { EditorState } from '@codemirror/state'
 import {
   crosshairCursor,
@@ -43,17 +43,15 @@ import {
   CircleAlert,
   ClipboardPaste,
   Copy,
-  Download,
-  FileCode2,
   Info,
   Link as LinkIcon,
   ListTree,
   Maximize2,
-  MessageSquareText,
   Minimize2,
+  Percent,
   Redo2,
   Repeat,
-  Search,
+  Trash2,
   TriangleAlert,
   Undo2,
   Variable,
@@ -72,9 +70,13 @@ import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   anyWorkflowCompletion,
+  collectUsableVariables,
   anyWorkflowHighlightStyle,
   anyWorkflowLanguage,
   formatAnyWorkflowSource,
+  planSmartDelete,
+  planStructuredInsert,
+  type StructuredInsertKind,
   validateAnyWorkflowSource,
 } from '@/components/editor/anyworkflow-dsl'
 import { cn } from '@/lib/utils'
@@ -82,9 +84,8 @@ import { toast } from 'sonner'
 
 export interface AnyWorkflowEditorHandle {
   focus: () => void
-  insert: (text: string, cursorOffset?: number) => void
+  insert: (text: string, cursorOffset?: number, selectionLength?: number) => void
   complete: () => void
-  search: () => void
   undo: () => void
   redo: () => void
   format: () => void
@@ -106,8 +107,6 @@ interface AnyWorkflowEditorProps {
   onChange: (value: string) => void
   onSave?: () => void
   readOnly?: boolean
-  /** Filename used by the download action. */
-  downloadName?: string
 }
 
 interface EditorStatus {
@@ -166,7 +165,6 @@ const editorTheme = EditorView.theme({
     color: 'var(--cm-fg)',
   },
   '.cm-panels': { backgroundColor: 'var(--cm-tooltip-bg)', color: 'var(--cm-fg)' },
-  '.cm-panel.cm-search': { padding: '8px' },
   '.cm-lintRange-error': {
     backgroundImage: 'none',
     textDecoration: 'underline wavy var(--danger)',
@@ -236,7 +234,7 @@ const SEVERITY_META = {
   hint: { label: '建议', Icon: Info, tone: 'text-muted-foreground' },
 } as const
 
-/** Toolbar controls always show short text labels; tooltips add the longer explanation. */
+/** Compact icon-only toolbar controls; labels remain available to screen readers and tooltips. */
 function ToolButton({
   icon,
   label,
@@ -262,10 +260,9 @@ function ToolButton({
           onClick={onClick}
           disabled={disabled}
           aria-label={label}
-          className={cn('h-8 min-w-fit gap-1.5 px-2 text-[11px] font-medium', className)}
+          className={cn('size-8 shrink-0 p-0', className)}
         >
           {icon}
-          <span>{label}</span>
         </Button>
       </TooltipTrigger>
       <TooltipContent side="bottom">{hint ? `${label} · ${hint}` : label}</TooltipContent>
@@ -279,7 +276,7 @@ function ToolDivider() {
 
 export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflowEditorProps>(
   function AnyWorkflowEditor(
-    { value, onChange, onSave, readOnly = false, downloadName = 'plan.aw' },
+    { value, onChange, onSave, readOnly = false },
     ref,
   ) {
     const mountRef = useRef<HTMLDivElement | null>(null)
@@ -392,7 +389,6 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
             indentWithTab,
             ...closeBracketsKeymap,
             ...completionKeymap,
-            ...searchKeymap,
             ...lintKeymap,
             ...foldKeymap,
             ...historyKeymap,
@@ -459,16 +455,58 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
       }
     }, [fullscreen])
 
-    const insert = useCallback((text: string, cursorOffset?: number) => {
+    const insert = useCallback((text: string, cursorOffset?: number, selectionLength = 0) => {
       const view = viewRef.current
       if (!view) return
       const selection = view.state.selection.main
-      const offset = cursorOffset ?? text.length
+      const offset = Math.max(0, Math.min(cursorOffset ?? text.length, text.length))
+      const anchor = selection.from + offset
+      const head = anchor + Math.max(0, Math.min(selectionLength, text.length - offset))
       view.dispatch({
         changes: { from: selection.from, to: selection.to, insert: text },
-        selection: { anchor: selection.from + Math.max(0, Math.min(offset, text.length)) },
+        selection: { anchor, head },
         scrollIntoView: true,
       })
+      view.focus()
+    }, [])
+
+    const insertStructured = useCallback((kind: StructuredInsertKind) => {
+      const view = viewRef.current
+      if (!view) return
+      const source = view.state.doc.toString()
+      const plan = planStructuredInsert(source, view.state.selection.main.head, kind)
+      if (!plan.ok) {
+        toast.info(plan.message)
+        view.focus()
+        return
+      }
+
+      const anchor = plan.from + plan.cursorOffset
+      view.dispatch({
+        changes: { from: plan.from, insert: plan.text },
+        selection: { anchor },
+        scrollIntoView: true,
+      })
+      view.focus()
+    }, [])
+
+    const runSmartDelete = useCallback(() => {
+      const view = viewRef.current
+      if (!view) return
+      const selection = view.state.selection.main
+      const plan = planSmartDelete(view.state.doc.toString(), selection.from, selection.to)
+      if (!plan.ok) {
+        toast.info(plan.message)
+        view.focus()
+        return
+      }
+
+      view.dispatch({
+        changes: { from: plan.from, to: plan.to, insert: '' },
+        selection: { anchor: plan.from },
+        scrollIntoView: true,
+      })
+      toast.success(plan.message)
       view.focus()
     }, [])
 
@@ -543,19 +581,25 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
       }
     }, [insert])
 
-    const runDownload = useCallback(() => {
-      const text = viewRef.current?.state.doc.toString() ?? ''
-      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
-      const url = URL.createObjectURL(blob)
-      const anchor = document.createElement('a')
-      anchor.href = url
-      anchor.download = downloadName
-      document.body.appendChild(anchor)
-      anchor.click()
-      anchor.remove()
-      URL.revokeObjectURL(url)
-      toast.success('已下载工作流')
-    }, [downloadName])
+    const insertVariableReference = useCallback(() => {
+      const view = viewRef.current
+      if (!view) return
+      const selection = view.state.selection.main
+      const from = selection.from
+      view.dispatch({
+        changes: { from: selection.from, to: selection.to, insert: '%%' },
+        selection: { anchor: from + 1 },
+        scrollIntoView: true,
+      })
+      view.focus()
+
+      const available = collectUsableVariables(view.state.doc.toString(), from + 1)
+      if (available.length === 0) {
+        toast.info('当前位置没有可用变量')
+        return
+      }
+      startCompletion(view)
+    }, [])
 
     useImperativeHandle(
       ref,
@@ -570,13 +614,6 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
           if (view) {
             view.focus()
             startCompletion(view)
-          }
-        },
-        search() {
-          const view = viewRef.current
-          if (view) {
-            view.focus()
-            openSearchPanel(view)
           }
         },
         reveal: revealRange,
@@ -602,61 +639,68 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
               : 'h-[clamp(620px,78dvh,820px)] rounded-lg sm:h-[clamp(640px,76dvh,860px)]',
           )}
         >
-          <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-cm-border bg-cm-toolbar-bg px-2 py-1.5">
-            <div className="mr-1 hidden items-center gap-1.5 px-1 text-[11px] font-medium text-muted-foreground lg:flex">
-              <FileCode2 className="size-3.5" />
-              Run DSL
-            </div>
-
+          <div className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-cm-border bg-cm-toolbar-bg px-2 py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {readOnly ? null : (
-              <>
+              <div className="flex shrink-0 items-center gap-0.5">
                 <ToolButton
                   icon={<Braces className="size-3.5" />}
                   label="Task"
-                  hint="插入 Task"
-                  onClick={() => insert('@task  {\n  @mode=serial\n\n}\n', 6)}
+                  hint="追加到 Run 最外层"
+                  onClick={() => insertStructured('task')}
                 />
                 <ToolButton
                   icon={<Zap className="size-3.5" />}
                   label="Event"
-                  hint="插入 Event"
-                  onClick={() => insert('@event  {\n  {\n\n  }\n}\n', 7)}
+                  hint="添加到光标所在 Task"
+                  onClick={() => insertStructured('event')}
                 />
                 <ToolButton
                   icon={<ListTree className="size-3.5" />}
                   label="Act"
-                  hint="插入 Act，并可给 Act 命名"
-                  onClick={() => insert('@act {\n  @action=\n  {\n\n  }\n}\n', 17)}
+                  hint="添加到光标所在 Event"
+                  onClick={() => insertStructured('act')}
                 />
                 <ToolButton
                   icon={<Repeat className="size-3.5" />}
                   label="循环"
                   hint="插入循环"
-                  onClick={() => insert('@for i in range(1, 3) {\n  \n}\n', 29)}
+                  onClick={() => insert('@for i in range(1, 3) {\n  \n}\n', 5, 1)}
                 />
                 <ToolButton
                   icon={<Variable className="size-3.5" />}
                   label="变量"
-                  hint="插入变量"
-                  onClick={() => insert('@var name=value', 5)}
+                  hint="添加到光标所在 Event 的变量区"
+                  onClick={() => insertStructured('variable')}
                 />
                 <ToolButton
-                  icon={<MessageSquareText className="size-3.5" />}
-                  label="消息"
-                  hint="插入 { } 消息块"
+                  icon={<Percent className="size-3.5" />}
+                  label="使用变量"
+                  hint="插入 %% 并选择当前位置可用变量"
+                  onClick={insertVariableReference}
+                />
+                <ToolButton
+                  icon={<Braces className="size-3.5" />}
+                  label="消息块"
+                  hint="插入 { }"
                   onClick={() => insert('{\n\n}', 2)}
                 />
                 <ToolButton
                   icon={<LinkIcon className="size-3.5" />}
                   label="链接"
-                  hint="插入打开页面链接"
-                  onClick={() => insert('<https://>', 9)}
+                  hint="插入 <>，直接粘贴链接"
+                  onClick={() => insert('<>', 1)}
+                />
+                <ToolButton
+                  icon={<Trash2 className="size-3.5" />}
+                  label="智能删除"
+                  hint="选中结构括号删除整块，否则删除当前行或选中行"
+                  onClick={runSmartDelete}
                 />
                 <ToolDivider />
-              </>
+              </div>
             )}
 
-            <div className="flex flex-wrap items-center gap-0.5 sm:ms-auto">
+            <div className="ms-auto flex shrink-0 items-center gap-0.5">
               {readOnly ? null : (
                 <>
                   <ToolButton
@@ -689,27 +733,10 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
                 </>
               )}
               <ToolButton
-                icon={<Search className="size-3.5" />}
-                label="查找"
-                hint="Ctrl/⌘ F"
-                onClick={() => {
-                  const view = viewRef.current
-                  if (!view) return
-                  view.focus()
-                  openSearchPanel(view)
-                }}
-              />
-              <ToolButton
                 icon={copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
                 label={copied ? '已复制' : '复制'}
                 hint="复制全文"
                 onClick={() => void runCopy()}
-              />
-              <ToolButton
-                icon={<Download className="size-3.5" />}
-                label="下载"
-                hint={`保存为 ${downloadName}`}
-                onClick={runDownload}
               />
               <ToolDivider />
               <ToolButton
@@ -765,7 +792,7 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
               <span>
                 {status.chars} 字符 · {status.lines} 行
               </span>
-              <span className="hidden xl:inline">Ctrl/⌘ S 保存 · Ctrl/⌘ Z 撤销 · Ctrl/⌘ F 查找</span>
+              <span className="hidden xl:inline">Ctrl/⌘ S 保存 · Ctrl/⌘ Z 撤销</span>
             </div>
 
             <button

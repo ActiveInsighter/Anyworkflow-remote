@@ -1,5 +1,6 @@
 import { snippetCompletion, type Completion, type CompletionContext, type CompletionResult } from '@codemirror/autocomplete'
 import { HighlightStyle, StreamLanguage } from '@codemirror/language'
+import type { EditorView } from '@codemirror/view'
 import type { Diagnostic } from '@codemirror/lint'
 import { tags } from '@lezer/highlight'
 
@@ -110,15 +111,424 @@ function dslContextAt(source: string, at: number): DslContext {
   return 'run'
 }
 
-function collectVariables(source: string): string[] {
-  const values = new Set<string>()
-  for (const match of source.matchAll(/^\s*@var\s+([A-Za-z_][A-Za-z0-9_]*)\s*=/gimu)) {
-    if (match[1]) values.add(match[1])
+export type StructuredInsertKind = 'task' | 'event' | 'act' | 'variable'
+
+export type StructuredInsertPlan =
+  | { ok: true; from: number; text: string; cursorOffset: number }
+  | { ok: false; message: string }
+
+interface StructuralBlock {
+  kind: 'task' | 'event'
+  headerFrom: number
+  headerEnd: number
+  openAt: number
+  closeAt: number
+  indent: string
+}
+
+function matchingBraceAt(source: string, openAt: number): number {
+  let depth = 0
+  let inFence = false
+  let fence = ''
+
+  for (let index = openAt; index < source.length; index += 1) {
+    const atLineStart = index === 0 || source[index - 1] === '\n'
+    if (atLineStart) {
+      let contentAt = index
+      while (source[contentAt] === ' ' || source[contentAt] === '\t') contentAt += 1
+      const marker = source.slice(contentAt, contentAt + 3)
+      if (marker === '```' || marker === '~~~') {
+        const end = source.indexOf('\n', contentAt)
+        if (!inFence) {
+          inFence = true
+          fence = marker
+        } else if (fence === marker) {
+          inFence = false
+          fence = ''
+        }
+        if (end < 0) return -1
+        index = end
+        continue
+      }
+    }
+
+    if (inFence) continue
+    if (source[index] === '{') depth += 1
+    else if (source[index] === '}') {
+      depth -= 1
+      if (depth === 0) return index
+    }
   }
-  for (const match of source.matchAll(/^\s*@for\s+([A-Za-z_][A-Za-z0-9_]*)\s+in\s+range\(/gimu)) {
-    if (match[1]) values.add(match[1])
+
+  return -1
+}
+
+function sourceStructureIsClosed(source: string): boolean {
+  let depth = 0
+  let inFence = false
+  let fence = ''
+
+  for (let index = 0; index < source.length; index += 1) {
+    const atLineStart = index === 0 || source[index - 1] === '\n'
+    if (atLineStart) {
+      let contentAt = index
+      while (source[contentAt] === ' ' || source[contentAt] === '\t') contentAt += 1
+      const marker = source.slice(contentAt, contentAt + 3)
+      if (marker === '```' || marker === '~~~') {
+        if (!inFence) {
+          inFence = true
+          fence = marker
+        } else if (fence === marker) {
+          inFence = false
+          fence = ''
+        }
+        const end = source.indexOf('\n', contentAt)
+        if (end < 0) return !inFence && depth === 0
+        index = end
+        continue
+      }
+    }
+
+    if (inFence) continue
+    if (source[index] === '{') depth += 1
+    else if (source[index] === '}') {
+      depth -= 1
+      if (depth < 0) return false
+    }
   }
-  return [...values]
+
+  return !inFence && depth === 0
+}
+
+function structuralBlocks(source: string): StructuralBlock[] {
+  const blocks: StructuralBlock[] = []
+  let offset = 0
+  let inFence = false
+  let fence = ''
+
+  while (offset <= source.length) {
+    const newline = source.indexOf('\n', offset)
+    const lineEnd = newline < 0 ? source.length : newline
+    const raw = source.slice(offset, lineEnd)
+    const trimmed = raw.trim()
+    const fenceMatch = trimmed.match(/^(?:```|~~~)/u)?.[0]
+
+    if (fenceMatch) {
+      if (!inFence) {
+        inFence = true
+        fence = fenceMatch
+      } else if (fence === fenceMatch) {
+        inFence = false
+        fence = ''
+      }
+    } else if (!inFence) {
+      const header = raw.match(/^([ \t]*)@(task|event)(?:\s+.*?)?\s*\{\s*$/iu)
+      if (header?.[2]) {
+        const openInLine = raw.lastIndexOf('{')
+        const openAt = offset + openInLine
+        blocks.push({
+          kind: header[2].toLowerCase() as 'task' | 'event',
+          headerFrom: offset,
+          headerEnd: newline < 0 ? source.length : newline + 1,
+          openAt,
+          closeAt: matchingBraceAt(source, openAt),
+          indent: header[1] ?? '',
+        })
+      }
+    }
+
+    if (newline < 0) break
+    offset = newline + 1
+  }
+
+  return blocks
+}
+
+function containingBlock(source: string, at: number, kind: StructuralBlock['kind']): StructuralBlock | null {
+  const point = Math.max(0, Math.min(at, source.length))
+  return (
+    structuralBlocks(source)
+      .filter((block) =>
+        block.kind === kind &&
+        block.headerFrom <= point &&
+        (block.closeAt < 0 || point <= block.closeAt),
+      )
+      .sort((a, b) => b.headerFrom - a.headerFrom)[0] ?? null
+  )
+}
+
+function lineStartAt(source: string, at: number): number {
+  const newline = source.lastIndexOf('\n', Math.max(0, at - 1))
+  return newline < 0 ? 0 : newline + 1
+}
+
+function appendSeparator(before: string): string {
+  if (!before) return ''
+  if (before.endsWith('\n\n')) return ''
+  if (before.endsWith('\n')) return '\n'
+  return '\n\n'
+}
+
+function variableInsertPoint(source: string, event: StructuralBlock): number {
+  let cursor = event.headerEnd
+  while (cursor < event.closeAt) {
+    const end = source.indexOf('\n', cursor)
+    const lineEnd = end < 0 ? source.length : end
+    const line = source.slice(cursor, lineEnd)
+    if (!/^\s*@var\s+[A-Za-z_][A-Za-z0-9_]*\s*=/iu.test(line)) break
+    cursor = end < 0 ? source.length : end + 1
+  }
+  return cursor
+}
+
+export function planStructuredInsert(
+  source: string,
+  at: number,
+  kind: StructuredInsertKind,
+): StructuredInsertPlan {
+  if (kind === 'task') {
+    if (!sourceStructureIsClosed(source)) {
+      return { ok: false, message: '当前工作流还有未闭合的结构，先补全大括号或文本块后再添加 Task。' }
+    }
+    const separator = appendSeparator(source)
+    const text = `${separator}@task  {\n  @mode=serial\n\n}\n`
+    return { ok: true, from: source.length, text, cursorOffset: separator.length + '@task '.length }
+  }
+
+  const targetKind = kind === 'event' ? 'task' : 'event'
+  const container = containingBlock(source, at, targetKind)
+  if (!container) {
+    const label = kind === 'event' ? 'Event' : kind === 'act' ? 'Act' : '变量'
+    const required = kind === 'event' ? 'Task' : 'Event'
+    return { ok: false, message: `${label} 只能在 ${required} 内添加，请先把光标放到对应的 ${required} 中。` }
+  }
+  if (container.closeAt < 0) {
+    const label = container.kind === 'task' ? 'Task' : 'Event'
+    return { ok: false, message: `当前 ${label} 没有闭合，先补全结构后再插入。` }
+  }
+
+  if (kind === 'variable') {
+    const from = variableInsertPoint(source, container)
+    const indent = container.indent + '  '
+    const text = `${indent}@var =\n`
+    return { ok: true, from, text, cursorOffset: indent.length + '@var '.length }
+  }
+
+  const from = lineStartAt(source, container.closeAt)
+  const separator = appendSeparator(source.slice(0, from))
+  const indent = container.indent + '  '
+
+  if (kind === 'event') {
+    const text =
+      `${separator}${indent}@event  {\n` +
+      `${indent}  {\n` +
+      `${indent}    \n` +
+      `${indent}  }\n` +
+      `${indent}}\n`
+    return {
+      ok: true,
+      from,
+      text,
+      cursorOffset: separator.length + indent.length + '@event '.length,
+    }
+  }
+
+  const text =
+    `${separator}${indent}@act {\n` +
+    `${indent}  @action=\n` +
+    `${indent}  {\n` +
+    `${indent}    \n` +
+    `${indent}  }\n` +
+    `${indent}}\n`
+  return {
+    ok: true,
+    from,
+    text,
+    cursorOffset: separator.length + indent.length + '@act {\n'.length + indent.length + '  @action='.length,
+  }
+}
+
+export type SmartDeletePlan =
+  | { ok: true; from: number; to: number; message: string }
+  | { ok: false; message: string }
+
+interface BracePair {
+  openAt: number
+  closeAt: number
+}
+
+function bracePairs(source: string): BracePair[] {
+  const stack: number[] = []
+  const pairs: BracePair[] = []
+  let inFence = false
+  let fence = ''
+
+  for (let index = 0; index < source.length; index += 1) {
+    const atLineStart = index === 0 || source[index - 1] === '\n'
+    if (atLineStart) {
+      let contentAt = index
+      while (source[contentAt] === ' ' || source[contentAt] === '\t') contentAt += 1
+      const marker = source.slice(contentAt, contentAt + 3)
+      if (marker === '```' || marker === '~~~') {
+        if (!inFence) {
+          inFence = true
+          fence = marker
+        } else if (fence === marker) {
+          inFence = false
+          fence = ''
+        }
+        const end = source.indexOf('\n', contentAt)
+        if (end < 0) break
+        index = end
+        continue
+      }
+    }
+
+    if (inFence) continue
+    if (source[index] === '{') stack.push(index)
+    else if (source[index] === '}') {
+      const openAt = stack.pop()
+      if (openAt !== undefined) pairs.push({ openAt, closeAt: index })
+    }
+  }
+
+  return pairs
+}
+
+function lineEndAfter(source: string, at: number): number {
+  const newline = source.indexOf('\n', Math.max(0, at))
+  return newline < 0 ? source.length : newline + 1
+}
+
+function structuralBraceLabel(source: string, openAt: number): string | null {
+  const start = lineStartAt(source, openAt)
+  const prefix = source.slice(start, openAt + 1).trim()
+
+  if (/^@task\b.*\{$/iu.test(prefix)) return 'Task'
+  if (/^@event\b.*\{$/iu.test(prefix)) return 'Event'
+  if (/^@act\s*\{$/iu.test(prefix)) return 'Act'
+  if (/^@for\b.*\{$/iu.test(prefix)) return '循环'
+  if (prefix === '{') return '消息块'
+  return null
+}
+
+function selectedStructuralBrace(source: string, from: number, to: number): number | null {
+  const start = Math.max(0, Math.min(from, source.length))
+  const end = Math.max(start, Math.min(to, source.length))
+
+  if (end > start) {
+    const braces: number[] = []
+    for (let index = start; index < end; index += 1) {
+      if (source[index] === '{' || source[index] === '}') braces.push(index)
+      if (braces.length > 1) return null
+    }
+    return braces[0] ?? null
+  }
+
+  if (source[start] === '{' || source[start] === '}') return start
+  if (start > 0 && (source[start - 1] === '{' || source[start - 1] === '}')) return start - 1
+  return null
+}
+
+export function planSmartDelete(source: string, from: number, to: number): SmartDeletePlan {
+  if (!source) return { ok: false, message: '当前没有可删除的内容。' }
+
+  const selectionFrom = Math.max(0, Math.min(from, to, source.length))
+  const selectionTo = Math.max(selectionFrom, Math.min(Math.max(from, to), source.length))
+  const braceAt = selectedStructuralBrace(source, selectionFrom, selectionTo)
+
+  if (braceAt !== null) {
+    const pair = bracePairs(source).find((item) => item.openAt === braceAt || item.closeAt === braceAt)
+    if (pair) {
+      const label = structuralBraceLabel(source, pair.openAt)
+      if (label) {
+        const blockFrom = lineStartAt(source, pair.openAt)
+        const blockTo = lineEndAfter(source, pair.closeAt)
+        return { ok: true, from: blockFrom, to: blockTo, message: `已删除 ${label}` }
+      }
+    }
+  }
+
+  const touchedEnd = selectionTo > selectionFrom ? selectionTo - 1 : selectionFrom
+  const lineFrom = lineStartAt(source, selectionFrom)
+  const lineTo = lineEndAfter(source, touchedEnd)
+  const message = lineFrom === lineStartAt(source, touchedEnd) ? '已删除当前行' : '已删除选中行'
+  return { ok: true, from: lineFrom, to: lineTo, message }
+}
+
+interface VariableScope {
+  variables: Set<string>
+}
+
+export function collectUsableVariables(source: string, at: number): string[] {
+  const frames: VariableScope[] = [{ variables: new Set<string>() }]
+  const prefix = source.slice(0, Math.max(0, Math.min(at, source.length)))
+  const lines = prefix.split(/\r?\n/u)
+  let inFence = false
+
+  for (const raw of lines) {
+    const line = raw.trim()
+    if (/^(?:```|~~~)/u.test(line)) {
+      inFence = !inFence
+      continue
+    }
+    if (inFence || !line || line.startsWith('#') || line.startsWith('//')) continue
+
+    const closeMatch = line.match(/^(\}+)(?:\*\d+)?$/u)
+    const closes = closeMatch?.[1]?.length ?? 0
+    if (closes > 0) {
+      for (let index = 0; index < closes && frames.length > 1; index += 1) frames.pop()
+      continue
+    }
+
+    const variable = line.match(/^@var\s+([A-Za-z_][A-Za-z0-9_]*)\s*=/iu)
+    if (variable?.[1]) {
+      frames.at(-1)?.variables.add(variable[1])
+      continue
+    }
+
+    const loop = line.match(/^@for\s+([A-Za-z_][A-Za-z0-9_]*)\s+in\s+range\([^)]*\)\s*\{\s*$/iu)
+    if (loop?.[1]) {
+      frames.push({ variables: new Set([loop[1]]) })
+      continue
+    }
+
+    if (
+      /^@task\s+.+\{\s*$/iu.test(line) ||
+      /^@event\s+.+\{\s*$/iu.test(line) ||
+      /^@act\s*\{\s*$/iu.test(line) ||
+      /^\{\s*$/u.test(line)
+    ) {
+      frames.push({ variables: new Set<string>() })
+    }
+  }
+
+  const visible = new Set<string>()
+  for (const frame of frames) {
+    for (const name of frame.variables) visible.add(name)
+  }
+  return [...visible]
+}
+
+function applyVariableCompletion(
+  view: EditorView,
+  completion: Completion,
+  from: number,
+  to: number,
+): void {
+  const replaceTo = view.state.doc.sliceString(to, to + 1) === '%' ? to + 1 : to
+  view.dispatch({
+    changes: { from, to: replaceTo, insert: completion.label },
+    selection: { anchor: from + completion.label.length },
+    scrollIntoView: true,
+  })
+}
+
+function variableOptions(source: string, at: number): Completion[] {
+  return collectUsableVariables(source, at).flatMap((name) => [
+    { label: `%${name}%`, type: 'variable', detail: '变量', apply: applyVariableCompletion },
+    { label: `%${name}:pad2%`, type: 'variable', detail: '补零到 2 位', apply: applyVariableCompletion },
+  ])
 }
 
 function directiveOptions(context: DslContext): Completion[] {
@@ -148,7 +558,7 @@ function directiveOptions(context: DslContext): Completion[] {
     snippetCompletion('@act {\n  @action=${动作名称}\n  {\n    ${消息}\n  }\n}', { label: '@act', type: 'keyword', detail: 'Act 块' }),
     snippetCompletion('@var ${name}=${value}', { label: '@var', type: 'keyword', detail: '变量' }),
     snippetCompletion('{\n  ${消息}\n}', { label: '{ message }', type: 'text', detail: '消息块' }),
-    snippetCompletion('<https://${url}>', { label: '<https://…>', type: 'text', detail: '打开页面' }),
+    snippetCompletion('<${链接}>', { label: '<链接>', type: 'text', detail: '打开页面' }),
   ]
 }
 
@@ -168,12 +578,11 @@ export function anyWorkflowCompletion(context: CompletionContext): CompletionRes
     }
   }
 
-  const variable = context.matchBefore(/%[A-Za-z_][A-Za-z0-9_:]*$/u)
+  const variable =
+    context.matchBefore(/%[A-Za-z_][A-Za-z0-9_:]*$/u) ??
+    (context.explicit ? context.matchBefore(/%$/u) : null)
   if (variable) {
-    const options = collectVariables(source).flatMap((name) => [
-      { label: `%${name}%`, type: 'variable', apply: `%${name}%` },
-      { label: `%${name}:pad2%`, type: 'variable', apply: `%${name}:pad2%` },
-    ])
+    const options = variableOptions(source, context.pos)
     return options.length ? { from: variable.from, options } : null
   }
 
