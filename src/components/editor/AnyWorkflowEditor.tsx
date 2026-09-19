@@ -76,6 +76,8 @@ import {
   anyWorkflowHighlightStyle,
   anyWorkflowLanguage,
   formatAnyWorkflowSource,
+  planStructuredInsert,
+  type StructuredInsertKind,
   validateAnyWorkflowSource,
 } from '@/components/editor/anyworkflow-dsl'
 import { cn } from '@/lib/utils'
@@ -475,6 +477,26 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
       view.focus()
     }, [])
 
+    const insertStructured = useCallback((kind: StructuredInsertKind) => {
+      const view = viewRef.current
+      if (!view) return
+      const source = view.state.doc.toString()
+      const plan = planStructuredInsert(source, view.state.selection.main.head, kind)
+      if (!plan.ok) {
+        toast.info(plan.message)
+        view.focus()
+        return
+      }
+
+      const anchor = plan.from + plan.cursorOffset
+      view.dispatch({
+        changes: { from: plan.from, insert: plan.text },
+        selection: { anchor },
+        scrollIntoView: true,
+      })
+      view.focus()
+    }, [])
+
     const runUndo = useCallback(() => {
       const view = viewRef.current
       if (!view) return
@@ -636,20 +658,20 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
                 <ToolButton
                   icon={<Braces className="size-3.5" />}
                   label="Task"
-                  hint="插入 Task"
-                  onClick={() => insert('@task  {\n  @mode=serial\n\n}\n', 6)}
+                  hint="追加到 Run 最外层"
+                  onClick={() => insertStructured('task')}
                 />
                 <ToolButton
                   icon={<Zap className="size-3.5" />}
                   label="Event"
-                  hint="插入 Event"
-                  onClick={() => insert('@event  {\n  {\n\n  }\n}\n', 7)}
+                  hint="添加到光标所在 Task"
+                  onClick={() => insertStructured('event')}
                 />
                 <ToolButton
                   icon={<ListTree className="size-3.5" />}
                   label="Act"
-                  hint="插入 Act，并可给 Act 命名"
-                  onClick={() => insert('@act {\n  @action=\n  {\n\n  }\n}\n', 17)}
+                  hint="添加到光标所在 Event"
+                  onClick={() => insertStructured('act')}
                 />
                 <ToolButton
                   icon={<Repeat className="size-3.5" />}
@@ -660,8 +682,8 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
                 <ToolButton
                   icon={<Variable className="size-3.5" />}
                   label="变量"
-                  hint="声明变量"
-                  onClick={() => insert('@var name=', 5, 4)}
+                  hint="添加到光标所在 Event 的变量区"
+                  onClick={() => insertStructured('variable')}
                 />
                 <ToolButton
                   icon={<Percent className="size-3.5" />}
