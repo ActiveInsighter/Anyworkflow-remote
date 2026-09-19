@@ -255,7 +255,7 @@ export function RunEditorPage() {
 
       {templateMode === 'edit' ? (
         <Panel className="mb-3 p-3">
-          <Field label="模板名称"><TextInput value={templateTitle} maxLength={512} onChange={(event) => { setTemplateTitle(event.target.value); setDirty(true) }} /></Field>
+          <Field label="模板名称"><TextInput name="template-title" value={templateTitle} maxLength={512} onChange={(event) => { setTemplateTitle(event.target.value); setDirty(true) }} /></Field>
         </Panel>
       ) : null}
 
