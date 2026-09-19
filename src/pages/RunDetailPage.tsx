@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
+  FileText,
   Pencil,
   Pause,
   Play,
@@ -19,12 +20,10 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import {
   AppPage,
-  CodeBlock,
   EmptyState,
   ErrorBanner,
   InlineError,
   LoadingState,
-  MetaGrid,
   PageHeader,
   Panel,
   ProgressBar,
@@ -32,8 +31,10 @@ import {
 } from '@/components/app/ui'
 import { ConfirmDeleteDialog } from '@/components/app/confirm-delete-dialog'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useAsyncData, invalidateAsyncDataCache } from '@/hooks/useAsyncData'
 import { useNow } from '@/hooks/useNow'
+import { deriveEventProgress } from '@/lib/event-structure'
 import {
   cloneRun,
   commandRun,
@@ -46,14 +47,12 @@ import {
 } from '@/lib/api'
 import { createRunFavorite, createWorkflowTemplateFromRun, deleteRunFavorite, getRunFavoriteForRun } from '@/lib/library'
 import {
-  eventProgressLabel,
   eventStatusMeta,
   formatDateTime,
   modeLabel,
   progressPercent,
   progressText,
   runStatusMeta,
-  terminalResultLabel,
 } from '@/lib/format'
 import { describeSchedule } from '@/lib/schedule'
 import type { DispatchEventRecord, DispatchRequestedAction, DispatchRunRecord, DispatchTaskRecord } from '@/types'
@@ -65,28 +64,29 @@ function positivePage(value: string | null): number {
   return Number.isInteger(page) && page > 0 ? page : 1
 }
 
+function eventTitle(event: DispatchEventRecord): string {
+  return event.queueTextOverride.match(/^\s*@event\s*=\s*(.*?)\s*$/imu)?.[1]?.trim() || `Event ${event.eventIndex + 1}`
+}
+
 function EventNode({ event, deepLinked }: { event: DispatchEventRecord; deepLinked: boolean }) {
   const [open, setOpen] = useState(deepLinked)
+  const [contentOpen, setContentOpen] = useState(false)
 
   useEffect(() => {
     if (deepLinked) setOpen(true)
   }, [deepLinked])
 
   const status = eventStatusMeta(event.status, event.terminalResult)
-  const hasDetails = Boolean(
-    event.queueTextOverride.trim() ||
-      event.progress ||
-      event.lastError ||
-      event.workerId ||
-      event.localRunId ||
-      event.lastHeartbeatAt,
-  )
+  const structure = deriveEventProgress(event.queueTextOverride, event.progress, event.terminalResult)
+  const progressLabel = structure.totalActs
+    ? `${structure.completedActs}/${structure.totalActs} Acts · ${structure.percent}%`
+    : '暂无 Act'
 
   return (
     <div id={'event-' + event.id} className="border-b border-border last:border-b-0">
       <button
         type="button"
-        className="flex w-full items-center gap-2.5 px-3 py-3 text-left outline-none transition-colors hover:bg-muted/35 focus-visible:bg-muted/45 sm:px-4"
+        className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left outline-none transition-colors hover:bg-muted/35 focus-visible:bg-muted/45 sm:px-4"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
       >
@@ -94,45 +94,66 @@ function EventNode({ event, deepLinked }: { event: DispatchEventRecord; deepLink
         <span className="grid size-7 shrink-0 place-items-center rounded-md bg-muted text-[10px] font-semibold tabular-nums text-muted-foreground">
           {event.eventIndex + 1}
         </span>
-        <span className="min-w-0 flex-1">
-          <span className="flex min-w-0 flex-wrap items-center gap-2">
-            <span className="truncate text-[12px] font-medium">Event {event.eventIndex + 1}</span>
-            <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-          </span>
-          <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
-            {eventProgressLabel(event.status, event.progress)}
-          </span>
-        </span>
-        <span className="hidden shrink-0 text-[10px] tabular-nums text-muted-foreground sm:block">
-          {event.attempt > 0 ? '尝试 ' + event.attempt : formatDateTime(event.updated)}
-        </span>
+        <span className="min-w-0 flex-1 truncate text-[12px] font-medium">{eventTitle(event)}</span>
+        <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+        <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">{progressLabel}</span>
       </button>
 
       {open ? (
-        <div className="border-t border-border bg-muted/15 px-3 py-3 sm:px-4">
-          <MetaGrid
-            columns={4}
-            items={[
-              { label: '结果', value: terminalResultLabel(event.terminalResult) },
-              { label: '尝试', value: event.attempt || 0 },
-              { label: 'Worker', value: event.workerId || '—' },
-              { label: '更新', value: formatDateTime(event.updated) },
-            ]}
-          />
-          {event.lastError ? <div className="mt-3"><InlineError>{event.lastError}</InlineError></div> : null}
-          {event.queueTextOverride.trim() ? (
-            <CodeBlock className="mt-3" label="执行内容 / Act">
-              {event.queueTextOverride}
-            </CodeBlock>
-          ) : null}
-          {event.progress ? (
-            <CodeBlock className="mt-3" label="执行进度">
-              {JSON.stringify(event.progress, null, 2)}
-            </CodeBlock>
-          ) : null}
-          {!hasDetails ? <div className="py-2 text-xs text-muted-foreground">暂无执行详情</div> : null}
+        <div className="border-t border-border bg-muted/10 px-3 py-2.5 sm:px-4">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
+            {event.attempt > 0 ? <span>尝试 {event.attempt}</span> : null}
+            <span>{formatDateTime(event.updated)}</span>
+            {event.workerId ? <span className="hidden sm:inline">Worker {event.workerId}</span> : null}
+            {event.queueTextOverride.trim() ? (
+              <Button
+                size="sm"
+                variant="link"
+                className="h-auto gap-1 p-0 text-[10px] text-info"
+                onClick={() => setContentOpen(true)}
+              >
+                <FileText className="size-3.5" />
+                查看执行内容
+              </Button>
+            ) : null}
+          </div>
+
+          {event.lastError ? <div className="mt-2"><InlineError>{event.lastError}</InlineError></div> : null}
+
+          {structure.acts.length ? (
+            <div className="mt-2 overflow-hidden rounded-md border border-border bg-card">
+              {structure.acts.map((act) => {
+                const actTone = act.state === 'completed' ? 'success' : act.state === 'running' ? 'warning' : 'neutral'
+                const actLabel = act.state === 'completed' ? '已完成' : act.state === 'running' ? '执行中' : '等待'
+                return (
+                  <div key={act.id} className="flex items-center gap-2 border-b border-border px-2.5 py-2 last:border-b-0">
+                    <span className="min-w-0 flex-1 truncate text-[11px] font-medium">{act.title}</span>
+                    <StatusBadge tone={actTone}>{actLabel}</StatusBadge>
+                    <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
+                      {act.completedMessages}/{act.messageCount} 消息 · {act.percent}%
+                    </span>
+                    <ProgressBar className="hidden w-16 sm:block" value={act.percent} tone={actTone} />
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="mt-2 text-[11px] text-muted-foreground">暂无可执行 Act</div>
+          )}
         </div>
       ) : null}
+
+      <Dialog open={contentOpen} onOpenChange={setContentOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>执行内容</DialogTitle>
+            <DialogDescription>{eventTitle(event)}</DialogDescription>
+          </DialogHeader>
+          <pre className="max-h-[68vh] overflow-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-muted/45 p-3 text-[12px] leading-6">
+            {event.queueTextOverride}
+          </pre>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -179,31 +200,18 @@ function TaskNode({
     <div id={'task-' + task.id} className="border-b border-border last:border-b-0">
       <button
         type="button"
-        className="grid w-full grid-cols-[auto_1fr] items-center gap-x-2.5 gap-y-2 px-3 py-3 text-left outline-none transition-colors hover:bg-muted/35 focus-visible:bg-muted/45 sm:grid-cols-[auto_44px_minmax(0,1fr)_180px] sm:px-4"
+        className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left outline-none transition-colors hover:bg-muted/35 focus-visible:bg-muted/45 sm:px-4"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
       >
-        <span className="row-span-2 sm:row-span-1">
-          {open ? <ChevronDown className="size-4 text-muted-foreground" /> : <ChevronRight className="size-4 text-muted-foreground" />}
-        </span>
-        <span className="hidden size-8 place-items-center rounded-md bg-muted text-[10px] font-semibold tabular-nums text-muted-foreground sm:grid">
+        {open ? <ChevronDown className="size-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="size-4 shrink-0 text-muted-foreground" />}
+        <span className="hidden size-7 shrink-0 place-items-center rounded-md bg-muted text-[10px] font-semibold tabular-nums text-muted-foreground sm:grid">
           {task.runIndex + 1}
         </span>
-        <span className="min-w-0">
-          <span className="flex min-w-0 flex-wrap items-center gap-2">
-            <span className="truncate text-[13px] font-medium">{task.title || 'Task ' + (task.runIndex + 1)}</span>
-            <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-          </span>
-          <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
-            {modeLabel(task.executionMode, task.maxConcurrency, '事件')}
-          </span>
-        </span>
-        <span className="col-start-2 min-w-0 sm:col-start-auto">
-          <span className="mb-1.5 flex items-center justify-between gap-2 text-[10px] tabular-nums text-muted-foreground">
-            <span>{progressText(task.completedEvents, task.totalEvents, 'Events')}</span>
-            <span>{percent}%</span>
-          </span>
-          <ProgressBar value={percent} tone={status.tone} />
+        <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{task.title || 'Task ' + (task.runIndex + 1)}</span>
+        <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+        <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
+          {progressText(task.completedEvents, task.totalEvents, 'Events')} · {percent}%
         </span>
       </button>
 
@@ -440,21 +448,16 @@ export function RunDetailPage() {
       {tasksState.error ? <ErrorBanner>{tasksState.error}</ErrorBanner> : null}
       {actionError ? <ErrorBanner>{actionError}</ErrorBanner> : null}
 
-      <Panel className="p-3 sm:p-4">
-        <div className="flex items-center justify-between gap-4">
-          <div className="min-w-0 text-[12px] font-medium">{progressText(run.completedTasks, totalTasks, 'Tasks')}</div>
+      <Panel className="px-3 py-2.5 sm:px-4">
+        <div className="flex min-w-0 items-center gap-3 overflow-x-auto whitespace-nowrap text-[11px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <span className="font-semibold tabular-nums">{progressText(run.completedTasks, totalTasks, 'Tasks')} · {percent}%</span>
+          <ProgressBar className="w-20 shrink-0" value={percent} tone={status.tone} />
           <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+          <span className="text-muted-foreground">{modeLabel(run.executionMode, run.maxConcurrency, '任务')}</span>
+          <span className="text-muted-foreground">{schedule.set ? schedule.absolute : '立即执行'}</span>
+          <span className="text-muted-foreground">更新 {formatDateTime(run.updated)}</span>
         </div>
-        <ProgressBar className="mt-2.5" value={percent} tone={status.tone} />
-        <MetaGrid
-          items={[
-            { label: '调度', value: modeLabel(run.executionMode, run.maxConcurrency, '任务') },
-            { label: '执行时间', value: schedule.set ? schedule.absolute : '立即' },
-            { label: '更新', value: formatDateTime(run.updated) },
-            { label: '版本', value: run.commandVersion },
-          ]}
-        />
-        {run.lastError ? <div className="mt-3"><InlineError>{run.lastError}</InlineError></div> : null}
+        {run.lastError ? <div className="mt-2"><InlineError>{run.lastError}</InlineError></div> : null}
       </Panel>
 
       {scheduleLive ? (
