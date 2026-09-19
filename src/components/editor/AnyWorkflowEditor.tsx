@@ -17,12 +17,11 @@ import {
 } from '@codemirror/commands'
 import {
   bracketMatching,
-  foldGutter,
   foldKeymap,
   indentOnInput,
   syntaxHighlighting,
 } from '@codemirror/language'
-import { forEachDiagnostic, lintGutter, linter, lintKeymap, type Diagnostic } from '@codemirror/lint'
+import { forEachDiagnostic, linter, lintKeymap, type Diagnostic } from '@codemirror/lint'
 import { highlightSelectionMatches, openSearchPanel, searchKeymap } from '@codemirror/search'
 import { EditorState } from '@codemirror/state'
 import {
@@ -31,10 +30,8 @@ import {
   dropCursor,
   EditorView,
   highlightActiveLine,
-  highlightActiveLineGutter,
   highlightSpecialChars,
   keymap,
-  lineNumbers,
   rectangularSelection,
 } from '@codemirror/view'
 import {
@@ -135,24 +132,21 @@ const EMPTY_STATUS: EditorStatus = {
 
 const editorTheme = EditorView.theme({
   '&': {
-    minHeight: 'min(62vh, 680px)',
+    height: '100%',
+    minHeight: '0',
     backgroundColor: 'var(--cm-bg)',
     color: 'var(--cm-fg)',
     fontSize: 'var(--ui-editor-font-size)',
   },
   '&.cm-focused': { outline: 'none' },
   '.cm-scroller': {
+    overflow: 'auto',
     fontFamily: 'var(--ui-font-mono)',
     lineHeight: 'var(--ui-editor-line-height)',
   },
   '.cm-content': { padding: '12px 0 28px', caretColor: 'var(--cm-caret)' },
   '.cm-line': { padding: '0 12px' },
-  '.cm-gutters': {
-    backgroundColor: 'var(--cm-gutter-bg)',
-    color: 'var(--cm-gutter-fg)',
-    borderRight: '1px solid var(--cm-border)',
-  },
-  '.cm-activeLine, .cm-activeLineGutter': { backgroundColor: 'var(--cm-active-line)' },
+  '.cm-activeLine': { backgroundColor: 'var(--cm-active-line)' },
   '.cm-selectionBackground, &.cm-focused .cm-selectionBackground': {
     backgroundColor: 'var(--cm-selection) !important',
   },
@@ -351,11 +345,8 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
       const state = EditorState.create({
         doc: valueRef.current,
         extensions: [
-          lineNumbers(),
-          highlightActiveLineGutter(),
           highlightSpecialChars(),
           history(),
-          foldGutter(),
           drawSelection(),
           dropCursor(),
           EditorState.allowMultipleSelections.of(true),
@@ -371,7 +362,6 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
           syntaxHighlighting(anyWorkflowHighlightStyle),
           autocompletion({ override: [anyWorkflowCompletion], activateOnTyping: true, icons: true }),
           linter((view) => validateAnyWorkflowSource(view.state.doc.toString()), { delay: 200 }),
-          lintGutter(),
           editorTheme,
           EditorState.readOnly.of(readOnly),
           EditorView.updateListener.of((update) => {
@@ -604,7 +594,9 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
           data-fullscreen={fullscreen ? 'true' : undefined}
           className={cn(
             'aw-editor-shell flex flex-col overflow-hidden border border-cm-border bg-cm-bg',
-            fullscreen ? 'fixed inset-0 z-50 rounded-none' : 'rounded-lg',
+            fullscreen
+              ? 'fixed inset-0 z-50 rounded-none'
+              : 'h-[clamp(480px,58dvh,660px)] rounded-lg sm:h-[clamp(520px,66dvh,720px)]',
           )}
         >
           <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-cm-border bg-cm-toolbar-bg px-2 py-1.5">
@@ -726,7 +718,7 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
             </div>
           </div>
 
-          <div ref={mountRef} className="aw-code-editor min-h-0" />
+          <div ref={mountRef} className="aw-code-editor min-h-0 flex-1 overflow-hidden" />
 
           {issuesOpen ? (
             <div className="max-h-56 shrink-0 overflow-y-auto border-t border-cm-border bg-cm-toolbar-bg">
