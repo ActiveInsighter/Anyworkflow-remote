@@ -16,6 +16,7 @@ import { getWorkflowTemplate, updateWorkflowTemplate } from '@/lib/library'
 import { createStarterPlan, parsePlanMeta } from '@/lib/plan'
 import { DELAY_PRESETS, defaultScheduleTime, describeSchedule, resolveDelayPreset, toScheduledAt, type ScheduleMode } from '@/lib/schedule'
 import { useSession } from '@/lib/session'
+import { toast } from 'sonner'
 
 const UNSAFE_FILENAME = /[\\/:*?"<>|\u0000-\u001f]/gu
 
@@ -32,7 +33,7 @@ export function RunEditorPage() {
   const templateMode = searchParams.get('mode') === 'edit' ? 'edit' : templateId ? 'use' : ''
   const session = useSession()
   const editorRef = useRef<AnyWorkflowEditorHandle | null>(null)
-  const scope = draftScopeFor(runId, templateId)
+  const scope = draftScopeFor(session?.record.id, runId, templateId)
 
   const [source, setSource] = useState(createStarterPlan)
   const [templateTitle, setTemplateTitle] = useState('')
@@ -161,11 +162,13 @@ export function RunEditorPage() {
     if (restorable.templateTitle) setTemplateTitle(restorable.templateTitle)
     setDirty(true)
     setRestorable(null)
+    toast.success('已恢复本地草稿')
   }
 
   function discardDraft() {
     clearEditorDraft(scope)
     setRestorable(null)
+    toast.success('已丢弃本地草稿')
   }
 
   async function persist(publish: boolean) {
@@ -191,6 +194,7 @@ export function RunEditorPage() {
         dirtyRef.current = false
         clearEditorDraft(scope)
         setDirty(false)
+        toast.success('模板已保存')
         navigate('/templates/' + templateId, { replace: true })
         return
       }
@@ -204,9 +208,12 @@ export function RunEditorPage() {
       setDirty(false)
       invalidateAsyncDataCache('runs:')
       invalidateAsyncDataCache(`run:${saved.id}`)
+      toast.success(publish ? '工作流已提交执行' : '草稿已保存')
       navigate(publish ? `/runs/${saved.id}` : `/runs/${saved.id}/edit`, { replace: true })
     } catch (cause) {
-      setError(toErrorMessage(cause))
+      const message = toErrorMessage(cause)
+      setError(message)
+      toast.error('保存失败', { description: message })
     } finally {
       setSaving(false)
     }
@@ -228,9 +235,11 @@ export function RunEditorPage() {
         actions={
           <div className="flex items-center gap-2">
             {errorCount > 0 ? <Badge variant="destructive" className="rounded-md">{errorCount} 错误</Badge> : null}
-            <Badge variant={dirty ? 'warning' : 'secondary'} className="rounded-md">
-              {dirty ? '本地草稿' : <><CircleCheck className="me-1 size-3" />已保存</>}
-            </Badge>
+            {dirty ? (
+              <Badge variant="warning" className="rounded-md">本地草稿</Badge>
+            ) : runId || templateMode === 'edit' ? (
+              <Badge variant="secondary" className="rounded-md"><CircleCheck className="me-1 size-3" />已保存</Badge>
+            ) : null}
           </div>
         }
       />
@@ -246,7 +255,7 @@ export function RunEditorPage() {
 
       {templateMode === 'edit' ? (
         <Panel className="mb-3 p-3">
-          <Field label="模板名称"><TextInput value={templateTitle} maxLength={512} onChange={(event) => { setTemplateTitle(event.target.value); setDirty(true) }} /></Field>
+          <Field label="模板名称"><TextInput name="template-title" value={templateTitle} maxLength={512} onChange={(event) => { setTemplateTitle(event.target.value); setDirty(true) }} /></Field>
         </Panel>
       ) : null}
 

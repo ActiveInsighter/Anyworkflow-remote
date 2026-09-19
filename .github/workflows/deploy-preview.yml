@@ -2,14 +2,17 @@ name: deploy-cloudflare-preview
 
 on:
   push:
-    branches: ["codex/unified-workflow-navigation"]
+    branches:
+      - "codex/**"
+      - "feat/**"
+  workflow_dispatch:
 
 permissions:
   contents: read
   deployments: write
 
 concurrency:
-  group: cloudflare-preview-unified-workflow-navigation
+  group: cloudflare-shared-preview
   cancel-in-progress: true
 
 jobs:

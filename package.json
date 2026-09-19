@@ -37,7 +37,8 @@
     "@codemirror/search": "^6.0.0",
     "@codemirror/state": "^6.0.0",
     "@codemirror/view": "^6.0.0",
-    "@lezer/highlight": "^1.0.0"
+    "@lezer/highlight": "^1.0.0",
+    "sonner": "^2.0.8"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.0",

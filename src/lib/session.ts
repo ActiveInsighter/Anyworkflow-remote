@@ -2,9 +2,9 @@ import { useSyncExternalStore } from 'react'
 import { DEFAULT_POCKETBASE_URL } from './config'
 import type { AuthSession } from '../types'
 
-const SESSION_KEY = 'anyworkflow.auth.session.v1'
+export const SESSION_STORAGE_KEY = 'anyworkflow.auth.session.v1'
 const BASE_URL_KEY = 'anyworkflow.pocketbase.url.v1'
-const SESSION_EVENT = 'anyworkflow:session-change'
+export const SESSION_CHANGE_EVENT = 'anyworkflow:session-change'
 
 let cachedSessionRaw: string | null | undefined
 let cachedSession: AuthSession | null = null
@@ -31,7 +31,7 @@ function isSession(value: unknown): value is AuthSession {
 }
 
 function readSessionSnapshot(): AuthSession | null {
-  const raw = localStorage.getItem(SESSION_KEY)
+  const raw = localStorage.getItem(SESSION_STORAGE_KEY)
 
   // useSyncExternalStore requires getSnapshot() to return the same reference
   // while the underlying store has not changed. Parsing JSON on every call
@@ -76,17 +76,17 @@ export function getSession(): AuthSession | null {
 
 export function setSession(session: AuthSession): void {
   const raw = JSON.stringify(session)
-  localStorage.setItem(SESSION_KEY, raw)
+  localStorage.setItem(SESSION_STORAGE_KEY, raw)
   cachedSessionRaw = raw
   cachedSession = session
-  window.dispatchEvent(new Event(SESSION_EVENT))
+  window.dispatchEvent(new Event(SESSION_CHANGE_EVENT))
 }
 
 export function clearSession(): void {
-  localStorage.removeItem(SESSION_KEY)
+  localStorage.removeItem(SESSION_STORAGE_KEY)
   cachedSessionRaw = null
   cachedSession = null
-  window.dispatchEvent(new Event(SESSION_EVENT))
+  window.dispatchEvent(new Event(SESSION_CHANGE_EVENT))
 }
 
 export function requireSession(): AuthSession {
@@ -98,15 +98,15 @@ export function requireSession(): AuthSession {
 function subscribe(listener: () => void): () => void {
   const handleSessionChange = () => listener()
   const handleStorage = (event: StorageEvent) => {
-    if (event.key !== SESSION_KEY && event.key !== null) return
+    if (event.key !== SESSION_STORAGE_KEY && event.key !== null) return
     cachedSessionRaw = undefined
     listener()
   }
 
-  window.addEventListener(SESSION_EVENT, handleSessionChange)
+  window.addEventListener(SESSION_CHANGE_EVENT, handleSessionChange)
   window.addEventListener('storage', handleStorage)
   return () => {
-    window.removeEventListener(SESSION_EVENT, handleSessionChange)
+    window.removeEventListener(SESSION_CHANGE_EVENT, handleSessionChange)
     window.removeEventListener('storage', handleStorage)
   }
 }

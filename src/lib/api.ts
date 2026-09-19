@@ -2,6 +2,7 @@ import {
   AUTH_COLLECTION,
   DEFAULT_PAGE_SIZE,
   EVENT_COLLECTION,
+  MAX_PLAN_TEXT_BYTES,
   RUN_COLLECTION,
   TASK_COLLECTION,
 } from './config'
@@ -115,6 +116,14 @@ function normalizeRun<T extends DispatchRunRecord>(run: T): T {
  * answers with an opaque 400, so failing here is what turns a bad instant into an actionable
  * message. Empty is always valid: it means "no boundary, start immediately".
  */
+function checkedPlanText(value: string): string {
+  if (!value.trim()) throw new ApiError('工作流定义不能为空', 400, 'RUN_PLAN_REQUIRED')
+  if (new TextEncoder().encode(value).byteLength > MAX_PLAN_TEXT_BYTES) {
+    throw new ApiError('工作流定义超过 2 MiB', 400, 'RUN_PLAN_TOO_LARGE')
+  }
+  return value
+}
+
 function checkedScheduledAt(value: string): string {
   const trimmed = value.trim()
   if (!isValidScheduledAt(trimmed)) {
@@ -202,13 +211,14 @@ export async function createRun(
   scheduledAt = '',
 ): Promise<DispatchRunRecord> {
   const session = requireSession()
-  const meta = parsePlanMeta(planText)
+  const checkedPlan = checkedPlanText(planText)
+  const meta = parsePlanMeta(checkedPlan)
   return normalizeRun(assertOwner(await request<DispatchRunRecord>(`/api/collections/${RUN_COLLECTION}/records`, {
     method: 'POST',
     data: {
       owner: session.record.id,
       title: meta.title,
-      planText,
+      planText: checkedPlan,
       planChecksum: '',
       executionMode: meta.mode,
       maxConcurrency: meta.maxConcurrency,
@@ -230,10 +240,15 @@ export async function updateRunDraft(
   planText: string,
   options: { publish?: boolean; scheduledAt?: string } = {},
 ): Promise<DispatchRunRecord> {
-  const meta = parsePlanMeta(planText)
+  const current = await getRun(id)
+  if (current.status !== 'draft') {
+    throw new ApiError('只有草稿 Run 可以修改定义', 409, 'ACTIVE_RUN_EDIT')
+  }
+  const checkedPlan = checkedPlanText(planText)
+  const meta = parsePlanMeta(checkedPlan)
   const data: Record<string, unknown> = {
     title: meta.title,
-    planText,
+    planText: checkedPlan,
     planChecksum: '',
     executionMode: meta.mode,
     maxConcurrency: meta.maxConcurrency,
@@ -272,6 +287,10 @@ export async function deleteRun(run: Pick<DispatchRunRecord, 'id' | 'owner' | 's
 }
 
 export async function cloneRun(source: DispatchRunRecord, status: 'draft' | 'queued'): Promise<DispatchRunRecord> {
+  const session = requireSession()
+  if (source.owner !== session.record.id) {
+    throw new ApiError('当前 Run 不属于登录账号', 403, 'INVALID_RECORD_OWNER')
+  }
   if (!source.planText.trim()) throw new ApiError('此 Run 没有可复制的工作流定义', 409, 'RUN_PLAN_MISSING')
   const suffix = status === 'draft' ? ' · 草稿' : ' · 重跑'
   const title = (source.title.trim() || '未命名工作流').slice(0, Math.max(1, 512 - suffix.length)) + suffix

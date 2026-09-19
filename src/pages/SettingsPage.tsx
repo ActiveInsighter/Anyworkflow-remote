@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button'
 import { login, toErrorMessage } from '@/lib/api'
 import { clearSession, getBaseUrl, useSession } from '@/lib/session'
 import { setThemePreference, useThemePreference, type ThemePreference } from '@/lib/theme'
+import { toast } from 'sonner'
 
 const themeOptions = [
   { value: 'system' as ThemePreference, label: '跟随系统' },
@@ -48,8 +49,11 @@ export function SettingsPage() {
     try {
       await login(email, password, baseUrl)
       setPassword('')
+      toast.success(session ? '已重新连接' : '连接成功')
     } catch (cause) {
-      setError(toErrorMessage(cause, '登录失败'))
+      const message = toErrorMessage(cause, '登录失败')
+      setError(message)
+      toast.error('连接失败', { description: message })
     } finally {
       setSubmitting(false)
     }
@@ -92,6 +96,7 @@ export function SettingsPage() {
               <form className="grid gap-4" onSubmit={submit}>
                 <Field label="PocketBase" hint="必须使用 HTTPS，或本地 localhost / 127.0.0.1。">
                   <TextInput
+                    name="pocketbase-url"
                     value={baseUrl}
                     onChange={(event) => setBaseUrl(event.target.value)}
                     autoComplete="url"
@@ -102,6 +107,7 @@ export function SettingsPage() {
                   <Field label="邮箱">
                     <TextInput
                       type="email"
+                      name="email"
                       value={email}
                       onChange={(event) => setEmail(event.target.value)}
                       autoComplete="username"
@@ -111,6 +117,7 @@ export function SettingsPage() {
                   <Field label="密码">
                     <TextInput
                       type="password"
+                      name="password"
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
                       autoComplete="current-password"
@@ -125,7 +132,14 @@ export function SettingsPage() {
                     {submitting ? '连接中…' : session ? '重新连接' : '连接'}
                   </Button>
                   {session ? (
-                    <Button type="button" variant="outline" onClick={() => clearSession()}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        clearSession()
+                        toast.success('已退出登录')
+                      }}
+                    >
                       <LogOut />退出登录
                     </Button>
                   ) : null}

@@ -42,79 +42,14 @@ export function createStarterPlan(): string {
   return `@run=新工作流
 @mode=serial
 
-@task 示例任务 {
-@mode=serial
+@task Task {
+  @mode=serial
 
-@event 示例执行单元 {
-\`\`\`
-在这里填写要发送给 AnyWorkflow 执行器的消息。
-\`\`\`
-}
+  @event Event {
+    {
+
+    }
+  }
 }
 `
-}
-
-export function getEventTitle(queue: string, fallback: string): string {
-  const match = queue.match(/^\s*@(?:task|event)\s*=\s*([^\n]+)$/imu)
-  return match?.[1]?.trim() || fallback
-}
-
-export interface QueuePart {
-  type: 'message' | 'url' | 'act' | 'raw'
-  title?: string
-  text: string
-  url?: string
-}
-
-export function parseQueue(source: string): QueuePart[] {
-  const text = source.replace(/^(?:\s*@(task|event)\s*=[^\n]*\n)+/giu, '').trim()
-  if (!text) return []
-
-  const lines = text.split(/\r?\n/u)
-  const items: QueuePart[] = []
-  let buffer: string[] = []
-  let inFence = false
-
-  const flush = () => {
-    const value = buffer.join('\n').trim()
-    if (value) items.push({ type: 'message', text: value })
-    buffer = []
-  }
-
-  for (const line of lines) {
-    if (/^\s*```/u.test(line)) {
-      if (inFence) {
-        flush()
-        inFence = false
-      } else {
-        flush()
-        inFence = true
-      }
-      continue
-    }
-
-    if (inFence) {
-      buffer.push(line)
-      continue
-    }
-
-    const url = line.trim().match(/^https?:\/\/\S+$/iu)
-    if (url) {
-      flush()
-      items.push({ type: 'url', text: url[0], url: url[0] })
-      continue
-    }
-
-    const act = line.match(/^\s*@act(?:\s+(.+?))?\s*$/iu)
-    if (act) {
-      flush()
-      items.push({ type: 'act', title: act[1]?.trim() || '动作', text: line.trim() })
-      continue
-    }
-
-    buffer.push(line)
-  }
-
-  flush()
-  return items.length ? items : [{ type: 'raw', text }]
 }
