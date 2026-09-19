@@ -2,14 +2,17 @@ name: deploy-cloudflare-preview
 
 on:
   push:
-    branches: ["codex/refine-run-library-editor-ui"]
+    branches:
+      - "codex/**"
+      - "feat/**"
+  workflow_dispatch:
 
 permissions:
   contents: read
   deployments: write
 
 concurrency:
-  group: cloudflare-preview-refine-run-library-editor-ui
+  group: cloudflare-shared-preview
   cancel-in-progress: true
 
 jobs:
