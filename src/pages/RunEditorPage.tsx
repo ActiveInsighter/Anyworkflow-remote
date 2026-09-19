@@ -257,6 +257,7 @@ export function RunEditorPage() {
     <AppPage className="max-w-[1360px] px-3 sm:px-5 lg:px-8">
       <PageHeader
         title={pageTitle}
+        className="mb-3 sm:mb-4"
         actions={
           <div className="flex items-center gap-2">
             {errorCount > 0 ? <Badge variant="destructive" className="rounded-md">{errorCount} 错误</Badge> : null}
@@ -285,7 +286,7 @@ export function RunEditorPage() {
       ) : null}
 
       {scheduleEditable ? (
-        <div className="mb-3 rounded-lg border border-border bg-card px-3 py-2.5">
+        <div className="mb-2.5 rounded-lg border border-border bg-muted/20 px-2.5 py-2 sm:px-3">
           <SchedulePicker
             mode={scheduleMode}
             value={scheduledAt}
@@ -303,7 +304,7 @@ export function RunEditorPage() {
 
       <AnyWorkflowEditor ref={editorRef} value={source} onChange={onEditorChange} onSave={() => void persist(false)} />
 
-      <div className="mt-3 flex items-center justify-end gap-2 border-t border-border pt-3 sm:sticky sm:bottom-3 sm:z-20 sm:rounded-lg sm:border sm:bg-background/95 sm:p-2 sm:shadow-md sm:backdrop-blur">
+      <div className="mt-2.5 flex items-center justify-end gap-2 border-t border-border pt-2.5 sm:sticky sm:bottom-3 sm:z-20 sm:rounded-lg sm:border sm:bg-background/95 sm:p-2 sm:shadow-sm sm:backdrop-blur">
         {templateMode === 'edit' ? (
           <Button variant="secondary" className="h-11 sm:h-9" onClick={() => void persist(false)} disabled={saving || errorCount > 0}><Save />{saving ? '保存中…' : '保存模板'}</Button>
         ) : (
