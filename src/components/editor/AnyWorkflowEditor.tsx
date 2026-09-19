@@ -644,6 +644,9 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
                   onClick={() => insert('<https://>', 9)}
                 />
                 <ToolDivider />
+              </>
+            )}
+
             <div className="ms-auto flex shrink-0 items-center gap-0.5">
               {readOnly ? null : (
                 <>
