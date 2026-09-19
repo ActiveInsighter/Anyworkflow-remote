@@ -15,7 +15,7 @@ import { TaskDetailPage } from '@/pages/TaskDetailPage'
 
 function RequireSession() {
   const session = useSession()
-  if (session) return <Outlet />
+  if (session) return <Outlet key={session.record.id} />
 
   return (
     <AppPage>
