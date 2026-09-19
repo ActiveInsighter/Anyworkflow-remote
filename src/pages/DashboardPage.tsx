@@ -20,6 +20,7 @@ import { cloneRun, deleteRun, listRuns, toErrorMessage, type RunListFilter } fro
 import { formatDateTime, progressPercent, progressText, runStatusMeta } from '@/lib/format'
 import { useSession } from '@/lib/session'
 import type { DispatchRunRecord } from '@/types'
+import { toast } from 'sonner'
 
 const filterKeys: readonly RunListFilter[] = ['all', 'draft', 'active', 'done']
 const PAGE_SIZE = 24
@@ -78,9 +79,12 @@ export function DashboardPage() {
     try {
       const copied = await cloneRun(run, status)
       invalidateAsyncDataCache('runs:')
+      toast.success(status === 'draft' ? '已复制为草稿' : '已创建重跑')
       navigate(status === 'draft' ? '/runs/' + copied.id + '/edit' : '/runs/' + copied.id)
     } catch (error) {
-      setActionError(toErrorMessage(error))
+      const message = toErrorMessage(error)
+      setActionError(message)
+      toast.error('操作失败', { description: message })
     } finally {
       setActingId('')
     }
@@ -100,8 +104,11 @@ export function DashboardPage() {
       } else {
         await state.reload()
       }
+      toast.success('Run 已删除')
     } catch (error) {
-      setActionError(toErrorMessage(error))
+      const message = toErrorMessage(error)
+      setActionError(message)
+      toast.error('删除失败', { description: message })
     } finally {
       setActingId('')
     }
