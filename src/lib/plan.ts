@@ -42,6 +42,15 @@ export function createStarterPlan(): string {
   return `@run=新工作流
 @mode=serial
 
+@task Task {
+  @mode=serial
+
+  @event Event {
+    {
+
+    }
+  }
+}
 `
 }
 
