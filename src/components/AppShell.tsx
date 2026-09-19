@@ -20,7 +20,7 @@ export function AppShell() {
           <Outlet />
         </SidebarInset>
       </SidebarRoot>
-      <Toaster />
+      <Toaster position="top-center" />
     </>
   )
 }
