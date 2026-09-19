@@ -99,7 +99,11 @@ export function DashboardPage() {
       await deleteRun(run)
       invalidateAsyncDataCache('runs:')
       setDeleteTarget(null)
-      await state.reload()
+      if (page > 1 && state.data?.items.length === 1) {
+        updateQuery({ page: page - 1 })
+      } else {
+        await state.reload()
+      }
     } catch (error) {
       setActionError(toErrorMessage(error))
     } finally {
