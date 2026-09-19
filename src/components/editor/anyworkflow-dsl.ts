@@ -1,5 +1,6 @@
 import { snippetCompletion, type Completion, type CompletionContext, type CompletionResult } from '@codemirror/autocomplete'
 import { HighlightStyle, StreamLanguage } from '@codemirror/language'
+import type { EditorView } from '@codemirror/view'
 import type { Diagnostic } from '@codemirror/lint'
 import { tags } from '@lezer/highlight'
 
@@ -110,15 +111,78 @@ function dslContextAt(source: string, at: number): DslContext {
   return 'run'
 }
 
-function collectVariables(source: string): string[] {
-  const values = new Set<string>()
-  for (const match of source.matchAll(/^\s*@var\s+([A-Za-z_][A-Za-z0-9_]*)\s*=/gimu)) {
-    if (match[1]) values.add(match[1])
+interface VariableScope {
+  variables: Set<string>
+}
+
+export function collectUsableVariables(source: string, at: number): string[] {
+  const frames: VariableScope[] = [{ variables: new Set<string>() }]
+  const prefix = source.slice(0, Math.max(0, Math.min(at, source.length)))
+  const lines = prefix.split(/\r?\n/u)
+  let inFence = false
+
+  for (const raw of lines) {
+    const line = raw.trim()
+    if (/^(?:```|~~~)/u.test(line)) {
+      inFence = !inFence
+      continue
+    }
+    if (inFence || !line || line.startsWith('#') || line.startsWith('//')) continue
+
+    const closes = line.match(/^}+(?:\*\d+)?$/u)?.[0].match(/^}+/u)?.[0].length ?? 0
+    if (closes > 0) {
+      for (let index = 0; index < closes && frames.length > 1; index += 1) frames.pop()
+      continue
+    }
+
+    const variable = line.match(/^@var\s+([A-Za-z_][A-Za-z0-9_]*)\s*=/iu)
+    if (variable?.[1]) {
+      frames.at(-1)?.variables.add(variable[1])
+      continue
+    }
+
+    const loop = line.match(/^@for\s+([A-Za-z_][A-Za-z0-9_]*)\s+in\s+range\([^)]*\)\s*\{\s*$/iu)
+    if (loop?.[1]) {
+      frames.push({ variables: new Set([loop[1]]) })
+      continue
+    }
+
+    if (
+      /^@task\s+.+\{\s*$/iu.test(line) ||
+      /^@event\s+.+\{\s*$/iu.test(line) ||
+      /^@act\s*\{\s*$/iu.test(line) ||
+      /^\{\s*$/u.test(line)
+    ) {
+      frames.push({ variables: new Set<string>() })
+    }
   }
-  for (const match of source.matchAll(/^\s*@for\s+([A-Za-z_][A-Za-z0-9_]*)\s+in\s+range\(/gimu)) {
-    if (match[1]) values.add(match[1])
+
+  const visible = new Set<string>()
+  for (const frame of frames) {
+    for (const name of frame.variables) visible.add(name)
   }
-  return [...values]
+  return [...visible]
+}
+
+function applyVariableCompletion(
+  view: EditorView,
+  completion: Completion,
+  from: number,
+  to: number,
+): void {
+  const replaceTo = view.state.doc.sliceString(to, to + 1) === '%' ? to + 1 : to
+  view.dispatch({
+    changes: { from, to: replaceTo, insert: completion.label },
+    selection: { anchor: from + completion.label.length },
+    scrollIntoView: true,
+  })
+}
+
+function variableOptions(source: string, at: number): Completion[] {
+  return collectUsableVariables(source, at).flatMap((name) => [
+    { label: `%${name}%`, type: 'variable', detail: '变量', apply: applyVariableCompletion },
+    { label: `%${name}:pad2%`, type: 'variable', detail: '补零到 2 位', apply: applyVariableCompletion },
+  ])
 }
 
 function directiveOptions(context: DslContext): Completion[] {
@@ -148,7 +212,7 @@ function directiveOptions(context: DslContext): Completion[] {
     snippetCompletion('@act {\n  @action=${动作名称}\n  {\n    ${消息}\n  }\n}', { label: '@act', type: 'keyword', detail: 'Act 块' }),
     snippetCompletion('@var ${name}=${value}', { label: '@var', type: 'keyword', detail: '变量' }),
     snippetCompletion('{\n  ${消息}\n}', { label: '{ message }', type: 'text', detail: '消息块' }),
-    snippetCompletion('<https://${url}>', { label: '<https://…>', type: 'text', detail: '打开页面' }),
+    snippetCompletion('<${链接}>', { label: '<链接>', type: 'text', detail: '打开页面' }),
   ]
 }
 
@@ -168,12 +232,11 @@ export function anyWorkflowCompletion(context: CompletionContext): CompletionRes
     }
   }
 
-  const variable = context.matchBefore(/%[A-Za-z_][A-Za-z0-9_:]*$/u)
+  const variable =
+    context.matchBefore(/%[A-Za-z_][A-Za-z0-9_:]*$/u) ??
+    (context.explicit ? context.matchBefore(/%$/u) : null)
   if (variable) {
-    const options = collectVariables(source).flatMap((name) => [
-      { label: `%${name}%`, type: 'variable', apply: `%${name}%` },
-      { label: `%${name}:pad2%`, type: 'variable', apply: `%${name}:pad2%` },
-    ])
+    const options = variableOptions(source, context.pos)
     return options.length ? { from: variable.from, options } : null
   }
 
