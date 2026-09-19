@@ -126,11 +126,6 @@ interface StructuralBlock {
   indent: string
 }
 
-function nextLineOffset(source: string, from: number): number {
-  const newline = source.indexOf('\n', from)
-  return newline < 0 ? source.length : newline + 1
-}
-
 function matchingBraceAt(source: string, openAt: number): number {
   let depth = 0
   let inFence = false
@@ -166,6 +161,43 @@ function matchingBraceAt(source: string, openAt: number): number {
   }
 
   return -1
+}
+
+function sourceStructureIsClosed(source: string): boolean {
+  let depth = 0
+  let inFence = false
+  let fence = ''
+
+  for (let index = 0; index < source.length; index += 1) {
+    const atLineStart = index === 0 || source[index - 1] === '\n'
+    if (atLineStart) {
+      let contentAt = index
+      while (source[contentAt] === ' ' || source[contentAt] === '\t') contentAt += 1
+      const marker = source.slice(contentAt, contentAt + 3)
+      if (marker === '```' || marker === '~~~') {
+        if (!inFence) {
+          inFence = true
+          fence = marker
+        } else if (fence === marker) {
+          inFence = false
+          fence = ''
+        }
+        const end = source.indexOf('\n', contentAt)
+        if (end < 0) return !inFence && depth === 0
+        index = end
+        continue
+      }
+    }
+
+    if (inFence) continue
+    if (source[index] === '{') depth += 1
+    else if (source[index] === '}') {
+      depth -= 1
+      if (depth < 0) return false
+    }
+  }
+
+  return !inFence && depth === 0
 }
 
 function structuralBlocks(source: string): StructuralBlock[] {
@@ -255,6 +287,9 @@ export function planStructuredInsert(
   kind: StructuredInsertKind,
 ): StructuredInsertPlan {
   if (kind === 'task') {
+    if (!sourceStructureIsClosed(source)) {
+      return { ok: false, message: '当前工作流还有未闭合的结构，先补全大括号或文本块后再添加 Task。' }
+    }
     const separator = appendSeparator(source)
     const text = `${separator}@task  {\n  @mode=serial\n\n}\n`
     return { ok: true, from: source.length, text, cursorOffset: separator.length + '@task '.length }
