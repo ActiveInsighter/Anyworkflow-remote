@@ -111,6 +111,208 @@ function dslContextAt(source: string, at: number): DslContext {
   return 'run'
 }
 
+export type StructuredInsertKind = 'task' | 'event' | 'act' | 'variable'
+
+export type StructuredInsertPlan =
+  | { ok: true; from: number; text: string; cursorOffset: number }
+  | { ok: false; message: string }
+
+interface StructuralBlock {
+  kind: 'task' | 'event'
+  headerFrom: number
+  headerEnd: number
+  openAt: number
+  closeAt: number
+  indent: string
+}
+
+function nextLineOffset(source: string, from: number): number {
+  const newline = source.indexOf('\n', from)
+  return newline < 0 ? source.length : newline + 1
+}
+
+function matchingBraceAt(source: string, openAt: number): number {
+  let depth = 0
+  let inFence = false
+  let fence = ''
+
+  for (let index = openAt; index < source.length; index += 1) {
+    const atLineStart = index === 0 || source[index - 1] === '\n'
+    if (atLineStart) {
+      let contentAt = index
+      while (source[contentAt] === ' ' || source[contentAt] === '\t') contentAt += 1
+      const marker = source.slice(contentAt, contentAt + 3)
+      if (marker === '```' || marker === '~~~') {
+        const end = source.indexOf('\n', contentAt)
+        if (!inFence) {
+          inFence = true
+          fence = marker
+        } else if (fence === marker) {
+          inFence = false
+          fence = ''
+        }
+        if (end < 0) return -1
+        index = end
+        continue
+      }
+    }
+
+    if (inFence) continue
+    if (source[index] === '{') depth += 1
+    else if (source[index] === '}') {
+      depth -= 1
+      if (depth === 0) return index
+    }
+  }
+
+  return -1
+}
+
+function structuralBlocks(source: string): StructuralBlock[] {
+  const blocks: StructuralBlock[] = []
+  let offset = 0
+  let inFence = false
+  let fence = ''
+
+  while (offset <= source.length) {
+    const newline = source.indexOf('\n', offset)
+    const lineEnd = newline < 0 ? source.length : newline
+    const raw = source.slice(offset, lineEnd)
+    const trimmed = raw.trim()
+    const fenceMatch = trimmed.match(/^(?:```|~~~)/u)?.[0]
+
+    if (fenceMatch) {
+      if (!inFence) {
+        inFence = true
+        fence = fenceMatch
+      } else if (fence === fenceMatch) {
+        inFence = false
+        fence = ''
+      }
+    } else if (!inFence) {
+      const header = raw.match(/^([ \t]*)@(task|event)(?:\s+.*?)?\s*\{\s*$/iu)
+      if (header?.[2]) {
+        const openInLine = raw.lastIndexOf('{')
+        const openAt = offset + openInLine
+        blocks.push({
+          kind: header[2].toLowerCase() as 'task' | 'event',
+          headerFrom: offset,
+          headerEnd: newline < 0 ? source.length : newline + 1,
+          openAt,
+          closeAt: matchingBraceAt(source, openAt),
+          indent: header[1] ?? '',
+        })
+      }
+    }
+
+    if (newline < 0) break
+    offset = newline + 1
+  }
+
+  return blocks
+}
+
+function containingBlock(source: string, at: number, kind: StructuralBlock['kind']): StructuralBlock | null {
+  const point = Math.max(0, Math.min(at, source.length))
+  return (
+    structuralBlocks(source)
+      .filter((block) =>
+        block.kind === kind &&
+        block.headerFrom <= point &&
+        (block.closeAt < 0 || point <= block.closeAt),
+      )
+      .sort((a, b) => b.headerFrom - a.headerFrom)[0] ?? null
+  )
+}
+
+function lineStartAt(source: string, at: number): number {
+  const newline = source.lastIndexOf('\n', Math.max(0, at - 1))
+  return newline < 0 ? 0 : newline + 1
+}
+
+function appendSeparator(before: string): string {
+  if (!before) return ''
+  if (before.endsWith('\n\n')) return ''
+  if (before.endsWith('\n')) return '\n'
+  return '\n\n'
+}
+
+function variableInsertPoint(source: string, event: StructuralBlock): number {
+  let cursor = event.headerEnd
+  while (cursor < event.closeAt) {
+    const end = source.indexOf('\n', cursor)
+    const lineEnd = end < 0 ? source.length : end
+    const line = source.slice(cursor, lineEnd)
+    if (!/^\s*@var\s+[A-Za-z_][A-Za-z0-9_]*\s*=/iu.test(line)) break
+    cursor = end < 0 ? source.length : end + 1
+  }
+  return cursor
+}
+
+export function planStructuredInsert(
+  source: string,
+  at: number,
+  kind: StructuredInsertKind,
+): StructuredInsertPlan {
+  if (kind === 'task') {
+    const separator = appendSeparator(source)
+    const text = `${separator}@task  {\n  @mode=serial\n\n}\n`
+    return { ok: true, from: source.length, text, cursorOffset: separator.length + '@task '.length }
+  }
+
+  const targetKind = kind === 'event' ? 'task' : 'event'
+  const container = containingBlock(source, at, targetKind)
+  if (!container) {
+    const label = kind === 'event' ? 'Event' : kind === 'act' ? 'Act' : '变量'
+    const required = kind === 'event' ? 'Task' : 'Event'
+    return { ok: false, message: `${label} 只能在 ${required} 内添加，请先把光标放到对应的 ${required} 中。` }
+  }
+  if (container.closeAt < 0) {
+    const label = container.kind === 'task' ? 'Task' : 'Event'
+    return { ok: false, message: `当前 ${label} 没有闭合，先补全结构后再插入。` }
+  }
+
+  if (kind === 'variable') {
+    const from = variableInsertPoint(source, container)
+    const indent = container.indent + '  '
+    const text = `${indent}@var =\n`
+    return { ok: true, from, text, cursorOffset: indent.length + '@var '.length }
+  }
+
+  const from = lineStartAt(source, container.closeAt)
+  const separator = appendSeparator(source.slice(0, from))
+  const indent = container.indent + '  '
+
+  if (kind === 'event') {
+    const text =
+      `${separator}${indent}@event  {\n` +
+      `${indent}  {\n` +
+      `${indent}    \n` +
+      `${indent}  }\n` +
+      `${indent}}\n`
+    return {
+      ok: true,
+      from,
+      text,
+      cursorOffset: separator.length + indent.length + '@event '.length,
+    }
+  }
+
+  const text =
+    `${separator}${indent}@act {\n` +
+    `${indent}  @action=\n` +
+    `${indent}  {\n` +
+    `${indent}    \n` +
+    `${indent}  }\n` +
+    `${indent}}\n`
+  return {
+    ok: true,
+    from,
+    text,
+    cursorOffset: separator.length + indent.length + '@act {\n'.length + indent.length + '  @action='.length,
+  }
+}
+
 interface VariableScope {
   variables: Set<string>
 }
