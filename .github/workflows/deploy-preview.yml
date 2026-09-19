@@ -2,14 +2,14 @@ name: deploy-cloudflare-preview
 
 on:
   push:
-    branches: ["codex/unified-workflow-navigation"]
+    branches: ["codex/refine-run-library-editor-ui"]
 
 permissions:
   contents: read
   deployments: write
 
 concurrency:
-  group: cloudflare-preview-unified-workflow-navigation
+  group: cloudflare-preview-refine-run-library-editor-ui
   cancel-in-progress: true
 
 jobs:
