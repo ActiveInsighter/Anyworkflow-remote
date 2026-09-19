@@ -49,8 +49,8 @@ import {
   Link as LinkIcon,
   ListTree,
   Maximize2,
-  MessageSquareText,
   Minimize2,
+  Percent,
   Redo2,
   Repeat,
   Search,
@@ -72,6 +72,7 @@ import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   anyWorkflowCompletion,
+  collectUsableVariables,
   anyWorkflowHighlightStyle,
   anyWorkflowLanguage,
   formatAnyWorkflowSource,
@@ -82,7 +83,7 @@ import { toast } from 'sonner'
 
 export interface AnyWorkflowEditorHandle {
   focus: () => void
-  insert: (text: string, cursorOffset?: number) => void
+  insert: (text: string, cursorOffset?: number, selectionLength?: number) => void
   complete: () => void
   search: () => void
   undo: () => void
@@ -459,14 +460,16 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
       }
     }, [fullscreen])
 
-    const insert = useCallback((text: string, cursorOffset?: number) => {
+    const insert = useCallback((text: string, cursorOffset?: number, selectionLength = 0) => {
       const view = viewRef.current
       if (!view) return
       const selection = view.state.selection.main
-      const offset = cursorOffset ?? text.length
+      const offset = Math.max(0, Math.min(cursorOffset ?? text.length, text.length))
+      const anchor = selection.from + offset
+      const head = anchor + Math.max(0, Math.min(selectionLength, text.length - offset))
       view.dispatch({
         changes: { from: selection.from, to: selection.to, insert: text },
-        selection: { anchor: selection.from + Math.max(0, Math.min(offset, text.length)) },
+        selection: { anchor, head },
         scrollIntoView: true,
       })
       view.focus()
@@ -542,6 +545,26 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
         toast.error('无法读取剪贴板', { description: '请允许浏览器访问剪贴板，或使用系统粘贴快捷键。' })
       }
     }, [insert])
+
+    const insertVariableReference = useCallback(() => {
+      const view = viewRef.current
+      if (!view) return
+      const selection = view.state.selection.main
+      const from = selection.from
+      view.dispatch({
+        changes: { from: selection.from, to: selection.to, insert: '%%' },
+        selection: { anchor: from + 1 },
+        scrollIntoView: true,
+      })
+      view.focus()
+
+      const available = collectUsableVariables(view.state.doc.toString(), from + 1)
+      if (available.length === 0) {
+        toast.info('当前位置没有可用变量')
+        return
+      }
+      startCompletion(view)
+    }, [])
 
     const runDownload = useCallback(() => {
       const text = viewRef.current?.state.doc.toString() ?? ''
@@ -632,25 +655,31 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
                   icon={<Repeat className="size-3.5" />}
                   label="循环"
                   hint="插入循环"
-                  onClick={() => insert('@for i in range(1, 3) {\n  \n}\n', 29)}
+                  onClick={() => insert('@for i in range(1, 3) {\n  \n}\n', 5, 1)}
                 />
                 <ToolButton
                   icon={<Variable className="size-3.5" />}
                   label="变量"
-                  hint="插入变量"
-                  onClick={() => insert('@var name=value', 5)}
+                  hint="声明变量"
+                  onClick={() => insert('@var name=', 5, 4)}
                 />
                 <ToolButton
-                  icon={<MessageSquareText className="size-3.5" />}
-                  label="消息"
-                  hint="插入 { } 消息块"
+                  icon={<Percent className="size-3.5" />}
+                  label="使用变量"
+                  hint="插入 %% 并选择当前位置可用变量"
+                  onClick={insertVariableReference}
+                />
+                <ToolButton
+                  icon={<Braces className="size-3.5" />}
+                  label="消息块"
+                  hint="插入 { }"
                   onClick={() => insert('{\n\n}', 2)}
                 />
                 <ToolButton
                   icon={<LinkIcon className="size-3.5" />}
                   label="链接"
-                  hint="插入打开页面链接"
-                  onClick={() => insert('<https://>', 9)}
+                  hint="插入 <>，直接粘贴链接"
+                  onClick={() => insert('<>', 1)}
                 />
                 <ToolDivider />
               </>
