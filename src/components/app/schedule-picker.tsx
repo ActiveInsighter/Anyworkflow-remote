@@ -102,19 +102,19 @@ export function SchedulePicker({
         ) : mode === 'now' ? (
           <>
             <Clock className="size-3.5 shrink-0" aria-hidden="true" />
-            <span>保存并运行后立即排队执行</span>
+            <span>立即执行</span>
           </>
         ) : summary.pending ? (
           <>
             <Clock className="size-3.5 shrink-0 text-info" aria-hidden="true" />
             <span>
-              将于 <span className="text-info">{summary.absolute}</span> 执行 · {summary.relative}
+              <span className="text-info">{summary.absolute}</span> · {summary.relative}
             </span>
           </>
         ) : (
           <>
             <TriangleAlert className="size-3.5 shrink-0 text-warning" aria-hidden="true" />
-            <span className="text-warning">该时刻已过，运行时会立即开始</span>
+            <span className="text-warning">该时刻已过，将立即执行</span>
           </>
         )}
       </p>

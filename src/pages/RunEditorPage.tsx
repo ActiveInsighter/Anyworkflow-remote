@@ -1,50 +1,24 @@
 import { CircleCheck, History, Play, Save } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useBlocker, useNavigate, useParams, useSearchParams } from 'react-router'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { AnyWorkflowEditor, type AnyWorkflowEditorHandle } from '@/components/editor/AnyWorkflowEditor'
 import { validateAnyWorkflowSource } from '@/components/editor/anyworkflow-dsl'
-import {
-  AppPage,
-  EmptyState,
-  ErrorBanner,
-  Field,
-  LoadingState,
-  PageHeader,
-  Panel,
-  Segmented,
-  TextInput,
-} from '@/components/app/ui'
+import { AppPage, EmptyState, ErrorBanner, LoadingState, PageHeader } from '@/components/app/ui'
 import { SchedulePicker } from '@/components/app/schedule-picker'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { invalidateAsyncDataCache } from '@/hooks/useAsyncData'
+import { useNow } from '@/hooks/useNow'
 import { createRun, getRun, toErrorMessage, updateRunDraft } from '@/lib/api'
 import { clearEditorDraft, draftScopeFor, readEditorDraft, writeEditorDraft, type EditorDraft } from '@/lib/draft'
 import { formatDateTime } from '@/lib/format'
 import { getWorkflowTemplate, updateWorkflowTemplate } from '@/lib/library'
-import { applyPlanMeta, createStarterPlan, parsePlanMeta } from '@/lib/plan'
+import { createStarterPlan, parsePlanMeta } from '@/lib/plan'
 import { DELAY_PRESETS, defaultScheduleTime, describeSchedule, resolveDelayPreset, toScheduledAt, type ScheduleMode } from '@/lib/schedule'
-import { useNow } from '@/hooks/useNow'
 import { useSession } from '@/lib/session'
-import type { DispatchExecutionMode } from '@/types'
-
-const modeOptions = [
-  { value: 'serial' as DispatchExecutionMode, label: '串行' },
-  { value: 'parallel' as DispatchExecutionMode, label: '并行' },
-]
 
 const UNSAFE_FILENAME = /[\\/:*?"<>|\u0000-\u001f]/gu
 
-/** Keeps the downloaded plan recognisable without letting a title break the filename. */
 function editorFileName(title: string): string {
   const base = title.trim().replace(UNSAFE_FILENAME, '-').replace(/\s+/gu, ' ').slice(0, 60).trim()
   return `${base || 'plan'}.aw`
@@ -58,13 +32,13 @@ export function RunEditorPage() {
   const templateMode = searchParams.get('mode') === 'edit' ? 'edit' : templateId ? 'use' : ''
   const session = useSession()
   const editorRef = useRef<AnyWorkflowEditorHandle | null>(null)
-
+  const now = useNow()
   const scope = draftScopeFor(runId, templateId)
 
   const [source, setSource] = useState(createStarterPlan)
   const initialMeta = parsePlanMeta(source)
   const [title, setTitle] = useState(initialMeta.title)
-  const [mode, setMode] = useState<DispatchExecutionMode>(initialMeta.mode)
+  const [mode, setMode] = useState(initialMeta.mode)
   const [maxConcurrency, setMaxConcurrency] = useState(initialMeta.maxConcurrency)
   const [templateTitle, setTemplateTitle] = useState('')
   const [scheduleMode, setScheduleMode] = useState<ScheduleMode>('now')
@@ -74,16 +48,30 @@ export function RunEditorPage() {
   const [error, setError] = useState('')
   const [dirty, setDirty] = useState(false)
   const [restorable, setRestorable] = useState<EditorDraft | null>(null)
-  const now = useNow()
 
-  /** Templates carry no schedule, so the control only exists for Run drafts. */
   const scheduleEditable = templateMode !== 'edit'
   const scheduleUnresolved = scheduleEditable && scheduleMode !== 'now' && !scheduledAt
+  const diagnostics = useMemo(() => validateAnyWorkflowSource(source), [source])
+  const errorCount = diagnostics.filter((item) => item.severity === 'error').length
+
+  const sourceRef = useRef(source)
+  sourceRef.current = source
+
+  const draftRef = useRef<Omit<EditorDraft, 'savedAt'>>({
+    source,
+    title,
+    mode,
+    maxConcurrency,
+    templateTitle,
+    scheduledAt,
+  })
+  draftRef.current = { source, title, mode, maxConcurrency, templateTitle, scheduledAt }
+  const dirtyRef = useRef(dirty)
+  dirtyRef.current = dirty
 
   function changeSchedule(next: { mode?: ScheduleMode; value?: string }) {
     if (next.mode !== undefined) {
       setScheduleMode(next.mode)
-      // Switching mode always lands on a concrete instant, so the field is never left half-set.
       if (next.mode === 'now') setScheduledAt('')
       else if (next.mode === 'at') setScheduledAt(toScheduledAt(defaultScheduleTime()))
       else setScheduledAt((current) => current || toScheduledAt(resolveDelayPreset(DELAY_PRESETS[1])))
@@ -91,12 +79,6 @@ export function RunEditorPage() {
     if (next.value !== undefined) setScheduledAt(next.value)
     setDirty(true)
   }
-
-  const sourceRef = useRef(source)
-  sourceRef.current = source
-
-  const diagnostics = useMemo(() => validateAnyWorkflowSource(source), [source])
-  const errorCount = diagnostics.filter((item) => item.severity === 'error').length
 
   useEffect(() => {
     if (!templateId || runId) return
@@ -140,15 +122,11 @@ export function RunEditorPage() {
     return () => { active = false }
   }, [runId])
 
-  /**
-   * Offer the local draft once the server content is known. It is never applied automatically:
-   * silently replacing what the server holds would be worse than losing an autosave.
-   */
   useEffect(() => {
     if (loading) return
     const draft = readEditorDraft(scope)
     if (!draft) return
-    if (draft.source.trim() === sourceRef.current.trim()) {
+    if (draft.source.trim() === sourceRef.current.trim() && draft.scheduledAt === scheduledAt) {
       clearEditorDraft(scope)
       return
     }
@@ -157,36 +135,25 @@ export function RunEditorPage() {
 
   useEffect(() => {
     if (!dirty) return
-    const timer = window.setTimeout(() => {
-      writeEditorDraft(scope, { source, title, mode, maxConcurrency, templateTitle, scheduledAt })
-    }, 700)
+    const timer = window.setTimeout(() => writeEditorDraft(scope, draftRef.current), 500)
     return () => window.clearTimeout(timer)
   }, [dirty, scope, source, title, mode, maxConcurrency, templateTitle, scheduledAt])
 
+  // Route changes must never open a blocking dialog. Persist the latest local draft synchronously
+  // when this editor unmounts, then let React Router navigate normally.
+  useEffect(() => () => {
+    if (dirtyRef.current) writeEditorDraft(scope, draftRef.current)
+  }, [scope])
+
   useEffect(() => {
     const beforeUnload = (event: BeforeUnloadEvent) => {
-      if (dirty) event.preventDefault()
+      if (!dirtyRef.current) return
+      writeEditorDraft(scope, draftRef.current)
+      event.preventDefault()
     }
     window.addEventListener('beforeunload', beforeUnload)
     return () => window.removeEventListener('beforeunload', beforeUnload)
-  }, [dirty])
-
-  /** Set just before a save-triggered navigation so the guard does not block our own redirect. */
-  const bypassBlockRef = useRef(false)
-
-  const blocker = useBlocker(useCallback(() => dirty && !bypassBlockRef.current, [dirty]))
-
-  useEffect(() => {
-    bypassBlockRef.current = false
-  }, [runId, templateId])
-
-  function stayOnPage() {
-    if (blocker.state === 'blocked') blocker.reset()
-  }
-
-  function leavePage() {
-    if (blocker.state === 'blocked') blocker.proceed()
-  }
+  }, [scope])
 
   function syncMeta(nextSource: string) {
     const meta = parsePlanMeta(nextSource)
@@ -198,22 +165,6 @@ export function RunEditorPage() {
   function onEditorChange(nextSource: string) {
     setSource(nextSource)
     syncMeta(nextSource)
-    setDirty(true)
-  }
-
-  function updateMeta(next: Partial<{ title: string; mode: DispatchExecutionMode; maxConcurrency: number }>) {
-    const nextTitle = next.title ?? title
-    const nextMode = next.mode ?? mode
-    const nextConcurrency = next.maxConcurrency ?? maxConcurrency
-    const nextSource = applyPlanMeta(source, {
-      title: nextTitle,
-      mode: nextMode,
-      maxConcurrency: nextConcurrency,
-    })
-    setTitle(nextTitle)
-    setMode(nextMode)
-    setMaxConcurrency(nextMode === 'serial' ? 1 : nextConcurrency)
-    setSource(nextSource)
     setDirty(true)
   }
 
@@ -239,19 +190,19 @@ export function RunEditorPage() {
   async function persist(publish: boolean) {
     if (!session || saving) return
     if (errorCount > 0) {
-      setError('DSL 有 ' + errorCount + ' 个错误，请先修复')
+      setError(`DSL 有 ${errorCount} 个错误，请先修复`)
       editorRef.current?.focus()
       return
     }
     if (scheduleUnresolved) {
-      setError('请先选择执行时刻或延时，再保存')
+      setError('请先选择执行时间')
       return
     }
 
     setSaving(true)
     setError('')
     try {
-      const planText = applyPlanMeta(source, { title, mode, maxConcurrency })
+      const planText = source
       const schedule = scheduleEditable ? scheduledAt : ''
 
       if (templateMode === 'edit' && templateId) {
@@ -260,10 +211,9 @@ export function RunEditorPage() {
           planText,
         })
         clearEditorDraft(scope)
-        setSource(planText)
+        dirtyRef.current = false
         setDirty(false)
-        bypassBlockRef.current = true
-        navigate('/templates/' + templateId, { replace: true })
+        navigate(`/templates/${templateId}`, { replace: true })
         return
       }
 
@@ -272,10 +222,11 @@ export function RunEditorPage() {
         : await createRun(planText, publish ? 'queued' : 'draft', schedule)
 
       clearEditorDraft(scope)
-      setSource(planText)
+      dirtyRef.current = false
       setDirty(false)
-      bypassBlockRef.current = true
-      navigate(publish ? '/runs/' + saved.id : '/runs/' + saved.id + '/edit', { replace: true })
+      invalidateAsyncDataCache(`runs:${session.record.id}:`)
+      invalidateAsyncDataCache(`run:${saved.id}:`)
+      navigate(publish ? `/runs/${saved.id}` : `/runs/${saved.id}/edit`, { replace: true })
     } catch (cause) {
       setError(toErrorMessage(cause))
     } finally {
@@ -286,11 +237,7 @@ export function RunEditorPage() {
   if (!session) {
     return (
       <AppPage>
-        <EmptyState
-          title="未连接"
-          description="连接 AnyWorkflow 后端后才能创建 Run。"
-          action={<Button asChild><Link to="/settings">前往设置</Link></Button>}
-        />
+        <EmptyState title="未连接" action={<Button asChild><Link to="/settings">前往设置</Link></Button>} />
       </AppPage>
     )
   }
@@ -304,24 +251,13 @@ export function RunEditorPage() {
       : templateMode === 'use'
         ? '使用模板'
         : '创建 Run'
-
-  const pageDescription = templateMode === 'edit'
-    ? '修改 DSL 并保存模板，不会创建新的 Run。'
-    : '用 AnyWorkflow DSL 描述任务，保存为草稿或直接运行。'
-
   const scheduleSummary = describeSchedule(scheduleEditable ? scheduledAt : '', new Date(now))
   const runBlocked = saving || errorCount > 0 || scheduleUnresolved
 
   return (
-    <AppPage className="max-w-[1320px]">
+    <AppPage className="max-w-[1380px] pb-28 sm:pb-16">
       <PageHeader
-        eyebrow={
-          <Link to={templateMode ? '/library?tab=templates' : '/'} className="outline-none hover:text-foreground focus-visible:underline">
-            {templateMode ? '资料库' : '工作流'}
-          </Link>
-        }
         title={pageTitle}
-        description={pageDescription}
         actions={
           <div className="flex items-center gap-2">
             {errorCount > 0 ? <Badge variant="destructive" className="rounded-md">{errorCount} 错误</Badge> : null}
@@ -335,92 +271,29 @@ export function RunEditorPage() {
       {error ? <ErrorBanner>{error}</ErrorBanner> : null}
 
       {restorable ? (
-        <div className="mb-3 flex flex-col gap-3 rounded-lg border bg-info-soft px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-2.5">
-            <History className="mt-0.5 size-4 shrink-0 text-info" aria-hidden="true" />
-            <div className="min-w-0">
-              <p className="text-[13px] font-medium">发现上次未保存的本地草稿</p>
-              <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
-                保存于 {formatDateTime(new Date(restorable.savedAt).toISOString())}。恢复后可继续编辑，服务端内容不会被自动覆盖。
-              </p>
-            </div>
+        <div className="mb-3 flex flex-col gap-3 rounded-lg border border-info/25 bg-info-soft px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <History className="size-4 shrink-0 text-info" aria-hidden="true" />
+            <p className="truncate text-[13px] font-medium">本地草稿 · {formatDateTime(new Date(restorable.savedAt).toISOString())}</p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <Button size="sm" onClick={restoreDraft}>恢复草稿</Button>
+            <Button size="sm" onClick={restoreDraft}>恢复</Button>
             <Button size="sm" variant="outline" onClick={discardDraft}>丢弃</Button>
           </div>
         </div>
       ) : null}
 
-      <Panel className="mb-3 p-3 sm:p-4">
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(200px,1.2fr)_minmax(200px,1fr)_190px_150px] xl:items-end">
-          {templateMode === 'edit' ? (
-            <>
-              <Field label="模板名称">
-                <TextInput
-                  value={templateTitle}
-                  maxLength={512}
-                  onChange={(event) => {
-                    setTemplateTitle(event.target.value)
-                    setDirty(true)
-                  }}
-                />
-              </Field>
-              <Field label="Run 名称">
-                <TextInput value={title} maxLength={512} onChange={(event) => updateMeta({ title: event.target.value })} />
-              </Field>
-            </>
-          ) : (
-            <>
-              <Field label="名称">
-                <TextInput value={title} maxLength={512} onChange={(event) => updateMeta({ title: event.target.value })} />
-              </Field>
-              <div className="hidden xl:block" aria-hidden="true" />
-            </>
-          )}
-
-          <Field label="调度">
-            <Segmented
-              label="执行方式"
-              value={mode}
-              onChange={(next) =>
-                updateMeta({ mode: next, maxConcurrency: next === 'serial' ? 1 : Math.max(2, maxConcurrency) })
-              }
-              options={modeOptions}
-            />
-          </Field>
-
-          <Field label="最大并发">
-            <TextInput
-              type="number"
-              min={1}
-              max={16}
-              disabled={mode !== 'parallel'}
-              value={mode === 'parallel' ? maxConcurrency : 1}
-              onChange={(event) =>
-                updateMeta({ maxConcurrency: Math.max(1, Math.min(16, Number(event.target.value) || 1)) })
-              }
-            />
-          </Field>
+      {scheduleEditable ? (
+        <div className="mb-3 rounded-lg border border-border bg-card px-3 py-2.5 sm:px-4">
+          <SchedulePicker
+            mode={scheduleMode}
+            value={scheduledAt}
+            onModeChange={(next) => changeSchedule({ mode: next })}
+            onValueChange={(next) => changeSchedule({ value: next })}
+            now={now}
+          />
         </div>
-
-        {scheduleEditable ? (
-          <div className="mt-3.5 border-t border-border pt-3.5">
-            <Field
-              label="执行时间"
-              hint="定时与延时写入的是同一个执行时刻。Run 一旦离开草稿，该时刻就不可修改——取消 Run 是唯一的撤回方式。"
-            >
-              <SchedulePicker
-                mode={scheduleMode}
-                value={scheduledAt}
-                onModeChange={(next) => changeSchedule({ mode: next })}
-                onValueChange={(next) => changeSchedule({ value: next })}
-                now={now}
-              />
-            </Field>
-          </div>
-        ) : null}
-      </Panel>
+      ) : null}
 
       <AnyWorkflowEditor
         ref={editorRef}
@@ -430,38 +303,22 @@ export function RunEditorPage() {
         downloadName={editorFileName(title)}
       />
 
-      <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3 sm:sticky sm:bottom-3 sm:z-20 sm:flex-row sm:justify-end sm:gap-2 sm:rounded-lg sm:border sm:border-border sm:bg-background/95 sm:p-2 sm:shadow-md sm:backdrop-blur">
+      <div className="fixed inset-x-0 bottom-0 z-30 flex gap-2 border-t border-border bg-background/96 px-3 pb-[calc(.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur md:static md:mt-3 md:justify-end md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
         {templateMode === 'edit' ? (
-          <Button className="h-11 sm:h-9" onClick={() => void persist(false)} disabled={saving || errorCount > 0}>
+          <Button className="h-11 flex-1 md:h-9 md:flex-none" onClick={() => void persist(false)} disabled={saving || errorCount > 0}>
             <Save />{saving ? '保存中…' : '保存模板'}
           </Button>
         ) : (
           <>
-            <Button className="h-11 sm:h-9" variant="outline" onClick={() => void persist(false)} disabled={runBlocked}>
+            <Button className="h-11 flex-1 md:h-9 md:flex-none" variant="outline" onClick={() => void persist(false)} disabled={runBlocked}>
               <Save />{saving ? '保存中…' : '保存草稿'}
             </Button>
-            <Button className="h-11 sm:h-9" onClick={() => void persist(true)} disabled={runBlocked}>
-              <Play />
-              {saving ? '处理中…' : scheduleSummary.pending ? '安排执行' : '立即运行'}
+            <Button className="h-11 flex-1 md:h-9 md:flex-none" onClick={() => void persist(true)} disabled={runBlocked}>
+              <Play />{saving ? '处理中…' : scheduleSummary.pending ? '安排执行' : '运行'}
             </Button>
           </>
         )}
       </div>
-
-      <AlertDialog open={blocker.state === 'blocked'} onOpenChange={(open) => { if (!open) stayOnPage() }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>放弃未保存的修改？</AlertDialogTitle>
-            <AlertDialogDescription>
-              当前 DSL 有未保存的修改，离开后服务端不会保存这些内容。本地已自动保留一份草稿，下次回到这个页面时可以恢复。
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={stayOnPage}>继续编辑</AlertDialogCancel>
-            <AlertDialogAction onClick={leavePage}>放弃并离开</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </AppPage>
   )
 }

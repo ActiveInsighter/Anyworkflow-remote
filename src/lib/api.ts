@@ -13,6 +13,7 @@ import type {
   DispatchEventRecord,
   DispatchRequestedAction,
   DispatchRunRecord,
+  DispatchStatus,
   DispatchTaskRecord,
   PocketBaseListResponse,
 } from '../types'
@@ -159,15 +160,23 @@ export async function login(identity: string, password: string, baseUrlValue: st
   return session
 }
 
-export async function listRuns(page = 1, perPage = DEFAULT_PAGE_SIZE): Promise<PocketBaseListResponse<DispatchRunRecord>> {
+export async function listRuns(
+  page = 1,
+  perPage = DEFAULT_PAGE_SIZE,
+  statuses: readonly DispatchStatus[] = [],
+): Promise<PocketBaseListResponse<DispatchRunRecord>> {
   const session = requireSession()
+  const ownerFilter = `owner="${quoteFilter(session.record.id)}"`
+  const statusFilter = statuses.length
+    ? ` && (${statuses.map((status) => `status="${quoteFilter(status)}"`).join(' || ')})`
+    : ''
   return listCollection<DispatchRunRecord>(
     RUN_COLLECTION,
     {
       page,
       perPage,
       sort: '-updated',
-      filter: `owner="${quoteFilter(session.record.id)}"`,
+      filter: ownerFilter + statusFilter,
     },
     normalizeRun,
   )

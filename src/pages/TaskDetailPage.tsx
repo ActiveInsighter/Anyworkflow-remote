@@ -16,7 +16,7 @@ import {
 } from '@/components/app/ui'
 import { Button } from '@/components/ui/button'
 import { useAsyncData } from '@/hooks/useAsyncData'
-import { getTask, listAllEventsForTask, toErrorMessage } from '@/lib/api'
+import { getTask, listEventsForTask, toErrorMessage } from '@/lib/api'
 import {
   eventStatusMeta,
   formatDateTime,
@@ -33,18 +33,19 @@ export function TaskDetailPage() {
 
   const state = useAsyncData(
     async () => {
-      const [task, events] = await Promise.all([getTask(taskId), listAllEventsForTask(taskId)])
-      return { task, events }
+      const [task, eventsPage] = await Promise.all([getTask(taskId), listEventsForTask(taskId, 1, 30)])
+      return { task, eventsPage }
     },
     [taskId],
-    { enabled: Boolean(taskId), pollMs: 5000, errorMessage: toErrorMessage },
+    { enabled: Boolean(taskId), pollMs: 8000, staleMs: 12000, cacheKey: `task:${taskId}:detail`, errorMessage: toErrorMessage },
   )
 
   if (state.loading && !state.data) return <AppPage><LoadingState /></AppPage>
   if (state.error && !state.data) return <AppPage><ErrorBanner>{state.error}</ErrorBanner></AppPage>
   if (!state.data) return null
 
-  const { task, events } = state.data
+  const { task, eventsPage } = state.data
+  const events = eventsPage.items
   const status = runStatusMeta(task.status, task.requestedAction)
   const failure = task.compileError || task.lastError
 
@@ -92,7 +93,7 @@ export function TaskDetailPage() {
         {failure ? <div className="mt-4"><InlineError>{failure}</InlineError></div> : null}
       </Panel>
 
-      <SectionHeading title="Events" trailing={events.length} />
+      <SectionHeading title="Events" trailing={`${events.length}/${eventsPage.totalItems}`} />
 
       {events.length ? (
         <Panel>

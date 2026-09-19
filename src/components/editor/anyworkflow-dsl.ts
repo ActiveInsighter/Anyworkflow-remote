@@ -8,14 +8,8 @@ interface DslState {
   fence: string
 }
 
-export const PROMPT_TEMPLATES = [
-  { id: 'summary', label: '总结', text: '请总结以上内容，保留关键结论、重要数据和必要上下文，使用清晰的分点结构输出。' },
-  { id: 'extract', label: '提取要点', text: '请提取以上内容中的核心要点、关键术语、重要关系和可执行结论，去除重复信息。' },
-  { id: 'translate', label: '翻译', text: '请将以上内容准确翻译为中文，保留原有结构、术语、代码、公式和专有名词。' },
-  { id: 'research', label: '研究整理', text: '请整理以上材料，按主题归类，标出关键事实、证据、争议点和仍需确认的问题。' },
-  { id: 'code-review', label: '代码审查', text: '请审查以上代码，优先检查正确性、边界条件、类型安全、性能、可维护性和潜在安全问题，并给出可执行修改。' },
-  { id: 'markdown', label: '整理 Markdown', text: '请将以上内容整理为结构清晰的 Markdown，保留有效信息，使用合适的标题、列表、表格和代码块。' },
-] as const
+// Compatibility shim for the editor module; prompt presets are intentionally disabled.
+export const PROMPT_TEMPLATES = [] as const
 
 export const anyWorkflowLanguage = StreamLanguage.define<DslState>({
   startState: () => ({ inFence: false, fence: '' }),
@@ -184,14 +178,6 @@ export function anyWorkflowCompletion(context: CompletionContext): CompletionRes
       { label: `%${name}:pad2%`, type: 'variable', apply: `%${name}:pad2%` },
     ])
     return options.length ? { from: variable.from, options } : null
-  }
-
-  const slash = context.matchBefore(/\/[A-Za-z\u4e00-\u9fff-]*$/u)
-  if (slash) {
-    return {
-      from: slash.from,
-      options: PROMPT_TEMPLATES.map((prompt) => ({ label: `/${prompt.label}`, type: 'text', detail: '提示词', apply: prompt.text })),
-    }
   }
 
   const directive = context.matchBefore(/@[A-Za-z]*$/u)
