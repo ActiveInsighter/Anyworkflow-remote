@@ -14,16 +14,30 @@ interface CacheEntry<T> {
   updatedAt: number
 }
 
+const CACHE_LIMIT = 100
 const cache = new Map<string, CacheEntry<unknown>>()
 
 function readCache<T>(key?: string): CacheEntry<T> | null {
   if (!key) return null
-  return (cache.get(key) as CacheEntry<T> | undefined) ?? null
+  const entry = cache.get(key) as CacheEntry<T> | undefined
+  if (!entry) return null
+
+  // Refresh insertion order so frequently revisited pages stay warm.
+  cache.delete(key)
+  cache.set(key, entry)
+  return entry
 }
 
 function writeCache<T>(key: string | undefined, data: T) {
   if (!key) return
+  cache.delete(key)
   cache.set(key, { data, updatedAt: Date.now() })
+
+  while (cache.size > CACHE_LIMIT) {
+    const oldest = cache.keys().next().value as string | undefined
+    if (!oldest) break
+    cache.delete(oldest)
+  }
 }
 
 /** Invalidates one cached query family after a mutation. */
