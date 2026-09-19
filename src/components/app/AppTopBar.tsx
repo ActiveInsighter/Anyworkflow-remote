@@ -41,18 +41,26 @@ export function AppTopBar() {
         <ol className="flex min-w-0 items-center gap-1 text-[12px] sm:text-[13px]">
           <li className="hidden shrink-0 font-semibold tracking-[-0.02em] text-foreground sm:block">AnyWorkflow</li>
           <li className="hidden shrink-0 text-muted-foreground sm:block"><ChevronRight className="size-3.5" /></li>
-          {crumbs.map((crumb, index) => (
-            <li key={`${crumb.label}-${index}`} className="flex min-w-0 items-center gap-1">
-              {index > 0 ? <ChevronRight className="size-3.5 shrink-0 text-muted-foreground/70" /> : null}
-              {crumb.to ? (
-                <Link to={crumb.to} className="max-w-[32vw] truncate rounded px-1 py-1 text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 sm:max-w-[260px]">
-                  {crumb.label}
-                </Link>
-              ) : (
-                <span className="max-w-[44vw] truncate px-1 py-1 font-medium text-foreground sm:max-w-[360px]">{crumb.label}</span>
-              )}
-            </li>
-          ))}
+          {crumbs.map((crumb, index) => {
+            const current = index === crumbs.length - 1
+            return (
+              <li key={`${crumb.label}-${index}`} className="flex min-w-0 items-center gap-1">
+                {index > 0 ? <ChevronRight className="size-3.5 shrink-0 text-muted-foreground/70" aria-hidden="true" /> : null}
+                {crumb.to && !current ? (
+                  <Link to={crumb.to} className="max-w-[32vw] truncate rounded px-1 py-1 text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 sm:max-w-[260px]">
+                    {crumb.label}
+                  </Link>
+                ) : (
+                  <span
+                    aria-current={current ? 'page' : undefined}
+                    className="max-w-[44vw] truncate px-1 py-1 font-medium text-foreground sm:max-w-[360px]"
+                  >
+                    {crumb.label}
+                  </span>
+                )}
+              </li>
+            )
+          })}
         </ol>
       </nav>
 
