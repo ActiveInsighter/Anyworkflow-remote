@@ -348,6 +348,114 @@ export function planStructuredInsert(
   }
 }
 
+export type SmartDeletePlan =
+  | { ok: true; from: number; to: number; message: string }
+  | { ok: false; message: string }
+
+interface BracePair {
+  openAt: number
+  closeAt: number
+}
+
+function bracePairs(source: string): BracePair[] {
+  const stack: number[] = []
+  const pairs: BracePair[] = []
+  let inFence = false
+  let fence = ''
+
+  for (let index = 0; index < source.length; index += 1) {
+    const atLineStart = index === 0 || source[index - 1] === '\n'
+    if (atLineStart) {
+      let contentAt = index
+      while (source[contentAt] === ' ' || source[contentAt] === '\t') contentAt += 1
+      const marker = source.slice(contentAt, contentAt + 3)
+      if (marker === '```' || marker === '~~~') {
+        if (!inFence) {
+          inFence = true
+          fence = marker
+        } else if (fence === marker) {
+          inFence = false
+          fence = ''
+        }
+        const end = source.indexOf('\n', contentAt)
+        if (end < 0) break
+        index = end
+        continue
+      }
+    }
+
+    if (inFence) continue
+    if (source[index] === '{') stack.push(index)
+    else if (source[index] === '}') {
+      const openAt = stack.pop()
+      if (openAt !== undefined) pairs.push({ openAt, closeAt: index })
+    }
+  }
+
+  return pairs
+}
+
+function lineEndAfter(source: string, at: number): number {
+  const newline = source.indexOf('\n', Math.max(0, at))
+  return newline < 0 ? source.length : newline + 1
+}
+
+function structuralBraceLabel(source: string, openAt: number): string | null {
+  const start = lineStartAt(source, openAt)
+  const prefix = source.slice(start, openAt + 1).trim()
+
+  if (/^@task\b.*\{$/iu.test(prefix)) return 'Task'
+  if (/^@event\b.*\{$/iu.test(prefix)) return 'Event'
+  if (/^@act\s*\{$/iu.test(prefix)) return 'Act'
+  if (/^@for\b.*\{$/iu.test(prefix)) return '循环'
+  if (prefix === '{') return '消息块'
+  return null
+}
+
+function selectedStructuralBrace(source: string, from: number, to: number): number | null {
+  const start = Math.max(0, Math.min(from, source.length))
+  const end = Math.max(start, Math.min(to, source.length))
+
+  if (end > start) {
+    const braces: number[] = []
+    for (let index = start; index < end; index += 1) {
+      if (source[index] === '{' || source[index] === '}') braces.push(index)
+      if (braces.length > 1) return null
+    }
+    return braces[0] ?? null
+  }
+
+  if (source[start] === '{' || source[start] === '}') return start
+  if (start > 0 && (source[start - 1] === '{' || source[start - 1] === '}')) return start - 1
+  return null
+}
+
+export function planSmartDelete(source: string, from: number, to: number): SmartDeletePlan {
+  if (!source) return { ok: false, message: '当前没有可删除的内容。' }
+
+  const selectionFrom = Math.max(0, Math.min(from, to, source.length))
+  const selectionTo = Math.max(selectionFrom, Math.min(Math.max(from, to), source.length))
+  const braceAt = selectedStructuralBrace(source, selectionFrom, selectionTo)
+
+  if (braceAt !== null) {
+    const pair = bracePairs(source).find((item) => item.openAt === braceAt || item.closeAt === braceAt)
+    if (pair) {
+      const label = structuralBraceLabel(source, pair.openAt)
+      if (label) {
+        const blockFrom = lineStartAt(source, pair.openAt)
+        const blockTo = lineEndAfter(source, pair.closeAt)
+        return { ok: true, from: blockFrom, to: blockTo, message: `已删除 ${label}` }
+      }
+    }
+  }
+
+  const touchedEnd = selectionTo > selectionFrom ? selectionTo - 1 : selectionFrom
+  const lineFrom = lineStartAt(source, selectionFrom)
+  const lineTo = lineEndAfter(source, touchedEnd)
+  const message = lineFrom === lineStartAt(source, touchedEnd) ? '已删除当前行' : '已删除选中行'
+  return { ok: true, from: lineFrom, to: lineTo, message }
+}
+
 interface VariableScope {
   variables: Set<string>
 }
