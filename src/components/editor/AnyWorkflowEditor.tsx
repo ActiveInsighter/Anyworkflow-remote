@@ -140,7 +140,10 @@ const editorTheme = EditorView.theme({
   },
   '&.cm-focused': { outline: 'none' },
   '.cm-scroller': {
+    minHeight: '0',
     overflow: 'auto',
+    overscrollBehavior: 'contain',
+    touchAction: 'pan-y pan-x',
     fontFamily: 'var(--ui-font-mono)',
     lineHeight: 'var(--ui-editor-line-height)',
   },
@@ -596,7 +599,7 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
             'aw-editor-shell flex flex-col overflow-hidden border border-cm-border bg-cm-bg',
             fullscreen
               ? 'fixed inset-0 z-50 rounded-none'
-              : 'h-[clamp(480px,58dvh,660px)] rounded-lg sm:h-[clamp(520px,66dvh,720px)]',
+              : 'h-[clamp(620px,78dvh,820px)] rounded-lg sm:h-[clamp(640px,76dvh,860px)]',
           )}
         >
           <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-cm-border bg-cm-toolbar-bg px-2 py-1.5">
