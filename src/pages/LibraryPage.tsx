@@ -441,10 +441,10 @@ export function LibraryPage() {
         </Panel>
       ) : null}
 
-      {!state.loading && childFolders.length === 0 && tab === 'favorites' && favorites.length === 0 ? (
+      {!state.loading && (normalizedQuery || childFolders.length === 0) && tab === 'favorites' && favorites.length === 0 ? (
         <EmptyState title={normalizedQuery ? '没有匹配的收藏' : currentFolder ? '目录为空' : '暂无收藏'} />
       ) : null}
-      {!state.loading && childFolders.length === 0 && tab === 'templates' && templates.length === 0 ? (
+      {!state.loading && (normalizedQuery || childFolders.length === 0) && tab === 'templates' && templates.length === 0 ? (
         <EmptyState title={normalizedQuery ? '没有匹配的模板' : currentFolder ? '目录为空' : '暂无模板'} />
       ) : null}
 
