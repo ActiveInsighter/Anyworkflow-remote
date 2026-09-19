@@ -235,9 +235,11 @@ export function RunEditorPage() {
         actions={
           <div className="flex items-center gap-2">
             {errorCount > 0 ? <Badge variant="destructive" className="rounded-md">{errorCount} 错误</Badge> : null}
-            <Badge variant={dirty ? 'warning' : 'secondary'} className="rounded-md">
-              {dirty ? '本地草稿' : <><CircleCheck className="me-1 size-3" />已保存</>}
-            </Badge>
+            {dirty ? (
+              <Badge variant="warning" className="rounded-md">本地草稿</Badge>
+            ) : runId || templateMode === 'edit' ? (
+              <Badge variant="secondary" className="rounded-md"><CircleCheck className="me-1 size-3" />已保存</Badge>
+            ) : null}
           </div>
         }
       />
