@@ -2,7 +2,7 @@ import { Check, Folder, FolderInput, FolderPlus, Pencil, Trash2, X } from 'lucid
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { createLibraryFolder, deleteLibraryFolder, flattenLibraryFolders, updateLibraryFolder } from '@/lib/library'
@@ -115,6 +115,7 @@ export function FolderManagerDialog({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-base">{title}</DialogTitle>
+          <DialogDescription className="sr-only">新建、重命名、移动或删除资料库目录。</DialogDescription>
         </DialogHeader>
 
         <div className="rounded-lg border border-border bg-muted/20 p-3">
