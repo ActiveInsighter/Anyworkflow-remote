@@ -54,6 +54,7 @@ import {
   Redo2,
   Repeat,
   Search,
+  Trash2,
   TriangleAlert,
   Undo2,
   Variable,
@@ -76,6 +77,7 @@ import {
   anyWorkflowHighlightStyle,
   anyWorkflowLanguage,
   formatAnyWorkflowSource,
+  planSmartDelete,
   planStructuredInsert,
   type StructuredInsertKind,
   validateAnyWorkflowSource,
@@ -497,6 +499,26 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
       view.focus()
     }, [])
 
+    const runSmartDelete = useCallback(() => {
+      const view = viewRef.current
+      if (!view) return
+      const selection = view.state.selection.main
+      const plan = planSmartDelete(view.state.doc.toString(), selection.from, selection.to)
+      if (!plan.ok) {
+        toast.info(plan.message)
+        view.focus()
+        return
+      }
+
+      view.dispatch({
+        changes: { from: plan.from, to: plan.to, insert: '' },
+        selection: { anchor: plan.from },
+        scrollIntoView: true,
+      })
+      toast.success(plan.message)
+      view.focus()
+    }, [])
+
     const runUndo = useCallback(() => {
       const view = viewRef.current
       if (!view) return
@@ -702,6 +724,12 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
                   label="链接"
                   hint="插入 <>，直接粘贴链接"
                   onClick={() => insert('<>', 1)}
+                />
+                <ToolButton
+                  icon={<Trash2 className="size-3.5" />}
+                  label="智能删除"
+                  hint="选中结构括号删除整块，否则删除当前行或选中行"
+                  onClick={runSmartDelete}
                 />
                 <ToolDivider />
               </>
