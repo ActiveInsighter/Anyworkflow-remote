@@ -8,6 +8,8 @@ export interface EditorDraft {
   mode: DispatchExecutionMode
   maxConcurrency: number
   templateTitle: string
+  /** ISO instant, or `''` for "start immediately". */
+  scheduledAt: string
   savedAt: number
 }
 
@@ -39,6 +41,7 @@ export function readEditorDraft(scope: DraftScope): EditorDraft | null {
       mode: parsed.mode === 'parallel' ? 'parallel' : 'serial',
       maxConcurrency: typeof parsed.maxConcurrency === 'number' ? parsed.maxConcurrency : 1,
       templateTitle: typeof parsed.templateTitle === 'string' ? parsed.templateTitle : '',
+      scheduledAt: typeof parsed.scheduledAt === 'string' ? parsed.scheduledAt : '',
       savedAt: typeof parsed.savedAt === 'number' ? parsed.savedAt : 0,
     }
   } catch {

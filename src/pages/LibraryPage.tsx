@@ -162,7 +162,10 @@ export function LibraryPage() {
         description="收藏常用的 Run，沉淀可复用的工作流模板。"
         actions={
           <>
-            <Button variant="outline" onClick={() => setFolderDialog(true)}><FolderCog />目录</Button>
+            <Button variant="outline" onClick={() => setFolderDialog(true)}>
+              <FolderCog />
+              {tab === 'favorites' ? '收藏目录' : '模板目录'}
+            </Button>
             <Button variant="outline" size="icon" onClick={() => void reload()} disabled={state.loading} aria-label="刷新">
               <RefreshCw className={state.loading ? 'animate-spin' : undefined} />
             </Button>

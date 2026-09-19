@@ -14,9 +14,11 @@ import {
   Toolbar,
 } from '@/components/app/ui'
 import { ConfirmDeleteDialog } from '@/components/app/confirm-delete-dialog'
+import { ScheduleBadge } from '@/components/app/schedule-picker'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAsyncData } from '@/hooks/useAsyncData'
+import { useNow } from '@/hooks/useNow'
 import { cloneRun, deleteRun, listAllRuns, toErrorMessage } from '@/lib/api'
 import { formatDateTime, modeLabel, progressPercent, progressText, runStatusMeta } from '@/lib/format'
 import { useSession } from '@/lib/session'
@@ -45,6 +47,7 @@ export function DashboardPage() {
   const [actingId, setActingId] = useState('')
   const [actionError, setActionError] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<DispatchRunRecord | null>(null)
+  const now = useNow()
 
   const state = useAsyncData(
     async () => listAllRuns(),
@@ -178,6 +181,7 @@ export function DashboardPage() {
                       {run.title || '未命名 Run'}
                     </Link>
                     <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+                    <ScheduleBadge value={run.scheduledAt} now={now} />
                   </div>
                   <div className="mt-1 truncate text-[11px] text-muted-foreground">
                     {modeLabel(run.executionMode, run.maxConcurrency, '任务')}

@@ -14,6 +14,7 @@ import {
   Segmented,
   TextInput,
 } from '@/components/app/ui'
+import { SchedulePicker } from '@/components/app/schedule-picker'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,6 +32,8 @@ import { clearEditorDraft, draftScopeFor, readEditorDraft, writeEditorDraft, typ
 import { formatDateTime } from '@/lib/format'
 import { getWorkflowTemplate, updateWorkflowTemplate } from '@/lib/library'
 import { applyPlanMeta, createStarterPlan, parsePlanMeta } from '@/lib/plan'
+import { DELAY_PRESETS, defaultScheduleTime, describeSchedule, resolveDelayPreset, toScheduledAt, type ScheduleMode } from '@/lib/schedule'
+import { useNow } from '@/hooks/useNow'
 import { useSession } from '@/lib/session'
 import type { DispatchExecutionMode } from '@/types'
 
@@ -64,11 +67,30 @@ export function RunEditorPage() {
   const [mode, setMode] = useState<DispatchExecutionMode>(initialMeta.mode)
   const [maxConcurrency, setMaxConcurrency] = useState(initialMeta.maxConcurrency)
   const [templateTitle, setTemplateTitle] = useState('')
+  const [scheduleMode, setScheduleMode] = useState<ScheduleMode>('now')
+  const [scheduledAt, setScheduledAt] = useState('')
   const [loading, setLoading] = useState(Boolean(runId || templateId))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [dirty, setDirty] = useState(false)
   const [restorable, setRestorable] = useState<EditorDraft | null>(null)
+  const now = useNow()
+
+  /** Templates carry no schedule, so the control only exists for Run drafts. */
+  const scheduleEditable = templateMode !== 'edit'
+  const scheduleUnresolved = scheduleEditable && scheduleMode !== 'now' && !scheduledAt
+
+  function changeSchedule(next: { mode?: ScheduleMode; value?: string }) {
+    if (next.mode !== undefined) {
+      setScheduleMode(next.mode)
+      // Switching mode always lands on a concrete instant, so the field is never left half-set.
+      if (next.mode === 'now') setScheduledAt('')
+      else if (next.mode === 'at') setScheduledAt(toScheduledAt(defaultScheduleTime()))
+      else setScheduledAt((current) => current || toScheduledAt(resolveDelayPreset(DELAY_PRESETS[1])))
+    }
+    if (next.value !== undefined) setScheduledAt(next.value)
+    setDirty(true)
+  }
 
   const sourceRef = useRef(source)
   sourceRef.current = source
@@ -109,6 +131,8 @@ export function RunEditorPage() {
         setTitle(meta.title)
         setMode(meta.mode)
         setMaxConcurrency(meta.maxConcurrency)
+        setScheduledAt(run.scheduledAt)
+        setScheduleMode(run.scheduledAt ? 'at' : 'now')
         setDirty(false)
       })
       .catch((cause) => active && setError(toErrorMessage(cause)))
@@ -134,10 +158,10 @@ export function RunEditorPage() {
   useEffect(() => {
     if (!dirty) return
     const timer = window.setTimeout(() => {
-      writeEditorDraft(scope, { source, title, mode, maxConcurrency, templateTitle })
+      writeEditorDraft(scope, { source, title, mode, maxConcurrency, templateTitle, scheduledAt })
     }, 700)
     return () => window.clearTimeout(timer)
-  }, [dirty, scope, source, title, mode, maxConcurrency, templateTitle])
+  }, [dirty, scope, source, title, mode, maxConcurrency, templateTitle, scheduledAt])
 
   useEffect(() => {
     const beforeUnload = (event: BeforeUnloadEvent) => {
@@ -200,6 +224,8 @@ export function RunEditorPage() {
     setTitle(meta.title)
     setMode(meta.mode)
     setMaxConcurrency(meta.maxConcurrency)
+    setScheduledAt(restorable.scheduledAt)
+    setScheduleMode(restorable.scheduledAt ? 'at' : 'now')
     if (restorable.templateTitle) setTemplateTitle(restorable.templateTitle)
     setDirty(true)
     setRestorable(null)
@@ -217,11 +243,16 @@ export function RunEditorPage() {
       editorRef.current?.focus()
       return
     }
+    if (scheduleUnresolved) {
+      setError('请先选择执行时刻或延时，再保存')
+      return
+    }
 
     setSaving(true)
     setError('')
     try {
       const planText = applyPlanMeta(source, { title, mode, maxConcurrency })
+      const schedule = scheduleEditable ? scheduledAt : ''
 
       if (templateMode === 'edit' && templateId) {
         await updateWorkflowTemplate(templateId, {
@@ -237,8 +268,8 @@ export function RunEditorPage() {
       }
 
       const saved = runId
-        ? await updateRunDraft(runId, planText, publish)
-        : await createRun(planText, publish ? 'queued' : 'draft')
+        ? await updateRunDraft(runId, planText, { publish, scheduledAt: schedule })
+        : await createRun(planText, publish ? 'queued' : 'draft', schedule)
 
       clearEditorDraft(scope)
       setSource(planText)
@@ -277,6 +308,9 @@ export function RunEditorPage() {
   const pageDescription = templateMode === 'edit'
     ? '修改 DSL 并保存模板，不会创建新的 Run。'
     : '用 AnyWorkflow DSL 描述任务，保存为草稿或直接运行。'
+
+  const scheduleSummary = describeSchedule(scheduleEditable ? scheduledAt : '', new Date(now))
+  const runBlocked = saving || errorCount > 0 || scheduleUnresolved
 
   return (
     <AppPage className="max-w-[1320px]">
@@ -369,6 +403,23 @@ export function RunEditorPage() {
             />
           </Field>
         </div>
+
+        {scheduleEditable ? (
+          <div className="mt-3.5 border-t border-border pt-3.5">
+            <Field
+              label="执行时间"
+              hint="定时与延时写入的是同一个执行时刻。Run 一旦离开草稿，该时刻就不可修改——取消 Run 是唯一的撤回方式。"
+            >
+              <SchedulePicker
+                mode={scheduleMode}
+                value={scheduledAt}
+                onModeChange={(next) => changeSchedule({ mode: next })}
+                onValueChange={(next) => changeSchedule({ value: next })}
+                now={now}
+              />
+            </Field>
+          </div>
+        ) : null}
       </Panel>
 
       <AnyWorkflowEditor
@@ -386,11 +437,12 @@ export function RunEditorPage() {
           </Button>
         ) : (
           <>
-            <Button className="h-11 sm:h-9" variant="outline" onClick={() => void persist(false)} disabled={saving || errorCount > 0}>
+            <Button className="h-11 sm:h-9" variant="outline" onClick={() => void persist(false)} disabled={runBlocked}>
               <Save />{saving ? '保存中…' : '保存草稿'}
             </Button>
-            <Button className="h-11 sm:h-9" onClick={() => void persist(true)} disabled={saving || errorCount > 0}>
-              <Play />{saving ? '处理中…' : '开始运行'}
+            <Button className="h-11 sm:h-9" onClick={() => void persist(true)} disabled={runBlocked}>
+              <Play />
+              {saving ? '处理中…' : scheduleSummary.pending ? '安排执行' : '立即运行'}
             </Button>
           </>
         )}
