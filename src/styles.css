@@ -22,6 +22,7 @@
   --color-border-strong: var(--ui-border-strong);
   --color-input: var(--ui-input);
   --color-ring: var(--ui-ring);
+  --color-overlay: var(--ui-overlay);
 
   /*
    * Status tones and editor surfaces are declared as real colour tokens rather than used as
