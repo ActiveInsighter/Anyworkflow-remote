@@ -2,6 +2,9 @@ import {
   AUTH_COLLECTION,
   DEFAULT_PAGE_SIZE,
   EVENT_COLLECTION,
+  HISTORY_ACT_COLLECTION,
+  HISTORY_EVENT_COLLECTION,
+  HISTORY_MESSAGE_COLLECTION,
   MAX_PLAN_TEXT_BYTES,
   RUN_COLLECTION,
   TASK_COLLECTION,
@@ -16,6 +19,9 @@ import type {
   DispatchRunRecord,
   DispatchTaskRecord,
   PocketBaseListResponse,
+  WorkflowHistoryActRecord,
+  WorkflowHistoryEventRecord,
+  WorkflowHistoryMessageRecord,
 } from '../types'
 
 export class ApiError extends Error {
@@ -335,6 +341,60 @@ export async function listAllEventsForTask(taskId: string): Promise<DispatchEven
 
 export async function getEvent(id: string): Promise<DispatchEventRecord> {
   return assertOwner(await request<DispatchEventRecord>(`/api/collections/${EVENT_COLLECTION}/records/${encodeURIComponent(id)}`))
+}
+
+/**
+ * Dispatch keeps the local executor run id on an Event. The history writer uses
+ * that same value as aw_tasks.taskId, so the relation chain can be traversed
+ * without adding a second foreign key to the dispatch collections.
+ */
+export async function listHistoryEventsForLocalRun(localRunId: string, page = 1, perPage = DEFAULT_PAGE_SIZE) {
+  return listCollection<WorkflowHistoryEventRecord>(HISTORY_EVENT_COLLECTION, {
+    page,
+    perPage,
+    sort: '+eventIndex',
+    filter: `task.taskId="${quoteFilter(localRunId)}"`,
+  })
+}
+
+export async function listAllHistoryEventsForLocalRun(localRunId: string): Promise<WorkflowHistoryEventRecord[]> {
+  const first = await listHistoryEventsForLocalRun(localRunId)
+  return collectPages(first, (page) => listHistoryEventsForLocalRun(localRunId, page, first.perPage))
+}
+
+export async function listHistoryActsForEvent(historyEventId: string, page = 1, perPage = DEFAULT_PAGE_SIZE) {
+  return listCollection<WorkflowHistoryActRecord>(HISTORY_ACT_COLLECTION, {
+    page,
+    perPage,
+    sort: '+actIndex',
+    filter: `event="${quoteFilter(historyEventId)}"`,
+  })
+}
+
+export async function listAllHistoryActsForEvent(historyEventId: string): Promise<WorkflowHistoryActRecord[]> {
+  const first = await listHistoryActsForEvent(historyEventId)
+  return collectPages(first, (page) => listHistoryActsForEvent(historyEventId, page, first.perPage))
+}
+
+export async function listHistoryActsForDispatchEvent(event: DispatchEventRecord): Promise<WorkflowHistoryActRecord[]> {
+  if (!event.localRunId) return []
+  const historyEvents = await listAllHistoryEventsForLocalRun(event.localRunId)
+  const acts = (await Promise.all(historyEvents.map((historyEvent) => listAllHistoryActsForEvent(historyEvent.id)))).flat()
+  return acts.sort((left, right) => left.actIndex - right.actIndex || left.id.localeCompare(right.id))
+}
+
+export async function listHistoryMessagesForAct(actId: string, page = 1, perPage = DEFAULT_PAGE_SIZE) {
+  return listCollection<WorkflowHistoryMessageRecord>(HISTORY_MESSAGE_COLLECTION, {
+    page,
+    perPage,
+    sort: '+nodeIndex',
+    filter: `act="${quoteFilter(actId)}"`,
+  })
+}
+
+export async function listAllHistoryMessagesForAct(actId: string): Promise<WorkflowHistoryMessageRecord[]> {
+  const first = await listHistoryMessagesForAct(actId)
+  return collectPages(first, (page) => listHistoryMessagesForAct(actId, page, first.perPage))
 }
 
 export function toErrorMessage(error: unknown, fallback = '操作失败，请重试'): string {

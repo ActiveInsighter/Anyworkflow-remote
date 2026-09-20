@@ -39,6 +39,8 @@ import {
   commandRun,
   deleteRun,
   getRun,
+  listAllHistoryMessagesForAct,
+  listHistoryActsForDispatchEvent,
   listEventsForTask,
   listTasksForRun,
   toErrorMessage,
@@ -49,13 +51,23 @@ import {
   eventProgressLabel,
   eventStatusMeta,
   formatDateTime,
+  historyStatusCompleted,
+  historyStatusMeta,
   modeLabel,
   progressPercent,
   progressText,
   runStatusMeta,
 } from '@/lib/format'
 import { describeSchedule } from '@/lib/schedule'
-import type { DispatchEventRecord, DispatchRequestedAction, DispatchRunRecord, DispatchTaskRecord } from '@/types'
+import { deriveEventProgress } from '@/lib/event-structure'
+import type {
+  DispatchEventRecord,
+  DispatchRequestedAction,
+  DispatchRunRecord,
+  DispatchTaskRecord,
+  WorkflowHistoryActRecord,
+  WorkflowHistoryMessageRecord,
+} from '@/types'
 import { toast } from 'sonner'
 
 const PAGE_SIZE = 20
@@ -69,7 +81,207 @@ function eventTitle(event: DispatchEventRecord): string {
   return event.queueTextOverride.match(/^\s*@event\s*=\s*(.*?)\s*$/imu)?.[1]?.trim() || `Event ${event.eventIndex + 1}`
 }
 
-function EventNode({ event, deepLinked }: { event: DispatchEventRecord; deepLinked: boolean }) {
+interface ProgressSummary {
+  completed: number
+  total: number
+  percent: number
+}
+
+function boundedCount(value: number | undefined): number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.floor(value) : 0
+}
+
+function historyActsProgress(acts: readonly WorkflowHistoryActRecord[], event: DispatchEventRecord): ProgressSummary {
+  const total = acts.length
+  const completed = event.terminalResult === 'succeeded'
+    ? total
+    : acts.filter((act) => historyStatusCompleted(act.status)).length
+  return { completed, total, percent: progressPercent(completed, total) }
+}
+
+function historyActMessagesProgress(
+  act: WorkflowHistoryActRecord,
+  messages: readonly WorkflowHistoryMessageRecord[] | null,
+): ProgressSummary {
+  const total = Math.max(boundedCount(act.messageCount), messages?.length ?? 0)
+  const completed = messages
+    ? messages.filter((message) => historyStatusCompleted(message.status)).length
+    : act.status === 'succeeded'
+      ? total
+      : 0
+  return { completed: Math.min(completed, total), total, percent: progressPercent(completed, total) }
+}
+
+function messagePreview(value: string, fallback: string): string {
+  const normalized = value.replace(/\s+/gu, ' ').trim()
+  return normalized ? normalized.slice(0, 120) : fallback
+}
+
+function HistoryMessageNode({ message }: { message: WorkflowHistoryMessageRecord }) {
+  const [open, setOpen] = useState(false)
+  const status = historyStatusMeta(message.status)
+
+  return (
+    <div className="border-b border-border last:border-b-0">
+      <button
+        type="button"
+        className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left outline-none transition-colors hover:bg-muted/35 focus-visible:bg-muted/45 sm:px-4"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+      >
+        {open ? <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" /> : <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />}
+        <span className="grid size-6 shrink-0 place-items-center rounded bg-muted text-[10px] font-semibold tabular-nums text-muted-foreground">
+          {message.nodeIndex + 1}
+        </span>
+        <span className="min-w-0 flex-1 truncate text-[11px]">{messagePreview(message.userMarkdown, `Message ${message.nodeIndex + 1}`)}</span>
+        <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+      </button>
+      {open ? (
+        <div className="grid gap-2 border-t border-border bg-background/60 px-3 py-3 text-[11px] sm:grid-cols-2 sm:px-4">
+          <div className="min-w-0">
+            <div className="mb-1 font-medium text-muted-foreground">发送内容</div>
+            <div className="max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-md border border-border bg-muted/35 p-2.5 leading-5">
+              {message.userMarkdown || '—'}
+            </div>
+          </div>
+          <div className="min-w-0">
+            <div className="mb-1 font-medium text-muted-foreground">回复内容</div>
+            <div className="max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-md border border-border bg-muted/35 p-2.5 leading-5">
+              {message.assistantMarkdown || '尚未收到回复'}
+            </div>
+            {message.conversationUrl ? (
+              <a
+                className="mt-2 inline-flex text-info hover:underline"
+                href={message.conversationUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                打开会话
+              </a>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function HistoryActNode({ act, activeRun }: { act: WorkflowHistoryActRecord; activeRun: boolean }) {
+  const [open, setOpen] = useState(false)
+  const messagesState = useAsyncData(
+    async () => listAllHistoryMessagesForAct(act.id),
+    [act.id, act.attempt],
+    {
+      enabled: open,
+      pollMs: open && activeRun ? 8_000 : undefined,
+      staleMs: 8_000,
+      cacheKey: open ? 'history-messages:' + act.id : undefined,
+      errorMessage: toErrorMessage,
+    },
+  )
+  const status = historyStatusMeta(act.status)
+  const progress = historyActMessagesProgress(act, messagesState.data)
+
+  return (
+    <div className="border-b border-border last:border-b-0">
+      <button
+        type="button"
+        className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left outline-none transition-colors hover:bg-muted/35 focus-visible:bg-muted/45 sm:px-4"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+      >
+        {open ? <ChevronDown className="size-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="size-4 shrink-0 text-muted-foreground" />}
+        <span className="grid size-7 shrink-0 place-items-center rounded-md bg-muted text-[10px] font-semibold tabular-nums text-muted-foreground">
+          {act.actIndex + 1}
+        </span>
+        <span className="min-w-0 flex-1 truncate text-[12px] font-medium">{act.title || `Act ${act.actIndex + 1}`}</span>
+        <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+        <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
+          {progressText(progress.completed, progress.total, 'Messages')} · {progress.percent}%
+        </span>
+      </button>
+
+      {open ? (
+        <div className="border-t border-border bg-background/60">
+          <div className="border-b border-border px-3 py-2.5 sm:px-4">
+            <div className="mb-1.5 flex items-center justify-between gap-3 text-[10px] tabular-nums text-muted-foreground">
+              <span>Act 内 Message 进度</span>
+              <span>{progressText(progress.completed, progress.total, 'Messages')} · {progress.percent}%</span>
+            </div>
+            <ProgressBar value={progress.percent} tone={status.tone} />
+          </div>
+          {messagesState.loading && !messagesState.data ? <div className="p-3 sm:p-4"><LoadingState label="加载 Message…" /></div> : null}
+          {messagesState.error ? <div className="px-3 pt-3 sm:px-4"><InlineError>{messagesState.error}</InlineError></div> : null}
+          {messagesState.data?.length ? messagesState.data.map((message) => <HistoryMessageNode key={message.id} message={message} />) : null}
+          {messagesState.data && messagesState.data.length === 0 ? (
+            <div className="px-4 py-4 text-[11px] text-muted-foreground">暂无 Message 记录，等待执行器回传。</div>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function FallbackActNode({ act }: { act: ReturnType<typeof deriveEventProgress>['acts'][number] }) {
+  const [open, setOpen] = useState(false)
+  const running = act.state === 'running'
+  const status = running
+    ? { label: '执行中', tone: 'warning' as const }
+    : act.state === 'completed'
+      ? { label: '已完成', tone: 'success' as const }
+      : { label: '等待执行', tone: 'neutral' as const }
+
+  return (
+    <div className="border-b border-border last:border-b-0">
+      <button
+        type="button"
+        className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left outline-none transition-colors hover:bg-muted/35 focus-visible:bg-muted/45 sm:px-4"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+      >
+        {open ? <ChevronDown className="size-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="size-4 shrink-0 text-muted-foreground" />}
+        <span className="grid size-7 shrink-0 place-items-center rounded-md bg-muted text-[10px] font-semibold tabular-nums text-muted-foreground">
+          {act.id.replace('act-', '')}
+        </span>
+        <span className="min-w-0 flex-1 truncate text-[12px] font-medium">{act.title}</span>
+        <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+        <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
+          {progressText(act.completedMessages, act.messageCount, 'Messages')} · {act.percent}%
+        </span>
+      </button>
+      {open ? (
+        <div className="border-t border-border bg-background/60">
+          <div className="border-b border-border px-3 py-2.5 sm:px-4">
+            <div className="mb-1.5 flex items-center justify-between gap-3 text-[10px] tabular-nums text-muted-foreground">
+              <span>Act 内 Message 进度</span>
+              <span>{progressText(act.completedMessages, act.messageCount, 'Messages')} · {act.percent}%</span>
+            </div>
+            <ProgressBar value={act.percent} tone={status.tone} />
+          </div>
+          <div className="px-3 py-2 text-[10px] text-muted-foreground sm:px-4">历史 Message 尚未回传，以下状态按 Event 进度暂时推断。</div>
+          {Array.from({ length: act.messageCount }, (_, index) => {
+            const completed = index < act.completedMessages
+            const current = running && index === act.completedMessages
+            const messageStatus = completed
+              ? { label: '已完成', tone: 'success' as const }
+              : current
+                ? { label: '执行中', tone: 'warning' as const }
+                : { label: '等待执行', tone: 'neutral' as const }
+            return (
+              <div key={act.id + '-message-' + index} className="flex items-center gap-2.5 border-t border-border px-3 py-2.5 text-[11px] sm:px-4">
+                <span className="grid size-6 shrink-0 place-items-center rounded bg-muted text-[10px] font-semibold tabular-nums text-muted-foreground">{index + 1}</span>
+                <span className="min-w-0 flex-1 truncate">Message {index + 1}</span>
+                <StatusBadge tone={messageStatus.tone}>{messageStatus.label}</StatusBadge>
+              </div>
+            )
+          })}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function EventNode({ event, deepLinked, activeRun }: { event: DispatchEventRecord; deepLinked: boolean; activeRun: boolean }) {
   const [open, setOpen] = useState(deepLinked)
   const [contentOpen, setContentOpen] = useState(false)
 
@@ -78,6 +290,25 @@ function EventNode({ event, deepLinked }: { event: DispatchEventRecord; deepLink
   }, [deepLinked])
 
   const status = eventStatusMeta(event.status, event.terminalResult)
+  const fallbackProgress = deriveEventProgress(event.queueTextOverride, event.progress, event.terminalResult)
+  const historyActsState = useAsyncData(
+    async () => listHistoryActsForDispatchEvent(event),
+    [event.id, event.localRunId, event.attempt],
+    {
+      enabled: open && Boolean(event.localRunId),
+      pollMs: open && activeRun ? 8_000 : undefined,
+      staleMs: 8_000,
+      cacheKey: open && event.localRunId ? 'history-acts:' + event.id + ':' + event.localRunId : undefined,
+      errorMessage: toErrorMessage,
+    },
+  )
+  const hasHistory = Boolean(historyActsState.data?.length)
+  const historyProgress = hasHistory && historyActsState.data ? historyActsProgress(historyActsState.data, event) : null
+  const progressLabel = historyProgress
+    ? `${historyProgress.completed} / ${historyProgress.total} Acts · ${historyProgress.percent}%`
+    : fallbackProgress.totalActs
+      ? `${fallbackProgress.completedActs} / ${fallbackProgress.totalActs} Acts · ${fallbackProgress.percent}%`
+      : eventProgressLabel(event.status, event.progress)
 
   return (
     <div id={'event-' + event.id} className="border-b border-border last:border-b-0">
@@ -93,13 +324,29 @@ function EventNode({ event, deepLinked }: { event: DispatchEventRecord; deepLink
         </span>
         <span className="min-w-0 flex-1 truncate text-[12px] font-medium">{eventTitle(event)}</span>
         <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-        <span className="hidden max-w-[38%] shrink-0 truncate text-[10px] text-muted-foreground sm:block">
-          {eventProgressLabel(event.status, event.progress)}
-        </span>
+        <span className="max-w-[42%] shrink-0 truncate text-[10px] tabular-nums text-muted-foreground">{progressLabel}</span>
       </button>
 
       {open ? (
         <div className="border-t border-border bg-muted/10 px-3 py-2.5 sm:px-4">
+          <div className="mb-3 rounded-md border border-border bg-card px-3 py-2.5">
+            <div className="mb-1.5 flex items-center justify-between gap-3 text-[10px] tabular-nums text-muted-foreground">
+              <span>Event 内 Act 进度</span>
+              <span>{progressLabel}</span>
+            </div>
+            <ProgressBar value={historyProgress?.percent ?? fallbackProgress.percent} tone={status.tone} />
+          </div>
+          {historyActsState.loading && !historyActsState.data ? <LoadingState label="加载 Act…" /> : null}
+          {historyActsState.error ? <div className="mb-3"><InlineError>历史 Act 暂不可用，当前显示执行定义：{historyActsState.error}</InlineError></div> : null}
+          {hasHistory && historyActsState.data ? (
+            <div className="mb-3 overflow-hidden rounded-md border border-border bg-card">
+              {historyActsState.data.map((act) => <HistoryActNode key={act.id} act={act} activeRun={activeRun} />)}
+            </div>
+          ) : fallbackProgress.acts.length ? (
+            <div className="mb-3 overflow-hidden rounded-md border border-border bg-card">
+              {fallbackProgress.acts.map((act) => <FallbackActNode key={act.id} act={act} />)}
+            </div>
+          ) : null}
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
             {event.attempt > 0 ? <span>尝试 {event.attempt}</span> : null}
             <span>{formatDateTime(event.updated)}</span>
@@ -200,7 +447,7 @@ function TaskNode({
           {eventsState.data?.items.length ? (
             <div className="ms-3 border-s border-border sm:ms-7">
               {eventsState.data.items.map((event) => (
-                <EventNode key={event.id} event={event} deepLinked={event.id === deepEventId} />
+                <EventNode key={event.id} event={event} deepLinked={event.id === deepEventId} activeRun={activeRun} />
               ))}
             </div>
           ) : null}

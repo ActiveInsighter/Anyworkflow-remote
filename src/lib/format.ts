@@ -4,6 +4,7 @@ import type {
   DispatchRequestedAction,
   DispatchStatus,
   StatusTone,
+  WorkflowHistoryStatus,
 } from '../types'
 
 const STATUS_META: Record<DispatchStatus, { label: string; tone: StatusTone }> = {
@@ -90,4 +91,16 @@ export function eventProgressLabel(status: DispatchEventStatus, progress: Record
   if (status === 'running') return '等待执行器上报进度'
   if (status === 'paused') return '等待恢复执行'
   return '暂无进度信息'
+}
+
+export function historyStatusMeta(status: WorkflowHistoryStatus) {
+  if (status === 'succeeded') return { label: '已完成', tone: 'success' as const }
+  if (status === 'failed') return { label: '失败', tone: 'danger' as const }
+  if (status === 'canceled') return { label: '已取消', tone: 'neutral' as const }
+  if (status === 'interrupted') return { label: '已中断', tone: 'danger' as const }
+  return { label: '等待执行', tone: 'neutral' as const }
+}
+
+export function historyStatusCompleted(status: WorkflowHistoryStatus): boolean {
+  return status !== 'unknown'
 }

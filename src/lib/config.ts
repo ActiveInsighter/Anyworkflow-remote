@@ -5,6 +5,9 @@ export const AUTH_COLLECTION = 'aw_clients'
 export const RUN_COLLECTION = 'aw_dispatch_runs'
 export const TASK_COLLECTION = 'aw_dispatch_tasks'
 export const EVENT_COLLECTION = 'aw_dispatch_events'
+export const HISTORY_EVENT_COLLECTION = 'aw_events'
+export const HISTORY_ACT_COLLECTION = 'aw_acts'
+export const HISTORY_MESSAGE_COLLECTION = 'aw_messages'
 
 export const DEFAULT_PAGE_SIZE = 100
 export const MAX_CONCURRENCY = 16
