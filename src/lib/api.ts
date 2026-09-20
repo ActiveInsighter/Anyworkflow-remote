@@ -8,7 +8,7 @@ import {
 } from './config'
 import { clearSession, requireSession, saveBaseUrl, setSession } from './session'
 import { parsePlanMeta } from './plan'
-import { isValidScheduledAt } from './schedule'
+import { isFutureScheduledAt, isValidScheduledAt } from './schedule'
 import type {
   AuthSession,
   DispatchEventRecord,
@@ -128,6 +128,9 @@ function checkedScheduledAt(value: string): string {
   const trimmed = value.trim()
   if (!isValidScheduledAt(trimmed)) {
     throw new ApiError('执行时间格式无效，需要带时区偏移的 ISO-8601 时刻', 400, 'INVALID_SCHEDULED_AT')
+  }
+  if (trimmed && !isFutureScheduledAt(trimmed)) {
+    throw new ApiError('执行时间必须晚于当前时间', 400, 'SCHEDULED_AT_NOT_FUTURE')
   }
   return trimmed
 }

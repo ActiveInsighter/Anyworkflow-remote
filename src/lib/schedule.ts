@@ -12,21 +12,13 @@ export const SCHEDULED_AT_PATTERN =
 /** How the user expressed the instant. Both `at` and `after` collapse to the same stored value. */
 export type ScheduleMode = 'now' | 'at' | 'after'
 
-export interface DelayPreset {
-  id: string
-  label: string
-  /** Offset from now. */
-  minutes?: number
-  /** Next occurrence of this local hour — that is what "明早 9 点" means. */
-  nextLocalHour?: number
-}
+export type DelayUnit = 'minute' | 'hour' | 'day'
 
-export const DELAY_PRESETS: readonly DelayPreset[] = [
-  { id: '15m', label: '+15 分', minutes: 15 },
-  { id: '1h', label: '+1 小时', minutes: 60 },
-  { id: '3h', label: '+3 小时', minutes: 180 },
-  { id: 'tomorrow9', label: '明早 9 点', nextLocalHour: 9 },
-]
+const DELAY_UNIT_MINUTES: Record<DelayUnit, number> = {
+  minute: 1,
+  hour: 60,
+  day: 24 * 60,
+}
 
 const pad = (value: number) => String(value).padStart(2, '0')
 
@@ -68,19 +60,29 @@ export function fromLocalInputValue(value: string): string {
   return Number.isFinite(date.getTime()) ? toScheduledAt(date) : ''
 }
 
-export function resolveDelayPreset(preset: DelayPreset, now = new Date()): Date {
-  if (preset.minutes !== undefined) return new Date(now.getTime() + preset.minutes * 60_000)
-  const target = new Date(now)
-  target.setDate(target.getDate() + 1)
-  target.setHours(preset.nextLocalHour ?? 9, 0, 0, 0)
+export function resolveDelay(amount: number, unit: DelayUnit, now = new Date()): Date {
+  const safeAmount = Number.isFinite(amount) ? Math.max(0, amount) : 0
+  return new Date(now.getTime() + safeAmount * DELAY_UNIT_MINUTES[unit] * 60_000)
+}
+
+/**
+ * Earliest minute representable by a datetime-local control that is strictly after now.
+ * Adding one millisecond before the ceiling keeps an exact HH:mm:00 instant from being accepted.
+ */
+export function minimumScheduleTime(now = new Date()): Date {
+  return new Date(Math.ceil((now.getTime() + 1) / 60_000) * 60_000)
+}
+
+/** One hour out, rounded to minute precision — a sensible starting point for the picker. */
+export function defaultScheduleTime(now = new Date()): Date {
+  const target = resolveDelay(1, 'hour', now)
+  target.setSeconds(0, 0)
   return target
 }
 
-/** One hour out, rounded down to the minute — a sensible starting point for the picker. */
-export function defaultScheduleTime(now = new Date()): Date {
-  const target = new Date(now.getTime() + 60 * 60_000)
-  target.setSeconds(0, 0)
-  return target
+export function isFutureScheduledAt(value: string, now = new Date()): boolean {
+  const target = parseScheduledAt(value)
+  return Boolean(target && target.getTime() > now.getTime())
 }
 
 export function formatRelative(target: Date, now: Date): string {

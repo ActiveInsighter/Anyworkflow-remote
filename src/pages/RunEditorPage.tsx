@@ -14,16 +14,17 @@ import { clearEditorDraft, draftScopeFor, readEditorDraft, writeEditorDraft, typ
 import { formatDateTime } from '@/lib/format'
 import { getWorkflowTemplate, updateWorkflowTemplate } from '@/lib/library'
 import { createStarterPlan, parsePlanMeta } from '@/lib/plan'
-import { DELAY_PRESETS, defaultScheduleTime, describeSchedule, resolveDelayPreset, toScheduledAt, type ScheduleMode } from '@/lib/schedule'
+import {
+  defaultScheduleTime,
+  describeSchedule,
+  isFutureScheduledAt,
+  resolveDelay,
+  toScheduledAt,
+  type DelayUnit,
+  type ScheduleMode,
+} from '@/lib/schedule'
 import { useSession } from '@/lib/session'
 import { toast } from 'sonner'
-
-const UNSAFE_FILENAME = /[\\/:*?"<>|\u0000-\u001f]/gu
-
-function editorFileName(title: string): string {
-  const base = title.trim().replace(UNSAFE_FILENAME, '-').replace(/\s+/gu, ' ').slice(0, 60).trim()
-  return `${base || 'plan'}.aw`
-}
 
 export function RunEditorPage() {
   const { runId } = useParams()
@@ -39,6 +40,8 @@ export function RunEditorPage() {
   const [templateTitle, setTemplateTitle] = useState('')
   const [scheduleMode, setScheduleMode] = useState<ScheduleMode>('now')
   const [scheduledAt, setScheduledAt] = useState('')
+  const [delayAmount, setDelayAmount] = useState('1')
+  const [delayUnit, setDelayUnit] = useState<DelayUnit>('hour')
   const [loading, setLoading] = useState(Boolean(runId || templateId))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -59,7 +62,10 @@ export function RunEditorPage() {
   const diagnostics = useMemo(() => validateAnyWorkflowSource(source), [source])
   const errorCount = diagnostics.filter((item) => item.severity === 'error').length
   const scheduleEditable = templateMode !== 'edit'
-  const scheduleUnresolved = scheduleEditable && scheduleMode !== 'now' && !scheduledAt
+  const scheduleInvalid =
+    scheduleEditable &&
+    scheduleMode !== 'now' &&
+    (!scheduledAt || !isFutureScheduledAt(scheduledAt, new Date(now)))
 
   function currentDraftPayload() {
     const currentMeta = parsePlanMeta(sourceRef.current)
@@ -138,12 +144,31 @@ export function RunEditorPage() {
     }
   }, [scope])
 
+  function updateDelay(amountText: string, unit: DelayUnit = delayUnit) {
+    setDelayAmount(amountText)
+    setDelayUnit(unit)
+    const amount = Number(amountText)
+    if (!Number.isSafeInteger(amount) || amount < 1) {
+      setScheduledAt('')
+    } else {
+      setScheduledAt(toScheduledAt(resolveDelay(amount, unit, new Date(now))))
+    }
+    setDirty(true)
+  }
+
   function changeSchedule(next: { mode?: ScheduleMode; value?: string }) {
     if (next.mode !== undefined) {
       setScheduleMode(next.mode)
-      if (next.mode === 'now') setScheduledAt('')
-      else if (next.mode === 'at') setScheduledAt(toScheduledAt(defaultScheduleTime()))
-      else setScheduledAt((current) => current || toScheduledAt(resolveDelayPreset(DELAY_PRESETS[1])))
+      if (next.mode === 'now') {
+        setScheduledAt('')
+      } else if (next.mode === 'at') {
+        setScheduledAt(toScheduledAt(defaultScheduleTime(new Date(now))))
+      } else {
+        const amount = Number(delayAmount)
+        const safeAmount = Number.isSafeInteger(amount) && amount >= 1 ? amount : 1
+        if (safeAmount !== amount) setDelayAmount(String(safeAmount))
+        setScheduledAt(toScheduledAt(resolveDelay(safeAmount, delayUnit, new Date(now))))
+      }
     }
     if (next.value !== undefined) setScheduledAt(next.value)
     setDirty(true)
@@ -178,8 +203,8 @@ export function RunEditorPage() {
       editorRef.current?.focus()
       return
     }
-    if (scheduleUnresolved) {
-      setError('请选择执行时间')
+    if (scheduleInvalid) {
+      setError('执行时间必须晚于当前时间；延时至少为 1 分钟')
       return
     }
 
@@ -226,12 +251,13 @@ export function RunEditorPage() {
 
   const pageTitle = templateMode === 'edit' ? templateTitle || '编辑模板' : meta.title || (runId ? '未命名 Run' : '新建 Run')
   const scheduleSummary = describeSchedule(scheduleEditable ? scheduledAt : '', new Date(now))
-  const blocked = saving || errorCount > 0 || scheduleUnresolved
+  const blocked = saving || errorCount > 0 || scheduleInvalid
 
   return (
     <AppPage className="max-w-[1360px] px-3 sm:px-5 lg:px-8">
       <PageHeader
         title={pageTitle}
+        className="mb-3 sm:mb-4"
         actions={
           <div className="flex items-center gap-2">
             {errorCount > 0 ? <Badge variant="destructive" className="rounded-md">{errorCount} 错误</Badge> : null}
@@ -260,21 +286,25 @@ export function RunEditorPage() {
       ) : null}
 
       {scheduleEditable ? (
-        <div className="mb-3 rounded-lg border border-border bg-card px-3 py-2.5">
+        <div className="mb-2.5 rounded-lg border border-border bg-muted/20 px-2.5 py-2 sm:px-3">
           <SchedulePicker
             mode={scheduleMode}
             value={scheduledAt}
             onModeChange={(next) => changeSchedule({ mode: next })}
             onValueChange={(next) => changeSchedule({ value: next })}
+            delayAmount={delayAmount}
+            delayUnit={delayUnit}
+            onDelayAmountChange={(next) => updateDelay(next)}
+            onDelayUnitChange={(next) => updateDelay(delayAmount, next)}
             now={now}
             compact
           />
         </div>
       ) : null}
 
-      <AnyWorkflowEditor ref={editorRef} value={source} onChange={onEditorChange} onSave={() => void persist(false)} downloadName={editorFileName(meta.title)} />
+      <AnyWorkflowEditor ref={editorRef} value={source} onChange={onEditorChange} onSave={() => void persist(false)} />
 
-      <div className="mt-3 flex items-center justify-end gap-2 border-t border-border pt-3 sm:sticky sm:bottom-3 sm:z-20 sm:rounded-lg sm:border sm:bg-background/95 sm:p-2 sm:shadow-md sm:backdrop-blur">
+      <div className="mt-2.5 flex items-center justify-end gap-2 border-t border-border pt-2.5 sm:sticky sm:bottom-3 sm:z-20 sm:rounded-lg sm:border sm:bg-background/95 sm:p-2 sm:shadow-sm sm:backdrop-blur">
         {templateMode === 'edit' ? (
           <Button variant="secondary" className="h-11 sm:h-9" onClick={() => void persist(false)} disabled={saving || errorCount > 0}><Save />{saving ? '保存中…' : '保存模板'}</Button>
         ) : (

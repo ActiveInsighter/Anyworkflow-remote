@@ -8,21 +8,23 @@
 
 [data-slot='sidebar-root'] {
   display: flex;
-  align-items: flex-start;
+  align-items: stretch;
   width: 100%;
+  height: 100%;
   min-width: 0;
-  min-height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* ---------------------------------------------------------------- desktop shell */
 
 [data-slot='sidebar-shell'] {
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 30;
   flex: 0 0 auto;
   width: var(--sidebar-width);
-  height: 100dvh;
+  height: 100%;
+  min-height: 0;
   overflow: clip;
   color: var(--sidebar-foreground);
   background: var(--sidebar-surface);
@@ -148,7 +150,14 @@
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
+  width: 0;
+  height: 100%;
   min-width: 0;
+  min-height: 0;
+  overflow-x: clip;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 /* ---------------------------------------------------------------- menu */
