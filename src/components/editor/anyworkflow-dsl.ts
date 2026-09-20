@@ -269,16 +269,32 @@ function appendSeparator(before: string): string {
   return '\n\n'
 }
 
-function variableInsertPoint(source: string, event: StructuralBlock): number {
-  let cursor = event.headerEnd
-  while (cursor < event.closeAt) {
+function variableInsertPoint(source: string, task: StructuralBlock): number {
+  let cursor = task.headerEnd
+  let insertAt = cursor
+
+  while (cursor < task.closeAt) {
     const end = source.indexOf('\n', cursor)
     const lineEnd = end < 0 ? source.length : end
     const line = source.slice(cursor, lineEnd)
-    if (!/^\s*@var\s+[A-Za-z_][A-Za-z0-9_]*\s*=/iu.test(line)) break
-    cursor = end < 0 ? source.length : end + 1
+    const trimmed = line.trim()
+    const next = end < 0 ? source.length : end + 1
+
+    if (!trimmed) {
+      cursor = next
+      continue
+    }
+
+    if (/^@(mode|maxConcurrency)\s*=/iu.test(trimmed) || /^@var\s+[A-Za-z_][A-Za-z0-9_]*\s*=/iu.test(trimmed)) {
+      insertAt = next
+      cursor = next
+      continue
+    }
+
+    break
   }
-  return cursor
+
+  return insertAt
 }
 
 export function planStructuredInsert(
@@ -295,11 +311,11 @@ export function planStructuredInsert(
     return { ok: true, from: source.length, text, cursorOffset: separator.length + '@task '.length }
   }
 
-  const targetKind = kind === 'event' ? 'task' : 'event'
+  const targetKind = kind === 'event' || kind === 'variable' ? 'task' : 'event'
   const container = containingBlock(source, at, targetKind)
   if (!container) {
     const label = kind === 'event' ? 'Event' : kind === 'act' ? 'Act' : '变量'
-    const required = kind === 'event' ? 'Task' : 'Event'
+    const required = kind === 'event' || kind === 'variable' ? 'Task' : 'Event'
     return { ok: false, message: `${label} 只能在 ${required} 内添加，请先把光标放到对应的 ${required} 中。` }
   }
   if (container.closeAt < 0) {
@@ -457,11 +473,19 @@ export function planSmartDelete(source: string, from: number, to: number): Smart
 }
 
 interface VariableScope {
+  kind: 'run' | 'task' | 'event' | 'act' | 'message' | 'for-task' | 'for-event' | 'for-queue'
   variables: Set<string>
 }
 
+function variableScopeContext(frames: VariableScope[]): DslContext {
+  const kind = frames.at(-1)?.kind ?? 'run'
+  if (kind === 'event' || kind === 'act' || kind === 'message' || kind === 'for-queue') return 'event'
+  if (kind === 'task' || kind === 'for-event') return 'task'
+  return 'run'
+}
+
 export function collectUsableVariables(source: string, at: number): string[] {
-  const frames: VariableScope[] = [{ variables: new Set<string>() }]
+  const frames: VariableScope[] = [{ kind: 'run', variables: new Set<string>() }]
   const prefix = source.slice(0, Math.max(0, Math.min(at, source.length)))
   const lines = prefix.split(/\r?\n/u)
   let inFence = false
@@ -481,26 +505,37 @@ export function collectUsableVariables(source: string, at: number): string[] {
       continue
     }
 
+    const context = variableScopeContext(frames)
     const variable = line.match(/^@var\s+([A-Za-z_][A-Za-z0-9_]*)\s*=/iu)
     if (variable?.[1]) {
-      frames.at(-1)?.variables.add(variable[1])
+      // User-defined variables are Task-scoped. Event/Run declarations are invalid and should
+      // never leak into completion suggestions even when editing an older malformed draft.
+      if (context === 'task') frames.at(-1)?.variables.add(variable[1])
       continue
     }
 
     const loop = line.match(/^@for\s+([A-Za-z_][A-Za-z0-9_]*)\s+in\s+range\([^)]*\)\s*\{\s*$/iu)
     if (loop?.[1]) {
-      frames.push({ variables: new Set([loop[1]]) })
+      frames.push({
+        kind: context === 'run' ? 'for-task' : context === 'task' ? 'for-event' : 'for-queue',
+        variables: new Set([loop[1]]),
+      })
       continue
     }
 
-    if (
-      /^@task\s+.+\{\s*$/iu.test(line) ||
-      /^@event\s+.+\{\s*$/iu.test(line) ||
-      /^@act\s*\{\s*$/iu.test(line) ||
-      /^\{\s*$/u.test(line)
-    ) {
-      frames.push({ variables: new Set<string>() })
+    if (/^@task\s+.+\{\s*$/iu.test(line)) {
+      frames.push({ kind: 'task', variables: new Set<string>() })
+      continue
     }
+    if (/^@event\s+.+\{\s*$/iu.test(line)) {
+      frames.push({ kind: 'event', variables: new Set<string>() })
+      continue
+    }
+    if (/^@act\s*\{\s*$/iu.test(line)) {
+      frames.push({ kind: 'act', variables: new Set<string>() })
+      continue
+    }
+    if (/^\{\s*$/u.test(line)) frames.push({ kind: 'message', variables: new Set<string>() })
   }
 
   const visible = new Set<string>()
@@ -525,17 +560,18 @@ function applyVariableCompletion(
 }
 
 function variableOptions(source: string, at: number): Completion[] {
-  return collectUsableVariables(source, at).flatMap((name) => [
-    { label: `%${name}%`, type: 'variable', detail: '变量', apply: applyVariableCompletion },
-    { label: `%${name}:pad2%`, type: 'variable', detail: '补零到 2 位', apply: applyVariableCompletion },
-  ])
+  return collectUsableVariables(source, at).map((name) => ({
+    label: `%${name}%`,
+    type: 'variable',
+    detail: '变量',
+    apply: applyVariableCompletion,
+  }))
 }
 
 function directiveOptions(context: DslContext): Completion[] {
   const shared: Completion[] = [
     { label: '@mode', type: 'keyword', detail: 'serial | parallel', apply: '@mode=serial' },
     { label: '@maxConcurrency', type: 'keyword', detail: '1–16', apply: '@maxConcurrency=2' },
-    snippetCompletion('@var ${name}=${value}', { label: '@var', type: 'keyword', detail: '变量' }),
   ]
 
   if (context === 'run') {
@@ -549,6 +585,7 @@ function directiveOptions(context: DslContext): Completion[] {
   if (context === 'task') {
     return [
       ...shared,
+      snippetCompletion('@var ${name}=${value}', { label: '@var', type: 'keyword', detail: 'Task 变量' }),
       snippetCompletion('@event ${执行单元} {\n  {\n    ${消息}\n  }\n}', { label: '@event', type: 'keyword', detail: 'Event 块' }),
       snippetCompletion('@for ${i} in range(1, 3) {\n  @event ${执行单元} {\n    {\n      ${消息}\n    }\n  }\n}', { label: '@for', type: 'keyword', detail: 'Event 循环' }),
     ]
@@ -556,7 +593,6 @@ function directiveOptions(context: DslContext): Completion[] {
 
   return [
     snippetCompletion('@act {\n  @action=${动作名称}\n  {\n    ${消息}\n  }\n}', { label: '@act', type: 'keyword', detail: 'Act 块' }),
-    snippetCompletion('@var ${name}=${value}', { label: '@var', type: 'keyword', detail: '变量' }),
     snippetCompletion('{\n  ${消息}\n}', { label: '{ message }', type: 'text', detail: '消息块' }),
     snippetCompletion('<${链接}>', { label: '<链接>', type: 'text', detail: '打开页面' }),
   ]
@@ -646,7 +682,10 @@ export function validateAnyWorkflowSource(source: string): Diagnostic[] {
       if (!Number.isSafeInteger(value) || value < 1 || value > 16) add(lineNumber, '@maxConcurrency 必须是 1–16')
     }
 
-    if (/^@var\b/iu.test(line) && !/^@var\s+[A-Za-z_][A-Za-z0-9_]*\s*=.*$/iu.test(line)) add(lineNumber, '@var 格式应为 @var name=value')
+    if (/^@var\b/iu.test(line) && !(context === 'event' && queueDepth > 0)) {
+      if (!/^@var\s+[A-Za-z_][A-Za-z0-9_]*\s*=.*$/iu.test(line)) add(lineNumber, '@var 格式应为 @var name=value')
+      else if (context !== 'task') add(lineNumber, '@var 只能定义在 Task 内；Event 中直接使用 %变量名%')
+    }
 
     const forMatch = line.match(/^@for\s+([A-Za-z_][A-Za-z0-9_]*)\s+in\s+range\((.*?)\)\s*\{\s*$/iu)
     if (/^@for\b/iu.test(line) && !forMatch) add(lineNumber, '@for 格式无效')

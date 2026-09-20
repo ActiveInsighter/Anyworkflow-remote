@@ -1,12 +1,20 @@
-import { CircleCheck, History, Play, Save } from 'lucide-react'
+import { CalendarClock, CircleCheck, History, Play, Save } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { AnyWorkflowEditor, type AnyWorkflowEditorHandle } from '@/components/editor/AnyWorkflowEditor'
 import { validateAnyWorkflowSource } from '@/components/editor/anyworkflow-dsl'
-import { AppPage, EmptyState, ErrorBanner, Field, LoadingState, PageHeader, Panel, TextInput } from '@/components/app/ui'
+import { AppPage, EmptyState, Field, InlineError, LoadingState, Panel, TextInput } from '@/components/app/ui'
 import { SchedulePicker } from '@/components/app/schedule-picker'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { invalidateAsyncDataCache } from '@/hooks/useAsyncData'
 import { useNow } from '@/hooks/useNow'
 import { createRun, getRun, toErrorMessage, updateRunDraft } from '@/lib/api'
@@ -42,6 +50,7 @@ export function RunEditorPage() {
   const [scheduledAt, setScheduledAt] = useState('')
   const [delayAmount, setDelayAmount] = useState('1')
   const [delayUnit, setDelayUnit] = useState<DelayUnit>('hour')
+  const [scheduleOpen, setScheduleOpen] = useState(false)
   const [loading, setLoading] = useState(Boolean(runId || templateId))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -205,6 +214,7 @@ export function RunEditorPage() {
     }
     if (scheduleInvalid) {
       setError('执行时间必须晚于当前时间；延时至少为 1 分钟')
+      setScheduleOpen(true)
       return
     }
 
@@ -252,68 +262,141 @@ export function RunEditorPage() {
   const pageTitle = templateMode === 'edit' ? templateTitle || '编辑模板' : meta.title || (runId ? '未命名 Run' : '新建 Run')
   const scheduleSummary = describeSchedule(scheduleEditable ? scheduledAt : '', new Date(now))
   const blocked = saving || errorCount > 0 || scheduleInvalid
+  const delayUnitLabel = delayUnit === 'minute' ? '分钟' : delayUnit === 'hour' ? '小时' : '天'
+  const scheduleButtonLabel =
+    scheduleMode === 'now'
+      ? '立即'
+      : scheduleMode === 'at'
+        ? '定时'
+        : `${delayAmount || 1}${delayUnitLabel}后`
 
   return (
-    <AppPage className="max-w-[1360px] px-3 sm:px-5 lg:px-8">
-      <PageHeader
-        title={pageTitle}
-        className="mb-3 sm:mb-4"
-        actions={
-          <div className="flex items-center gap-2">
-            {errorCount > 0 ? <Badge variant="destructive" className="rounded-md">{errorCount} 错误</Badge> : null}
-            {dirty ? (
-              <Badge variant="warning" className="rounded-md">本地草稿</Badge>
-            ) : runId || templateMode === 'edit' ? (
-              <Badge variant="secondary" className="rounded-md"><CircleCheck className="me-1 size-3" />已保存</Badge>
-            ) : null}
-          </div>
-        }
-      />
+    <AppPage className="aw-run-editor-page flex min-h-0 flex-1 flex-col overflow-hidden max-w-[1360px] px-3 pb-[calc(8px+env(safe-area-inset-bottom))] pt-3 sm:px-5 sm:pb-3 sm:pt-4 lg:px-8">
+      <div className="mb-2 flex min-w-0 shrink-0 items-center gap-2 px-0.5">
+        <h1 className="min-w-0 truncate text-[21px] font-semibold tracking-[-0.03em] sm:text-[24px]">{pageTitle}</h1>
+        {dirty ? (
+          <Badge variant="warning" className="shrink-0 rounded-md">本地草稿</Badge>
+        ) : runId || templateMode === 'edit' ? (
+          <Badge variant="secondary" className="shrink-0 rounded-md"><CircleCheck className="me-1 size-3" />已保存</Badge>
+        ) : null}
+        {errorCount > 0 ? <Badge variant="destructive" className="shrink-0 rounded-md">{errorCount} 错误</Badge> : null}
+      </div>
 
-      {error ? <ErrorBanner>{error}</ErrorBanner> : null}
+      {error ? <div className="mb-2 shrink-0"><InlineError>{error}</InlineError></div> : null}
 
       {restorable ? (
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-info/20 bg-info-soft px-3 py-2.5">
-          <span className="flex min-w-0 items-center gap-2 text-xs"><History className="size-4 shrink-0 text-info" />本地草稿 · {formatDateTime(new Date(restorable.savedAt).toISOString())}</span>
-          <span className="flex items-center gap-1.5"><Button size="sm" variant="secondary" onClick={restoreDraft}>恢复</Button><Button size="sm" variant="ghost" onClick={discardDraft}>丢弃</Button></span>
+        <div className="mb-2 flex shrink-0 items-center justify-between gap-2 rounded-md border border-info/20 bg-info-soft px-3 py-2">
+          <span className="flex min-w-0 items-center gap-2 truncate text-xs">
+            <History className="size-4 shrink-0 text-info" />
+            <span className="truncate">本地草稿 · {formatDateTime(new Date(restorable.savedAt).toISOString())}</span>
+          </span>
+          <span className="flex shrink-0 items-center gap-1">
+            <Button size="sm" variant="secondary" onClick={restoreDraft}>恢复</Button>
+            <Button size="sm" variant="ghost" onClick={discardDraft}>丢弃</Button>
+          </span>
         </div>
       ) : null}
 
       {templateMode === 'edit' ? (
-        <Panel className="mb-3 p-3">
-          <Field label="模板名称"><TextInput name="template-title" value={templateTitle} maxLength={512} onChange={(event) => { setTemplateTitle(event.target.value); setDirty(true) }} /></Field>
+        <Panel className="mb-2 shrink-0 p-2.5">
+          <Field label="模板名称">
+            <TextInput
+              name="template-title"
+              value={templateTitle}
+              maxLength={512}
+              onChange={(event) => {
+                setTemplateTitle(event.target.value)
+                setDirty(true)
+              }}
+            />
+          </Field>
         </Panel>
       ) : null}
 
-      {scheduleEditable ? (
-        <div className="mb-2.5 rounded-lg border border-border bg-muted/20 px-2.5 py-2 sm:px-3">
-          <SchedulePicker
-            mode={scheduleMode}
-            value={scheduledAt}
-            onModeChange={(next) => changeSchedule({ mode: next })}
-            onValueChange={(next) => changeSchedule({ value: next })}
-            delayAmount={delayAmount}
-            delayUnit={delayUnit}
-            onDelayAmountChange={(next) => updateDelay(next)}
-            onDelayUnitChange={(next) => updateDelay(delayAmount, next)}
-            now={now}
-            compact
-          />
+      <AnyWorkflowEditor
+        ref={editorRef}
+        value={source}
+        onChange={onEditorChange}
+        onSave={() => void persist(false)}
+        className="h-auto min-h-0 flex-1 sm:h-auto sm:min-h-0"
+      />
+
+      <div className="mt-2 flex shrink-0 items-center gap-2 border-t border-border pt-2">
+        {scheduleEditable ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="h-10 shrink-0 px-2.5 text-xs"
+            onClick={() => setScheduleOpen(true)}
+            aria-haspopup="dialog"
+            title={scheduleSummary.pending ? `${scheduleSummary.absolute} · ${scheduleSummary.relative}` : '设置执行时间'}
+          >
+            <CalendarClock className="size-4" />
+            {scheduleButtonLabel}
+          </Button>
+        ) : null}
+
+        <div className="ms-auto flex min-w-0 items-center gap-2">
+          {templateMode === 'edit' ? (
+            <Button
+              variant="secondary"
+              className="h-10 shrink-0"
+              onClick={() => void persist(false)}
+              disabled={saving || errorCount > 0}
+            >
+              <Save />
+              {saving ? '保存中…' : '保存模板'}
+            </Button>
+          ) : (
+            <>
+              <Button
+                className="h-10 shrink-0 px-3"
+                variant="outline"
+                onClick={() => void persist(false)}
+                disabled={blocked}
+              >
+                <Save />
+                <span className="sm:hidden">保存</span>
+                <span className="hidden sm:inline">保存草稿</span>
+              </Button>
+              <Button
+                className="h-10 shrink-0 px-3"
+                variant="secondary"
+                onClick={() => void persist(true)}
+                disabled={blocked}
+              >
+                <Play />
+                {scheduleSummary.pending ? '安排' : '运行'}
+              </Button>
+            </>
+          )}
         </div>
-      ) : null}
-
-      <AnyWorkflowEditor ref={editorRef} value={source} onChange={onEditorChange} onSave={() => void persist(false)} />
-
-      <div className="mt-2.5 flex items-center justify-end gap-2 border-t border-border pt-2.5 sm:sticky sm:bottom-3 sm:z-20 sm:rounded-lg sm:border sm:bg-background/95 sm:p-2 sm:shadow-sm sm:backdrop-blur">
-        {templateMode === 'edit' ? (
-          <Button variant="secondary" className="h-11 sm:h-9" onClick={() => void persist(false)} disabled={saving || errorCount > 0}><Save />{saving ? '保存中…' : '保存模板'}</Button>
-        ) : (
-          <>
-            <Button className="h-11 sm:h-9" variant="outline" onClick={() => void persist(false)} disabled={blocked}><Save />保存草稿</Button>
-            <Button className="h-11 sm:h-9" variant="secondary" onClick={() => void persist(true)} disabled={blocked}><Play />{scheduleSummary.pending ? '安排执行' : '运行'}</Button>
-          </>
-        )}
       </div>
+
+      {scheduleEditable ? (
+        <Dialog open={scheduleOpen} onOpenChange={setScheduleOpen}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>执行计划</DialogTitle>
+              <DialogDescription>选择立即运行，或设置一个未来的定时 / 延时执行时间。</DialogDescription>
+            </DialogHeader>
+            <SchedulePicker
+              mode={scheduleMode}
+              value={scheduledAt}
+              onModeChange={(next) => changeSchedule({ mode: next })}
+              onValueChange={(next) => changeSchedule({ value: next })}
+              delayAmount={delayAmount}
+              delayUnit={delayUnit}
+              onDelayAmountChange={(next) => updateDelay(next)}
+              onDelayUnitChange={(next) => updateDelay(delayAmount, next)}
+              now={now}
+            />
+            <DialogFooter>
+              <Button type="button" variant="secondary" onClick={() => setScheduleOpen(false)}>完成</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ) : null}
     </AppPage>
   )
 }

@@ -51,6 +51,7 @@ import {
   Percent,
   Redo2,
   Repeat,
+  Save,
   Trash2,
   TriangleAlert,
   Undo2,
@@ -107,6 +108,7 @@ interface AnyWorkflowEditorProps {
   onChange: (value: string) => void
   onSave?: () => void
   readOnly?: boolean
+  className?: string
 }
 
 interface EditorStatus {
@@ -131,7 +133,6 @@ const EMPTY_STATUS: EditorStatus = {
 
 const editorTheme = EditorView.theme({
   '&': {
-    height: '100%',
     minHeight: '0',
     backgroundColor: 'var(--cm-bg)',
     color: 'var(--cm-fg)',
@@ -141,7 +142,7 @@ const editorTheme = EditorView.theme({
   '.cm-scroller': {
     minHeight: '0',
     overflow: 'auto',
-    overscrollBehavior: 'contain',
+    overscrollBehavior: 'auto',
     touchAction: 'pan-y pan-x',
     fontFamily: 'var(--ui-font-mono)',
     lineHeight: 'var(--ui-editor-line-height)',
@@ -276,11 +277,13 @@ function ToolDivider() {
 
 export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflowEditorProps>(
   function AnyWorkflowEditor(
-    { value, onChange, onSave, readOnly = false },
+    { value, onChange, onSave, readOnly = false, className },
     ref,
   ) {
+    const shellRef = useRef<HTMLDivElement | null>(null)
     const mountRef = useRef<HTMLDivElement | null>(null)
     const viewRef = useRef<EditorView | null>(null)
+    const viewportFrameRef = useRef<number | null>(null)
     const valueRef = useRef(value)
     const changeRef = useRef(onChange)
     const saveRef = useRef(onSave)
@@ -342,65 +345,68 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
         setIssues((prev) => (sameIssues(prev, next) ? prev : next))
       }
 
-      const state = EditorState.create({
-        doc: valueRef.current,
-        extensions: [
-          highlightSpecialChars(),
-          history(),
-          drawSelection(),
-          dropCursor(),
-          EditorState.allowMultipleSelections.of(true),
-          indentOnInput(),
-          bracketMatching(),
-          closeBrackets(),
-          rectangularSelection(),
-          crosshairCursor(),
-          highlightActiveLine(),
-          highlightSelectionMatches(),
-          EditorView.lineWrapping,
-          anyWorkflowLanguage,
-          syntaxHighlighting(anyWorkflowHighlightStyle),
-          autocompletion({ override: [anyWorkflowCompletion], activateOnTyping: true, icons: true }),
-          linter((view) => validateAnyWorkflowSource(view.state.doc.toString()), { delay: 200 }),
-          editorTheme,
-          EditorState.readOnly.of(readOnly),
-          EditorView.updateListener.of((update) => {
-            if (update.docChanged) {
-              const next = update.state.doc.toString()
-              if (next !== valueRef.current) {
-                valueRef.current = next
-                changeRef.current(next)
-              }
+      const extensions = [
+        highlightSpecialChars(),
+        history(),
+        drawSelection(),
+        dropCursor(),
+        EditorState.allowMultipleSelections.of(true),
+        indentOnInput(),
+        bracketMatching(),
+        closeBrackets(),
+        rectangularSelection(),
+        crosshairCursor(),
+        highlightActiveLine(),
+        highlightSelectionMatches(),
+        EditorView.lineWrapping,
+        anyWorkflowLanguage,
+        syntaxHighlighting(anyWorkflowHighlightStyle),
+        autocompletion({ override: [anyWorkflowCompletion], activateOnTyping: true, icons: true }),
+        linter((view) => validateAnyWorkflowSource(view.state.doc.toString()), { delay: 200 }),
+        editorTheme,
+        EditorState.readOnly.of(readOnly),
+        EditorView.updateListener.of((update) => {
+          if (update.docChanged) {
+            const next = update.state.doc.toString()
+            if (next !== valueRef.current) {
+              valueRef.current = next
+              changeRef.current(next)
             }
-            // Runs for selection and lint-result transactions too, so the status bar and the issue
-            // panel stay in step with what the editor is actually showing.
-            syncStatus(update.state)
-            syncIssues(update.state)
-          }),
-          keymap.of([
-            {
-              key: 'Mod-s',
-              preventDefault: true,
-              run: () => {
-                saveRef.current?.()
-                return true
-              },
+          }
+          // Runs for selection and lint-result transactions too, so the status bar and the issue
+          // panel stay in step with what the editor is actually showing.
+          syncStatus(update.state)
+          syncIssues(update.state)
+        }),
+        keymap.of([
+          {
+            key: 'Mod-s',
+            preventDefault: true,
+            run: () => {
+              saveRef.current?.()
+              return true
             },
-            indentWithTab,
-            ...closeBracketsKeymap,
-            ...completionKeymap,
-            ...lintKeymap,
-            ...foldKeymap,
-            ...historyKeymap,
-            ...defaultKeymap,
-          ]),
-        ],
-      })
+          },
+          indentWithTab,
+          ...closeBracketsKeymap,
+          ...completionKeymap,
+          ...lintKeymap,
+          ...foldKeymap,
+          ...historyKeymap,
+          ...defaultKeymap,
+        ]),
+      ]
 
-      const view = new EditorView({ state, parent: mount })
+      // CodeMirror owns its internal DOM. Mount one EditorView into a stable parent and let
+      // transactions drive all document changes; the surrounding shell only controls layout.
+      const view = new EditorView({
+        doc: valueRef.current,
+        extensions,
+        parent: mount,
+      })
       viewRef.current = view
-      syncStatus(state)
-      syncIssues(state)
+      syncStatus(view.state)
+      syncIssues(view.state)
       return () => {
         view.destroy()
         viewRef.current = null
@@ -452,6 +458,49 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
         document.removeEventListener('keydown', onKeyDown, true)
         document.documentElement.style.overflow = previousHtmlOverflow
         document.body.style.overflow = previousBodyOverflow
+      }
+    }, [fullscreen])
+
+    useEffect(() => {
+      const viewport = window.visualViewport
+      if (!viewport) return
+
+      const syncViewport = () => {
+        const shell = shellRef.current
+        if (fullscreen && shell) {
+          // A fixed element sized with 100dvh can still sit behind Android's virtual keyboard.
+          // VisualViewport reports the actually visible area, including keyboard/browser chrome.
+          shell.style.top = `${viewport.offsetTop}px`
+          shell.style.height = `${viewport.height}px`
+        }
+
+        if (viewportFrameRef.current !== null) window.cancelAnimationFrame(viewportFrameRef.current)
+        viewportFrameRef.current = window.requestAnimationFrame(() => {
+          viewportFrameRef.current = null
+          const view = viewRef.current
+          if (!view?.hasFocus) return
+          view.dispatch({
+            effects: EditorView.scrollIntoView(view.state.selection.main.head, {
+              y: 'nearest',
+              yMargin: 56,
+            }),
+          })
+        })
+      }
+
+      syncViewport()
+      viewport.addEventListener('resize', syncViewport)
+      viewport.addEventListener('scroll', syncViewport)
+      return () => {
+        viewport.removeEventListener('resize', syncViewport)
+        viewport.removeEventListener('scroll', syncViewport)
+        if (viewportFrameRef.current !== null) {
+          window.cancelAnimationFrame(viewportFrameRef.current)
+          viewportFrameRef.current = null
+        }
+        const shell = shellRef.current
+        shell?.style.removeProperty('top')
+        shell?.style.removeProperty('height')
       }
     }, [fullscreen])
 
@@ -631,17 +680,20 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
     return (
       <TooltipProvider delayDuration={300}>
         <div
+          ref={shellRef}
           data-fullscreen={fullscreen ? 'true' : undefined}
           className={cn(
             'aw-editor-shell flex flex-col overflow-hidden border border-cm-border bg-cm-bg',
             fullscreen
-              ? 'fixed inset-0 z-50 rounded-none'
-              : 'h-[clamp(620px,78dvh,820px)] rounded-lg sm:h-[clamp(640px,76dvh,860px)]',
+              ? 'fixed inset-x-0 top-0 z-50 h-[100dvh] rounded-none'
+              : 'h-[min(64dvh,840px)] min-h-[280px] rounded-lg sm:h-[clamp(560px,70dvh,760px)]',
+            !fullscreen && className,
           )}
         >
-          <div className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-cm-border bg-cm-toolbar-bg px-2 py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {readOnly ? null : (
-              <div className="flex shrink-0 items-center gap-0.5">
+          <div className="shrink-0 border-b border-cm-border bg-cm-toolbar-bg">
+            <div className="flex min-h-10 items-center gap-1 overflow-x-auto px-2 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {readOnly ? null : (
+                <div className="flex shrink-0 items-center gap-0.5">
                 <ToolButton
                   icon={<Braces className="size-3.5" />}
                   label="Task"
@@ -669,7 +721,7 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
                 <ToolButton
                   icon={<Variable className="size-3.5" />}
                   label="变量"
-                  hint="添加到光标所在 Event 的变量区"
+                  hint="添加到光标所在 Task 的变量区"
                   onClick={() => insertStructured('variable')}
                 />
                 <ToolButton
@@ -696,11 +748,12 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
                   hint="选中结构括号删除整块，否则删除当前行或选中行"
                   onClick={runSmartDelete}
                 />
-                <ToolDivider />
               </div>
             )}
+            </div>
 
-            <div className="ms-auto flex shrink-0 items-center gap-0.5">
+            <div className="flex min-h-10 items-center gap-1 overflow-x-auto border-t border-cm-border/70 bg-background/35 px-2 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="ms-auto flex shrink-0 items-center gap-0.5">
               {readOnly ? null : (
                 <>
                   <ToolButton
@@ -730,6 +783,18 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
                     hint="按块结构重排缩进"
                     onClick={runFormat}
                   />
+                  {onSave ? (
+                    <>
+                      <ToolDivider />
+                      <ToolButton
+                        icon={<Save className="size-3.5" />}
+                        label="保存"
+                        hint="Ctrl/⌘ S"
+                        onClick={() => saveRef.current?.()}
+                        className="bg-primary/70 text-primary-foreground hover:bg-primary"
+                      />
+                    </>
+                  ) : null}
                 </>
               )}
               <ToolButton
@@ -745,6 +810,7 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
                 hint="Esc 退出"
                 onClick={() => setFullscreen((prev) => !prev)}
               />
+              </div>
             </div>
           </div>
 

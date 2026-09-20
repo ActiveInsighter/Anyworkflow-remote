@@ -15,9 +15,11 @@ export function AppShell() {
         shortcutKey="b"
       >
         <AppSidebar />
-        <SidebarInset className="min-w-0">
+        <SidebarInset className="min-w-0 overflow-hidden">
           <AppTopBar />
-          <Outlet />
+          <div data-slot="app-page-host">
+            <Outlet />
+          </div>
         </SidebarInset>
       </SidebarRoot>
       <Toaster position="top-center" />
