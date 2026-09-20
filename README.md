@@ -24,6 +24,7 @@ AnyWorkflow 的响应式 Web 控制端。项目参考 `Anyworkflow-wechat` 的�
 - 进行中数据自动轮询刷新与有界跨页缓存
 - 收藏、模板与层级资料库目录
 - CodeMirror DSL 编辑器、本地草稿与括号消息语法
+- Run 级 `@Codex` 编排语法（与 `@task` 同级）
 - 桌面侧栏布局
 - 手机侧边导航、顶部路径导航与触控优化
 - 自动深色模式
@@ -41,6 +42,7 @@ AnyWorkflow 的响应式 Web 控制端。项目参考 `Anyworkflow-wechat` 的�
 - `aw_dispatch_events`
 
 Run 控制仍使用 `requestedAction + commandVersion + 1`。Run DSL 仍写入 `planText`，云端继续负责 Task/Event 展开。
+其中 `@task` 交给浏览器扩展，`@Codex` 交给云端 Codex 执行器；两者仍共享 Run → Task → Event → Act → Message 的数据层级。
 
 ## 本地开发
 

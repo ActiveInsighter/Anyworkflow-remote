@@ -15,6 +15,7 @@ import { isFutureScheduledAt, isValidScheduledAt } from './schedule'
 import type {
   AuthSession,
   DispatchEventRecord,
+  DispatchExecutorKind,
   DispatchRequestedAction,
   DispatchRunRecord,
   DispatchTaskRecord,
@@ -115,6 +116,11 @@ export function assertOwner<T extends { owner: string }>(record: T): T {
  */
 function normalizeRun<T extends DispatchRunRecord>(run: T): T {
   return { ...run, scheduledAt: typeof run.scheduledAt === 'string' ? run.scheduledAt : '' }
+}
+
+function normalizeTask<T extends DispatchTaskRecord>(task: T): T {
+  const executorKind: DispatchExecutorKind = task.executorKind === 'codex' ? 'codex' : 'browser'
+  return { ...task, executorKind }
 }
 
 /**
@@ -313,7 +319,7 @@ export async function listTasksForRun(runId: string, page = 1, perPage = DEFAULT
     perPage,
     sort: '+runIndex',
     filter: `run="${quoteFilter(runId)}"`,
-  })
+  }, normalizeTask)
 }
 
 export async function listAllTasksForRun(runId: string): Promise<DispatchTaskRecord[]> {
@@ -322,7 +328,7 @@ export async function listAllTasksForRun(runId: string): Promise<DispatchTaskRec
 }
 
 export async function getTask(id: string): Promise<DispatchTaskRecord> {
-  return assertOwner(await request<DispatchTaskRecord>(`/api/collections/${TASK_COLLECTION}/records/${encodeURIComponent(id)}`))
+  return normalizeTask(assertOwner(await request<DispatchTaskRecord>(`/api/collections/${TASK_COLLECTION}/records/${encodeURIComponent(id)}`)))
 }
 
 export async function listEventsForTask(taskId: string, page = 1, perPage = DEFAULT_PAGE_SIZE) {

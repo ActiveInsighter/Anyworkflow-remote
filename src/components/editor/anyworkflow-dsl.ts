@@ -111,7 +111,7 @@ function dslContextAt(source: string, at: number): DslContext {
       continue
     }
 
-    if (/^@task\s+.+\{\s*$/iu.test(line)) {
+    if (/^@(task|codex)\s+.+\{\s*$/iu.test(line)) {
       stack.push('task')
       continue
     }
@@ -135,7 +135,7 @@ function dslContextAt(source: string, at: number): DslContext {
   return 'run'
 }
 
-export type StructuredInsertKind = 'task' | 'event' | 'act' | 'variable'
+export type StructuredInsertKind = 'task' | 'codex' | 'event' | 'act' | 'variable'
 
 export type StructuredInsertPlan =
   | { ok: true; from: number; text: string; cursorOffset: number }
@@ -246,12 +246,12 @@ function structuralBlocks(source: string): StructuralBlock[] {
         fence = ''
       }
     } else if (!inFence) {
-      const header = raw.match(/^([ \t]*)@(task|event)(?:\s+.*?)?\s*\{\s*$/iu)
+      const header = raw.match(/^([ \t]*)@(task|codex|event)(?:\s+.*?)?\s*\{\s*$/iu)
       if (header?.[2]) {
         const openInLine = raw.lastIndexOf('{')
         const openAt = offset + openInLine
         blocks.push({
-          kind: header[2].toLowerCase() as 'task' | 'event',
+          kind: header[2].toLowerCase() === 'event' ? 'event' : 'task',
           headerFrom: offset,
           headerEnd: newline < 0 ? source.length : newline + 1,
           openAt,
@@ -326,13 +326,14 @@ export function planStructuredInsert(
   at: number,
   kind: StructuredInsertKind,
 ): StructuredInsertPlan {
-  if (kind === 'task') {
+  if (kind === 'task' || kind === 'codex') {
     if (!sourceStructureIsClosed(source)) {
-      return { ok: false, message: '当前工作流还有未闭合的结构，先补全大括号或文本块后再添加 Task。' }
+      return { ok: false, message: `当前工作流还有未闭合的结构，先补全大括号或文本块后再添加 ${kind === 'codex' ? 'Codex' : 'Task'}。` }
     }
     const separator = appendSeparator(source)
-    const text = `${separator}@task  {\n  @mode=serial\n\n}\n`
-    return { ok: true, from: source.length, text, cursorOffset: separator.length + '@task '.length }
+    const directive = kind === 'codex' ? '@Codex' : '@task'
+    const text = `${separator}${directive}  {\n  @mode=serial\n\n}\n`
+    return { ok: true, from: source.length, text, cursorOffset: separator.length + directive.length + 1 }
   }
 
   const targetKind = kind === 'event' || kind === 'variable' ? 'task' : 'event'
@@ -445,6 +446,7 @@ function structuralBraceLabel(source: string, openAt: number): string | null {
   const prefix = source.slice(start, openAt + 1).trim()
 
   if (/^@task\b.*\{$/iu.test(prefix)) return 'Task'
+  if (/^@codex\b.*\{$/iu.test(prefix)) return 'Codex'
   if (/^@event\b.*\{$/iu.test(prefix)) return 'Event'
   if (/^@act\s*\{$/iu.test(prefix)) return 'Act'
   if (/^@for\b.*\{$/iu.test(prefix)) return '循环'
@@ -546,7 +548,7 @@ export function collectUsableVariables(source: string, at: number): string[] {
       continue
     }
 
-    if (/^@task\s+.+\{\s*$/iu.test(line)) {
+    if (/^@(task|codex)\s+.+\{\s*$/iu.test(line)) {
       frames.push({ kind: 'task', variables: new Set<string>() })
       continue
     }
@@ -602,6 +604,8 @@ function directiveOptions(context: DslContext): Completion[] {
       ...shared,
       snippetCompletion('@task ${任务名称} {\n  @mode=serial\n\n  ${}\n}', { label: '@task', type: 'keyword', detail: 'Task 块' }),
       snippetCompletion('@for ${i} in range(1, 3) {\n  @task ${任务名称} {\n    ${}\n  }\n}', { label: '@for', type: 'keyword', detail: 'Task 循环' }),
+      snippetCompletion('@Codex ${线程任务} {\n  @mode=serial\n\n  ${}\n}', { label: '@Codex', type: 'keyword', detail: 'Codex 块' }),
+      snippetCompletion('@for ${i} in range(1, 3) {\n  @Codex ${线程任务} {\n    ${}\n  }\n}', { label: '@for', type: 'keyword', detail: 'Codex 循环' }),
     ]
   }
 
@@ -732,14 +736,14 @@ export function validateAnyWorkflowSource(source: string): Diagnostic[] {
             else add(lineNumber, '多余的 }')
             remaining -= 1
           }
-        } else if (/^@task\s+.+\{\s*$/iu.test(line) || /^@event\s+.+\{\s*$/iu.test(line)) {
+        } else if (/^@(task|codex)\s+.+\{\s*$/iu.test(line) || /^@event\s+.+\{\s*$/iu.test(line)) {
           add(lineNumber, 'Event 内不能再定义 Task 或 Event')
         }
       }
       return
     }
 
-    if (/^@task\s+.+\{\s*$/iu.test(line)) {
+    if (/^@(task|codex)\s+.+\{\s*$/iu.test(line)) {
       if (context !== 'run') add(lineNumber, 'Task 只能直接位于 Run 或 Run 的 @for 中')
       stack.push({ type: 'task', line: lineNumber })
       return

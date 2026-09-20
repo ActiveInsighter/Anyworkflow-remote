@@ -1,6 +1,7 @@
 export type DispatchStatus = 'draft' | 'queued' | 'running' | 'succeeded' | 'failed' | 'canceled'
 export type DispatchRequestedAction = 'none' | 'pause' | 'resume' | 'cancel'
 export type DispatchExecutionMode = 'serial' | 'parallel'
+export type DispatchExecutorKind = 'browser' | 'codex'
 export type DispatchEventStatus = 'waiting' | 'ready' | 'leased' | 'running' | 'paused' | 'terminal'
 export type StatusTone = 'neutral' | 'info' | 'success' | 'danger' | 'warning'
 export type WorkflowHistoryStatus = 'succeeded' | 'failed' | 'canceled' | 'interrupted' | 'unknown'
@@ -47,6 +48,8 @@ export interface DispatchTaskRecord {
   owner: string
   run: string
   runIndex: number
+  /** Legacy records without this field are normalized to `browser` by the API layer. */
+  executorKind: DispatchExecutorKind
   title: string
   planText: string
   executionMode: DispatchExecutionMode

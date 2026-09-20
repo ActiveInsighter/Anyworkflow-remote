@@ -36,6 +36,7 @@ import {
 } from '@codemirror/view'
 import {
   AlignLeft,
+  Bot,
   Braces,
   Check,
   ChevronDown,
@@ -699,6 +700,12 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
                   label="Task"
                   hint="追加到 Run 最外层"
                   onClick={() => insertStructured('task')}
+                />
+                <ToolButton
+                  icon={<Bot className="size-3.5" />}
+                  label="Codex"
+                  hint="追加到 Run 最外层，交给云端 Codex"
+                  onClick={() => insertStructured('codex')}
                 />
                 <ToolButton
                   icon={<Zap className="size-3.5" />}

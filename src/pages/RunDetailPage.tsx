@@ -39,6 +39,7 @@ import {
   commandRun,
   deleteRun,
   getRun,
+  listAllHistoryMessagesForAct,
   listHistoryActsForDispatchEvent,
   listEventsForTask,
   listTasksForRun,
@@ -95,6 +96,11 @@ function historyActsProgress(acts: readonly WorkflowHistoryActRecord[], event: D
 
 function HistoryActNode({ act }: { act: WorkflowHistoryActRecord }) {
   const status = historyStatusMeta(act.status)
+  const messagesState = useAsyncData(
+    async () => listAllHistoryMessagesForAct(act.id),
+    [act.id, act.attempt],
+    { enabled: true, staleMs: 8_000, cacheKey: 'history-messages:' + act.id + ':' + act.attempt, errorMessage: toErrorMessage },
+  )
 
   return (
     <div className="border-b border-border last:border-b-0">
@@ -105,6 +111,19 @@ function HistoryActNode({ act }: { act: WorkflowHistoryActRecord }) {
         <span className="min-w-0 flex-1 truncate text-[12px] font-medium">{act.title || `Act ${act.actIndex + 1}`}</span>
         <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
       </div>
+      {messagesState.data?.length ? (
+        <div className="space-y-2 px-3 pb-3 sm:px-4">
+          {messagesState.data.map((message) => (
+            <div key={message.id} className="rounded-md border border-border bg-muted/25 p-2.5 text-[11px] leading-5">
+              <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-muted-foreground">
+                <span>消息 {message.nodeIndex + 1}</span>
+                {message.conversationUrl ? <span className="font-mono">线程 {message.conversationUrl}</span> : null}
+              </div>
+              <div className="whitespace-pre-wrap break-words text-foreground/90">{message.assistantMarkdown || message.userMarkdown}</div>
+            </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -278,6 +297,7 @@ function TaskNode({
           {task.runIndex + 1}
         </span>
         <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{task.title || 'Task ' + (task.runIndex + 1)}</span>
+        {task.executorKind === 'codex' ? <span className="shrink-0 rounded bg-info/10 px-1.5 py-0.5 text-[10px] font-medium text-info">Codex</span> : null}
         <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
         <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
           {progressText(task.completedEvents, task.totalEvents, 'Events')} · {percent}%

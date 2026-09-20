@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit",
     "preview": "vite preview --host 0.0.0.0",
     "deploy": "npm run build && npx wrangler@4 deploy",
-    "test:structure": "node --experimental-strip-types scripts/event-structure.test.mjs",
+    "test:structure": "node --experimental-strip-types scripts/event-structure.test.mjs && node --experimental-strip-types scripts/codex-dsl.test.mjs",
     "preflight": "npm run typecheck && npm run build"
   },
   "dependencies": {
