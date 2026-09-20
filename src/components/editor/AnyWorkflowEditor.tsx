@@ -108,6 +108,7 @@ interface AnyWorkflowEditorProps {
   onChange: (value: string) => void
   onSave?: () => void
   readOnly?: boolean
+  className?: string
 }
 
 interface EditorStatus {
@@ -276,7 +277,7 @@ function ToolDivider() {
 
 export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflowEditorProps>(
   function AnyWorkflowEditor(
-    { value, onChange, onSave, readOnly = false },
+    { value, onChange, onSave, readOnly = false, className },
     ref,
   ) {
     const shellRef = useRef<HTMLDivElement | null>(null)
@@ -686,6 +687,7 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
             fullscreen
               ? 'fixed inset-x-0 top-0 z-50 h-[100dvh] rounded-none'
               : 'h-[min(64dvh,840px)] min-h-[280px] rounded-lg sm:h-[clamp(560px,70dvh,760px)]',
+            !fullscreen && className,
           )}
         >
           <div className="shrink-0 border-b border-cm-border bg-cm-toolbar-bg">
