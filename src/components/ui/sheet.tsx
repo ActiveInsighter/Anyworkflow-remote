@@ -23,7 +23,7 @@ function SheetOverlay({ className, ...props }: React.ComponentProps<typeof Dialo
   return (
     <DialogPrimitive.Overlay
       data-slot="sheet-overlay"
-      className={cn('fixed inset-0 z-50 bg-black/35 backdrop-blur-[1px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0', className)}
+      className={cn('fixed inset-0 z-50 bg-overlay backdrop-blur-[1px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0', className)}
       {...props}
     />
   )
@@ -41,7 +41,7 @@ function SheetContent({
       <DialogPrimitive.Content
         data-slot="sheet-content"
         className={cn(
-          'fixed inset-y-0 z-50 flex h-dvh w-[min(84vw,320px)] flex-col border-r bg-background p-0 shadow-xl outline-none data-[state=open]:animate-in data-[state=closed]:animate-out',
+          'fixed inset-y-0 z-50 flex h-dvh w-[min(84vw,320px)] flex-col border-r bg-card p-0 shadow-xl outline-none data-[state=open]:animate-in data-[state=closed]:animate-out',
           side === 'left' ? 'left-0 data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left' : 'right-0 border-l border-r-0 data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right',
           className,
         )}
