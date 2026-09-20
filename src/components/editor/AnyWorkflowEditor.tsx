@@ -279,8 +279,10 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
     { value, onChange, onSave, readOnly = false },
     ref,
   ) {
+    const shellRef = useRef<HTMLDivElement | null>(null)
     const mountRef = useRef<HTMLDivElement | null>(null)
     const viewRef = useRef<EditorView | null>(null)
+    const viewportFrameRef = useRef<number | null>(null)
     const valueRef = useRef(value)
     const changeRef = useRef(onChange)
     const saveRef = useRef(onSave)
@@ -455,6 +457,49 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
         document.removeEventListener('keydown', onKeyDown, true)
         document.documentElement.style.overflow = previousHtmlOverflow
         document.body.style.overflow = previousBodyOverflow
+      }
+    }, [fullscreen])
+
+    useEffect(() => {
+      const viewport = window.visualViewport
+      if (!viewport) return
+
+      const syncViewport = () => {
+        const shell = shellRef.current
+        if (fullscreen && shell) {
+          // A fixed element sized with 100dvh can still sit behind Android's virtual keyboard.
+          // VisualViewport reports the actually visible area, including keyboard/browser chrome.
+          shell.style.top = `${viewport.offsetTop}px`
+          shell.style.height = `${viewport.height}px`
+        }
+
+        if (viewportFrameRef.current !== null) window.cancelAnimationFrame(viewportFrameRef.current)
+        viewportFrameRef.current = window.requestAnimationFrame(() => {
+          viewportFrameRef.current = null
+          const view = viewRef.current
+          if (!view?.hasFocus) return
+          view.dispatch({
+            effects: EditorView.scrollIntoView(view.state.selection.main.head, {
+              y: 'nearest',
+              yMargin: 56,
+            }),
+          })
+        })
+      }
+
+      syncViewport()
+      viewport.addEventListener('resize', syncViewport)
+      viewport.addEventListener('scroll', syncViewport)
+      return () => {
+        viewport.removeEventListener('resize', syncViewport)
+        viewport.removeEventListener('scroll', syncViewport)
+        if (viewportFrameRef.current !== null) {
+          window.cancelAnimationFrame(viewportFrameRef.current)
+          viewportFrameRef.current = null
+        }
+        const shell = shellRef.current
+        shell?.style.removeProperty('top')
+        shell?.style.removeProperty('height')
       }
     }, [fullscreen])
 
@@ -634,12 +679,13 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
     return (
       <TooltipProvider delayDuration={300}>
         <div
+          ref={shellRef}
           data-fullscreen={fullscreen ? 'true' : undefined}
           className={cn(
             'aw-editor-shell flex flex-col overflow-hidden border border-cm-border bg-cm-bg',
             fullscreen
               ? 'fixed inset-x-0 top-0 z-50 h-[100dvh] rounded-none'
-              : 'h-[min(48dvh,430px)] min-h-[180px] rounded-lg sm:h-[clamp(560px,70dvh,760px)]',
+              : 'h-[min(64dvh,840px)] min-h-[280px] rounded-lg sm:h-[clamp(560px,70dvh,760px)]',
           )}
         >
           <div className="shrink-0 border-b border-cm-border bg-cm-toolbar-bg">
