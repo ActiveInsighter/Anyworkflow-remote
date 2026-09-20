@@ -20,7 +20,7 @@ function DialogPortal(props: React.ComponentProps<typeof DialogPrimitive.Portal>
 }
 
 function DialogOverlay({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
-  return <DialogPrimitive.Overlay className={cn('fixed inset-0 z-50 bg-black/40 backdrop-blur-[1px]', className)} {...props} />
+  return <DialogPrimitive.Overlay className={cn('fixed inset-0 z-50 bg-overlay backdrop-blur-[1px]', className)} {...props} />
 }
 
 function DialogContent({ className, children, ...props }: React.ComponentProps<typeof DialogPrimitive.Content>) {
@@ -28,7 +28,7 @@ function DialogContent({ className, children, ...props }: React.ComponentProps<t
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Content
-        className={cn('fixed left-1/2 top-1/2 z-50 grid w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl border bg-background p-5 shadow-xl outline-none', className)}
+        className={cn('fixed left-1/2 top-1/2 z-50 grid w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl border bg-card p-5 shadow-xl outline-none', className)}
         {...props}
       >
         {children}

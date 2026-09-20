@@ -260,7 +260,10 @@ function ToolButton({
           onClick={onClick}
           disabled={disabled}
           aria-label={label}
-          className={cn('size-8 shrink-0 p-0', className)}
+          className={cn(
+            'size-8 shrink-0 p-0 text-cm-toolbar-fg hover:bg-cm-toolbar-hover hover:text-cm-fg focus-visible:ring-cm-fg/20',
+            className,
+          )}
         >
           {icon}
         </Button>
@@ -751,9 +754,9 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
           <div ref={mountRef} className="aw-code-editor min-h-0 flex-1 overflow-hidden" />
 
           {issuesOpen ? (
-            <div className="max-h-56 shrink-0 overflow-y-auto border-t border-cm-border bg-cm-toolbar-bg">
+            <div className="max-h-56 shrink-0 overflow-y-auto border-t border-cm-border bg-cm-toolbar-bg text-cm-fg">
               {issues.length === 0 ? (
-                <p className="px-2.5 py-3 text-[11px] text-muted-foreground">没有发现问题。</p>
+                <p className="px-2.5 py-3 text-[11px] text-cm-toolbar-fg">没有发现问题。</p>
               ) : (
                 <ul className="divide-y divide-cm-border">
                   {issues.map((issue, index) => {
@@ -762,7 +765,7 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
                       <li key={`${issue.from}-${issue.line}-${index}`}>
                         <button
                           type="button"
-                          className="flex w-full items-start gap-2 px-2.5 py-2 text-left hover:bg-muted/50"
+                          className="flex w-full items-start gap-2 px-2.5 py-2 text-left hover:bg-cm-toolbar-hover"
                           onClick={() => revealRange(issue.from, issue.to)}
                         >
                           <meta.Icon className={cn('mt-0.5 size-3.5 shrink-0', meta.tone)} aria-hidden="true" />
@@ -770,7 +773,7 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
                             <span className="block text-[11px] font-medium">
                               {meta.label} · 第 {issue.line} 行
                             </span>
-                            <span className="mt-0.5 block text-[11px] leading-5 text-muted-foreground">
+                            <span className="mt-0.5 block text-[11px] leading-5 text-cm-toolbar-fg">
                               {issue.message}
                             </span>
                           </span>
@@ -783,7 +786,7 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
             </div>
           ) : null}
 
-          <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-cm-border bg-cm-toolbar-bg px-2.5 py-1.5 text-[10px] text-muted-foreground">
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-cm-border bg-cm-toolbar-bg px-2.5 py-1.5 text-[10px] text-cm-toolbar-fg">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <span>
                 行 {status.line}，列 {status.column}
@@ -800,7 +803,7 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
               onClick={() => setIssuesOpen((prev) => !prev)}
               aria-expanded={issuesOpen}
               className={cn(
-                'flex items-center gap-1 rounded px-1.5 py-1 hover:bg-muted/60',
+                'flex items-center gap-1 rounded px-1.5 py-1 hover:bg-cm-toolbar-hover hover:text-cm-fg',
                 issueErrors > 0 && 'text-danger',
               )}
             >
