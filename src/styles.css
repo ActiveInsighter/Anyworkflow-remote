@@ -434,4 +434,13 @@
     padding-left: 10px;
     padding-right: 10px;
   }
+
+  /* Keep the last editable lines movable above the status bar and virtual keyboard. */
+  .aw-code-editor .cm-content {
+    padding-bottom: 88px;
+  }
+
+  .aw-editor-shell[data-fullscreen='true'] .aw-code-editor .cm-content {
+    padding-bottom: max(104px, calc(88px + env(safe-area-inset-bottom)));
+  }
 }
