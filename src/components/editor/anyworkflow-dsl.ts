@@ -473,13 +473,13 @@ export function planSmartDelete(source: string, from: number, to: number): Smart
 }
 
 interface VariableScope {
-  kind: 'run' | 'task' | 'event' | 'act' | 'message' | 'for-task' | 'for-event'
+  kind: 'run' | 'task' | 'event' | 'act' | 'message' | 'for-task' | 'for-event' | 'for-queue'
   variables: Set<string>
 }
 
 function variableScopeContext(frames: VariableScope[]): DslContext {
   const kind = frames.at(-1)?.kind ?? 'run'
-  if (kind === 'event' || kind === 'act' || kind === 'message') return 'event'
+  if (kind === 'event' || kind === 'act' || kind === 'message' || kind === 'for-queue') return 'event'
   if (kind === 'task' || kind === 'for-event') return 'task'
   return 'run'
 }
@@ -517,7 +517,7 @@ export function collectUsableVariables(source: string, at: number): string[] {
     const loop = line.match(/^@for\s+([A-Za-z_][A-Za-z0-9_]*)\s+in\s+range\([^)]*\)\s*\{\s*$/iu)
     if (loop?.[1]) {
       frames.push({
-        kind: context === 'run' ? 'for-task' : 'for-event',
+        kind: context === 'run' ? 'for-task' : context === 'task' ? 'for-event' : 'for-queue',
         variables: new Set([loop[1]]),
       })
       continue
