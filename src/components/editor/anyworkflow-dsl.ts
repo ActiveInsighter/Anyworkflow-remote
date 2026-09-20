@@ -525,10 +525,12 @@ function applyVariableCompletion(
 }
 
 function variableOptions(source: string, at: number): Completion[] {
-  return collectUsableVariables(source, at).flatMap((name) => [
-    { label: `%${name}%`, type: 'variable', detail: '变量', apply: applyVariableCompletion },
-    { label: `%${name}:pad2%`, type: 'variable', detail: '补零到 2 位', apply: applyVariableCompletion },
-  ])
+  return collectUsableVariables(source, at).map((name) => ({
+    label: `%${name}%`,
+    type: 'variable',
+    detail: '变量',
+    apply: applyVariableCompletion,
+  }))
 }
 
 function directiveOptions(context: DslContext): Completion[] {
