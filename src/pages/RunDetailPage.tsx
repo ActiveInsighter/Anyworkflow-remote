@@ -60,6 +60,7 @@ import {
 } from '@/lib/format'
 import { describeSchedule } from '@/lib/schedule'
 import { deriveEventProgress } from '@/lib/event-structure'
+import { compactMessagePreview } from '@/lib/history-display'
 import type {
   DispatchEventRecord,
   DispatchRequestedAction,
@@ -112,70 +113,29 @@ function historyActMessagesProgress(
   return { completed: Math.min(completed, total), total, percent: progressPercent(completed, total) }
 }
 
-function messagePreview(value: string, fallback: string): string {
-  const normalized = value.replace(/\s+/gu, ' ').trim()
-  return normalized ? normalized.slice(0, 120) : fallback
-}
-
 function HistoryMessageNode({ message }: { message: WorkflowHistoryMessageRecord }) {
-  const [open, setOpen] = useState(false)
   const status = historyStatusMeta(message.status)
 
   return (
-    <div className="border-b border-border last:border-b-0">
-      <button
-        type="button"
-        className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left outline-none transition-colors hover:bg-muted/35 focus-visible:bg-muted/45 sm:px-4"
-        onClick={() => setOpen((value) => !value)}
-        aria-expanded={open}
-      >
-        {open ? <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" /> : <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />}
-        <span className="grid size-6 shrink-0 place-items-center rounded bg-muted text-[10px] font-semibold tabular-nums text-muted-foreground">
-          {message.nodeIndex + 1}
-        </span>
-        <span className="min-w-0 flex-1 truncate text-[11px]">{messagePreview(message.userMarkdown, `Message ${message.nodeIndex + 1}`)}</span>
-        <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-      </button>
-      {open ? (
-        <div className="grid gap-2 border-t border-border bg-background/60 px-3 py-3 text-[11px] sm:grid-cols-2 sm:px-4">
-          <div className="min-w-0">
-            <div className="mb-1 font-medium text-muted-foreground">发送内容</div>
-            <div className="max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-md border border-border bg-muted/35 p-2.5 leading-5">
-              {message.userMarkdown || '—'}
-            </div>
-          </div>
-          <div className="min-w-0">
-            <div className="mb-1 font-medium text-muted-foreground">回复内容</div>
-            <div className="max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-md border border-border bg-muted/35 p-2.5 leading-5">
-              {message.assistantMarkdown || '尚未收到回复'}
-            </div>
-            {message.conversationUrl ? (
-              <a
-                className="mt-2 inline-flex text-info hover:underline"
-                href={message.conversationUrl}
-                target="_blank"
-                rel="noreferrer"
-              >
-                打开会话
-              </a>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
+    <div className="flex min-w-0 items-center gap-2 border-t border-border px-3 py-2 text-[11px] sm:px-4">
+      <span className="grid size-6 shrink-0 place-items-center rounded bg-muted text-[10px] font-semibold tabular-nums text-muted-foreground">
+        {message.nodeIndex + 1}
+      </span>
+      <span className="min-w-0 flex-1 truncate">{compactMessagePreview(message.userMarkdown, `Message ${message.nodeIndex + 1}`)}</span>
+      <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
     </div>
   )
 }
 
 function HistoryActNode({ act, activeRun }: { act: WorkflowHistoryActRecord; activeRun: boolean }) {
-  const [open, setOpen] = useState(false)
   const messagesState = useAsyncData(
     async () => listAllHistoryMessagesForAct(act.id),
     [act.id, act.attempt],
     {
-      enabled: open,
-      pollMs: open && activeRun ? 8_000 : undefined,
+      enabled: true,
+      pollMs: activeRun ? 8_000 : undefined,
       staleMs: 8_000,
-      cacheKey: open ? 'history-messages:' + act.id : undefined,
+      cacheKey: 'history-messages:' + act.id,
       errorMessage: toErrorMessage,
     },
   )
@@ -184,46 +144,30 @@ function HistoryActNode({ act, activeRun }: { act: WorkflowHistoryActRecord; act
 
   return (
     <div className="border-b border-border last:border-b-0">
-      <button
-        type="button"
-        className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left outline-none transition-colors hover:bg-muted/35 focus-visible:bg-muted/45 sm:px-4"
-        onClick={() => setOpen((value) => !value)}
-        aria-expanded={open}
-      >
-        {open ? <ChevronDown className="size-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="size-4 shrink-0 text-muted-foreground" />}
+      <div className="flex min-w-0 items-center gap-2.5 px-3 py-2.5 sm:px-4">
         <span className="grid size-7 shrink-0 place-items-center rounded-md bg-muted text-[10px] font-semibold tabular-nums text-muted-foreground">
           {act.actIndex + 1}
         </span>
         <span className="min-w-0 flex-1 truncate text-[12px] font-medium">{act.title || `Act ${act.actIndex + 1}`}</span>
         <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-        <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
+        <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground sm:min-w-[92px] sm:text-right">
           {progressText(progress.completed, progress.total, 'Messages')} · {progress.percent}%
         </span>
-      </button>
-
-      {open ? (
-        <div className="border-t border-border bg-background/60">
-          <div className="border-b border-border px-3 py-2.5 sm:px-4">
-            <div className="mb-1.5 flex items-center justify-between gap-3 text-[10px] tabular-nums text-muted-foreground">
-              <span>Act 内 Message 进度</span>
-              <span>{progressText(progress.completed, progress.total, 'Messages')} · {progress.percent}%</span>
-            </div>
-            <ProgressBar value={progress.percent} tone={status.tone} />
-          </div>
-          {messagesState.loading && !messagesState.data ? <div className="p-3 sm:p-4"><LoadingState label="加载 Message…" /></div> : null}
-          {messagesState.error ? <div className="px-3 pt-3 sm:px-4"><InlineError>{messagesState.error}</InlineError></div> : null}
-          {messagesState.data?.length ? messagesState.data.map((message) => <HistoryMessageNode key={message.id} message={message} />) : null}
-          {messagesState.data && messagesState.data.length === 0 ? (
-            <div className="px-4 py-4 text-[11px] text-muted-foreground">暂无 Message 记录，等待执行器回传。</div>
-          ) : null}
-        </div>
-      ) : null}
+      </div>
+      <div className="border-t border-border bg-background/45 px-3 py-2 sm:px-4">
+        <ProgressBar value={progress.percent} tone={status.tone} />
+        {messagesState.loading && !messagesState.data ? <div className="pt-2"><LoadingState label="加载 Message…" /></div> : null}
+        {messagesState.error ? <div className="pt-2"><InlineError>{messagesState.error}</InlineError></div> : null}
+        {messagesState.data?.length ? messagesState.data.map((message) => <HistoryMessageNode key={message.id} message={message} />) : null}
+        {messagesState.data && messagesState.data.length === 0 ? (
+          <div className="pt-2 text-[11px] text-muted-foreground">暂无 Message 记录，等待执行器回传。</div>
+        ) : null}
+      </div>
     </div>
   )
 }
 
 function FallbackActNode({ act }: { act: ReturnType<typeof deriveEventProgress>['acts'][number] }) {
-  const [open, setOpen] = useState(false)
   const running = act.state === 'running'
   const status = running
     ? { label: '执行中', tone: 'warning' as const }
@@ -233,50 +177,36 @@ function FallbackActNode({ act }: { act: ReturnType<typeof deriveEventProgress>[
 
   return (
     <div className="border-b border-border last:border-b-0">
-      <button
-        type="button"
-        className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left outline-none transition-colors hover:bg-muted/35 focus-visible:bg-muted/45 sm:px-4"
-        onClick={() => setOpen((value) => !value)}
-        aria-expanded={open}
-      >
-        {open ? <ChevronDown className="size-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="size-4 shrink-0 text-muted-foreground" />}
+      <div className="flex min-w-0 items-center gap-2.5 px-3 py-2.5 sm:px-4">
         <span className="grid size-7 shrink-0 place-items-center rounded-md bg-muted text-[10px] font-semibold tabular-nums text-muted-foreground">
           {act.id.replace('act-', '')}
         </span>
         <span className="min-w-0 flex-1 truncate text-[12px] font-medium">{act.title}</span>
         <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-        <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
+        <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground sm:min-w-[92px] sm:text-right">
           {progressText(act.completedMessages, act.messageCount, 'Messages')} · {act.percent}%
         </span>
-      </button>
-      {open ? (
-        <div className="border-t border-border bg-background/60">
-          <div className="border-b border-border px-3 py-2.5 sm:px-4">
-            <div className="mb-1.5 flex items-center justify-between gap-3 text-[10px] tabular-nums text-muted-foreground">
-              <span>Act 内 Message 进度</span>
-              <span>{progressText(act.completedMessages, act.messageCount, 'Messages')} · {act.percent}%</span>
+      </div>
+      <div className="border-t border-border bg-background/45 px-3 py-2 sm:px-4">
+        <ProgressBar value={act.percent} tone={status.tone} />
+        <div className="pt-1.5 text-[10px] text-muted-foreground">等待历史回传</div>
+        {Array.from({ length: act.messageCount }, (_, index) => {
+          const completed = index < act.completedMessages
+          const current = running && index === act.completedMessages
+          const messageStatus = completed
+            ? { label: '已完成', tone: 'success' as const }
+            : current
+              ? { label: '执行中', tone: 'warning' as const }
+              : { label: '等待执行', tone: 'neutral' as const }
+          return (
+            <div key={act.id + '-message-' + index} className="flex items-center gap-2 border-t border-border py-1.5 text-[11px]">
+              <span className="grid size-5 shrink-0 place-items-center rounded bg-muted text-[10px] font-semibold tabular-nums text-muted-foreground">{index + 1}</span>
+              <span className="min-w-0 flex-1 truncate">Message {index + 1}</span>
+              <StatusBadge tone={messageStatus.tone}>{messageStatus.label}</StatusBadge>
             </div>
-            <ProgressBar value={act.percent} tone={status.tone} />
-          </div>
-          <div className="px-3 py-2 text-[10px] text-muted-foreground sm:px-4">历史 Message 尚未回传，以下状态按 Event 进度暂时推断。</div>
-          {Array.from({ length: act.messageCount }, (_, index) => {
-            const completed = index < act.completedMessages
-            const current = running && index === act.completedMessages
-            const messageStatus = completed
-              ? { label: '已完成', tone: 'success' as const }
-              : current
-                ? { label: '执行中', tone: 'warning' as const }
-                : { label: '等待执行', tone: 'neutral' as const }
-            return (
-              <div key={act.id + '-message-' + index} className="flex items-center gap-2.5 border-t border-border px-3 py-2.5 text-[11px] sm:px-4">
-                <span className="grid size-6 shrink-0 place-items-center rounded bg-muted text-[10px] font-semibold tabular-nums text-muted-foreground">{index + 1}</span>
-                <span className="min-w-0 flex-1 truncate">Message {index + 1}</span>
-                <StatusBadge tone={messageStatus.tone}>{messageStatus.label}</StatusBadge>
-              </div>
-            )
-          })}
-        </div>
-      ) : null}
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -373,7 +303,7 @@ function EventNode({ event, deepLinked, activeRun }: { event: DispatchEventRecor
             <DialogTitle>执行内容</DialogTitle>
             <DialogDescription>{eventTitle(event)}</DialogDescription>
           </DialogHeader>
-          <pre className="max-h-[68vh] overflow-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-muted/45 p-3 text-[12px] leading-6">
+          <pre className="max-h-[68vh] overflow-y-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-muted/45 p-3 text-[12px] leading-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {event.queueTextOverride}
           </pre>
         </DialogContent>
@@ -694,7 +624,7 @@ export function RunDetailPage() {
       {actionError ? <ErrorBanner>{actionError}</ErrorBanner> : null}
 
       <Panel className="px-3 py-2.5 sm:px-4">
-        <div className="flex min-w-0 items-center gap-3 overflow-x-auto whitespace-nowrap text-[11px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 text-[11px]">
           <span className="font-semibold tabular-nums">{progressText(run.completedTasks, totalTasks, 'Tasks')} · {percent}%</span>
           <ProgressBar className="w-20 shrink-0" value={percent} tone={status.tone} />
           <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
