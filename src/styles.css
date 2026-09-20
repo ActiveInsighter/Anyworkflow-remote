@@ -296,8 +296,9 @@
     width: 100%;
     max-width: 100%;
     min-width: 320px;
-    min-height: 100%;
-    overflow-x: hidden;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
   }
 
   html {
@@ -306,7 +307,7 @@
 
   body {
     margin: 0;
-    min-height: 100dvh;
+    height: 100dvh;
     background: var(--ui-background);
     color: var(--ui-foreground);
   }
