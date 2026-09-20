@@ -721,7 +721,7 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
                 <ToolButton
                   icon={<Variable className="size-3.5" />}
                   label="变量"
-                  hint="添加到光标所在 Event 的变量区"
+                  hint="添加到光标所在 Task 的变量区"
                   onClick={() => insertStructured('variable')}
                 />
                 <ToolButton
