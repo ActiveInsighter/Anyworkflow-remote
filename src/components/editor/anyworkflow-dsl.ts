@@ -39,6 +39,7 @@ export const anyWorkflowLanguage = StreamLanguage.define<DslState>({
     if (stream.match(/<https?:\/\/[^>]+>/)) return 'link'
     if (stream.match(/\b(?:serial|parallel)\b/)) return 'atom'
     if (stream.match(/\brange(?=\()/)) return 'function'
+    if (stream.match(/\*\d+/)) return 'number'
     if (stream.match(/\b\d+\b/)) return 'number'
     if (stream.match(/[{}()[\],=]/)) return 'bracket'
     if (stream.match(/#.*/)) return 'comment'
@@ -60,6 +61,20 @@ export const anyWorkflowHighlightStyle = HighlightStyle.define([
 ])
 
 type DslContext = 'run' | 'task' | 'event'
+
+interface ClosingLine {
+  braceCount: number
+  repeatCount: number | null
+}
+
+function parseClosingLine(line: string): ClosingLine | null {
+  const match = line.match(/^(\}+)(?:\*(\d+))?$/u)
+  if (!match?.[1]) return null
+  return {
+    braceCount: match[1].length,
+    repeatCount: match[2] === undefined ? null : Number(match[2]),
+  }
+}
 
 function dslContextAt(source: string, at: number): DslContext {
   const lines = source.slice(0, at).split(/\r?\n/u)
@@ -83,9 +98,15 @@ function dslContextAt(source: string, at: number): DslContext {
         queueDepth += 1
         continue
       }
-      if (line === '}') {
-        if (queueDepth > 0) queueDepth -= 1
-        else if (stack.at(-1) === 'event') stack.pop()
+      const closing = parseClosingLine(line)
+      if (closing) {
+        let remaining = closing.braceCount
+        while (remaining > 0) {
+          if (queueDepth > 0) queueDepth -= 1
+          else if (stack.at(-1) === 'event') stack.pop()
+          else break
+          remaining -= 1
+        }
       }
       continue
     }
@@ -102,7 +123,10 @@ function dslContextAt(source: string, at: number): DslContext {
       stack.push(context === 'run' ? 'for-task' : 'for-event')
       continue
     }
-    if (line === '}' && stack.length) stack.pop()
+    const closing = parseClosingLine(line)
+    if (closing?.repeatCount === null) {
+      for (let index = 0; index < closing.braceCount && stack.length; index += 1) stack.pop()
+    }
   }
 
   const top = stack.at(-1)
@@ -498,10 +522,9 @@ export function collectUsableVariables(source: string, at: number): string[] {
     }
     if (inFence || !line || line.startsWith('#') || line.startsWith('//')) continue
 
-    const closeMatch = line.match(/^(\}+)(?:\*\d+)?$/u)
-    const closes = closeMatch?.[1]?.length ?? 0
-    if (closes > 0) {
-      for (let index = 0; index < closes && frames.length > 1; index += 1) frames.pop()
+    const closing = parseClosingLine(line)
+    if (closing) {
+      for (let index = 0; index < closing.braceCount && frames.length > 1; index += 1) frames.pop()
       continue
     }
 
@@ -693,11 +716,26 @@ export function validateAnyWorkflowSource(source: string): Diagnostic[] {
 
     if (context === 'event') {
       if (/^(?:@act\s*\{|@for\b.*\{|\{)\s*$/iu.test(line)) queueDepth += 1
-      else if (line === '}') {
-        if (queueDepth > 0) queueDepth -= 1
-        else if (stack.at(-1)?.type === 'event') stack.pop()
-        else add(lineNumber, '多余的 }')
-      } else if (/^@task\s+.+\{\s*$/iu.test(line) || /^@event\s+.+\{\s*$/iu.test(line)) add(lineNumber, 'Event 内不能再定义 Task 或 Event')
+      else {
+        const closing = parseClosingLine(line)
+        if (closing) {
+          if (closing.repeatCount !== null && queueDepth === 0) {
+            add(lineNumber, '*N 重复后缀只能用于 Event 内部的消息或队列块')
+          } else if (closing.repeatCount !== null && closing.repeatCount < 1) {
+            add(lineNumber, '*N 的重复次数必须大于等于 1')
+          }
+
+          let remaining = closing.braceCount
+          while (remaining > 0) {
+            if (queueDepth > 0) queueDepth -= 1
+            else if (stack.at(-1)?.type === 'event') stack.pop()
+            else add(lineNumber, '多余的 }')
+            remaining -= 1
+          }
+        } else if (/^@task\s+.+\{\s*$/iu.test(line) || /^@event\s+.+\{\s*$/iu.test(line)) {
+          add(lineNumber, 'Event 内不能再定义 Task 或 Event')
+        }
+      }
       return
     }
 
@@ -715,9 +753,13 @@ export function validateAnyWorkflowSource(source: string): Diagnostic[] {
       stack.push({ type: context === 'run' ? 'for-task' : 'for-event', line: lineNumber })
       return
     }
-    if (line === '}') {
-      if (!stack.length) add(lineNumber, '多余的 }')
-      else stack.pop()
+    const closing = parseClosingLine(line)
+    if (closing) {
+      if (closing.repeatCount !== null) add(lineNumber, '*N 重复后缀只能用于 Event 内部的消息或队列块')
+      for (let closeIndex = 0; closeIndex < closing.braceCount; closeIndex += 1) {
+        if (!stack.length) add(lineNumber, '多余的 }')
+        else stack.pop()
+      }
     }
   })
 
