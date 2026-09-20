@@ -639,7 +639,7 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
             'aw-editor-shell flex flex-col overflow-hidden border border-cm-border bg-cm-bg',
             fullscreen
               ? 'fixed inset-x-0 top-0 z-50 h-[100dvh] rounded-none'
-              : 'h-[clamp(320px,48dvh,430px)] rounded-lg sm:h-[clamp(560px,70dvh,760px)]',
+              : 'h-[min(48dvh,430px)] min-h-[180px] rounded-lg sm:h-[clamp(560px,70dvh,760px)]',
           )}
         >
           <div className="shrink-0 border-b border-cm-border bg-cm-toolbar-bg">
