@@ -39,7 +39,6 @@ import {
   commandRun,
   deleteRun,
   getRun,
-  listAllHistoryMessagesForAct,
   listHistoryActsForDispatchEvent,
   listEventsForTask,
   listTasksForRun,
@@ -60,14 +59,12 @@ import {
 } from '@/lib/format'
 import { describeSchedule } from '@/lib/schedule'
 import { deriveEventProgress } from '@/lib/event-structure'
-import { compactMessagePreview } from '@/lib/history-display'
 import type {
   DispatchEventRecord,
   DispatchRequestedAction,
   DispatchRunRecord,
   DispatchTaskRecord,
   WorkflowHistoryActRecord,
-  WorkflowHistoryMessageRecord,
 } from '@/types'
 import { toast } from 'sonner'
 
@@ -88,10 +85,6 @@ interface ProgressSummary {
   percent: number
 }
 
-function boundedCount(value: number | undefined): number {
-  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.floor(value) : 0
-}
-
 function historyActsProgress(acts: readonly WorkflowHistoryActRecord[], event: DispatchEventRecord): ProgressSummary {
   const total = acts.length
   const completed = event.terminalResult === 'succeeded'
@@ -100,47 +93,8 @@ function historyActsProgress(acts: readonly WorkflowHistoryActRecord[], event: D
   return { completed, total, percent: progressPercent(completed, total) }
 }
 
-function historyActMessagesProgress(
-  act: WorkflowHistoryActRecord,
-  messages: readonly WorkflowHistoryMessageRecord[] | null,
-): ProgressSummary {
-  const total = Math.max(boundedCount(act.messageCount), messages?.length ?? 0)
-  const completed = messages
-    ? messages.filter((message) => historyStatusCompleted(message.status)).length
-    : act.status === 'succeeded'
-      ? total
-      : 0
-  return { completed: Math.min(completed, total), total, percent: progressPercent(completed, total) }
-}
-
-function HistoryMessageNode({ message }: { message: WorkflowHistoryMessageRecord }) {
-  const status = historyStatusMeta(message.status)
-
-  return (
-    <div className="flex min-w-0 items-center gap-2 border-t border-border px-3 py-2 text-[11px] sm:px-4">
-      <span className="grid size-6 shrink-0 place-items-center rounded bg-muted text-[10px] font-semibold tabular-nums text-muted-foreground">
-        {message.nodeIndex + 1}
-      </span>
-      <span className="min-w-0 flex-1 truncate">{compactMessagePreview(message.userMarkdown, `Message ${message.nodeIndex + 1}`)}</span>
-      <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-    </div>
-  )
-}
-
-function HistoryActNode({ act, activeRun }: { act: WorkflowHistoryActRecord; activeRun: boolean }) {
-  const messagesState = useAsyncData(
-    async () => listAllHistoryMessagesForAct(act.id),
-    [act.id, act.attempt],
-    {
-      enabled: true,
-      pollMs: activeRun ? 8_000 : undefined,
-      staleMs: 8_000,
-      cacheKey: 'history-messages:' + act.id,
-      errorMessage: toErrorMessage,
-    },
-  )
+function HistoryActNode({ act }: { act: WorkflowHistoryActRecord }) {
   const status = historyStatusMeta(act.status)
-  const progress = historyActMessagesProgress(act, messagesState.data)
 
   return (
     <div className="border-b border-border last:border-b-0">
@@ -150,26 +104,13 @@ function HistoryActNode({ act, activeRun }: { act: WorkflowHistoryActRecord; act
         </span>
         <span className="min-w-0 flex-1 truncate text-[12px] font-medium">{act.title || `Act ${act.actIndex + 1}`}</span>
         <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-        <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground sm:min-w-[92px] sm:text-right">
-          {progressText(progress.completed, progress.total, 'Messages')} · {progress.percent}%
-        </span>
-      </div>
-      <div className="border-t border-border bg-background/45 px-3 py-2 sm:px-4">
-        <ProgressBar value={progress.percent} tone={status.tone} />
-        {messagesState.loading && !messagesState.data ? <div className="pt-2"><LoadingState label="加载 Message…" /></div> : null}
-        {messagesState.error ? <div className="pt-2"><InlineError>{messagesState.error}</InlineError></div> : null}
-        {messagesState.data?.length ? messagesState.data.map((message) => <HistoryMessageNode key={message.id} message={message} />) : null}
-        {messagesState.data && messagesState.data.length === 0 ? (
-          <div className="pt-2 text-[11px] text-muted-foreground">暂无 Message 记录，等待执行器回传。</div>
-        ) : null}
       </div>
     </div>
   )
 }
 
 function FallbackActNode({ act }: { act: ReturnType<typeof deriveEventProgress>['acts'][number] }) {
-  const running = act.state === 'running'
-  const status = running
+  const status = act.state === 'running'
     ? { label: '执行中', tone: 'warning' as const }
     : act.state === 'completed'
       ? { label: '已完成', tone: 'success' as const }
@@ -183,36 +124,13 @@ function FallbackActNode({ act }: { act: ReturnType<typeof deriveEventProgress>[
         </span>
         <span className="min-w-0 flex-1 truncate text-[12px] font-medium">{act.title}</span>
         <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-        <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground sm:min-w-[92px] sm:text-right">
-          {progressText(act.completedMessages, act.messageCount, 'Messages')} · {act.percent}%
-        </span>
-      </div>
-      <div className="border-t border-border bg-background/45 px-3 py-2 sm:px-4">
-        <ProgressBar value={act.percent} tone={status.tone} />
-        <div className="pt-1.5 text-[10px] text-muted-foreground">等待历史回传</div>
-        {Array.from({ length: act.messageCount }, (_, index) => {
-          const completed = index < act.completedMessages
-          const current = running && index === act.completedMessages
-          const messageStatus = completed
-            ? { label: '已完成', tone: 'success' as const }
-            : current
-              ? { label: '执行中', tone: 'warning' as const }
-              : { label: '等待执行', tone: 'neutral' as const }
-          return (
-            <div key={act.id + '-message-' + index} className="flex items-center gap-2 border-t border-border py-1.5 text-[11px]">
-              <span className="grid size-5 shrink-0 place-items-center rounded bg-muted text-[10px] font-semibold tabular-nums text-muted-foreground">{index + 1}</span>
-              <span className="min-w-0 flex-1 truncate">Message {index + 1}</span>
-              <StatusBadge tone={messageStatus.tone}>{messageStatus.label}</StatusBadge>
-            </div>
-          )
-        })}
       </div>
     </div>
   )
 }
 
 function EventNode({ event, deepLinked, activeRun }: { event: DispatchEventRecord; deepLinked: boolean; activeRun: boolean }) {
-  const [open, setOpen] = useState(deepLinked)
+  const [open, setOpen] = useState(true)
   const [contentOpen, setContentOpen] = useState(false)
 
   useEffect(() => {
@@ -259,18 +177,15 @@ function EventNode({ event, deepLinked, activeRun }: { event: DispatchEventRecor
 
       {open ? (
         <div className="border-t border-border bg-muted/10 px-3 py-2.5 sm:px-4">
-          <div className="mb-3 rounded-md border border-border bg-card px-3 py-2.5">
-            <div className="mb-1.5 flex items-center justify-between gap-3 text-[10px] tabular-nums text-muted-foreground">
-              <span>Event 内 Act 进度</span>
-              <span>{progressLabel}</span>
-            </div>
-            <ProgressBar value={historyProgress?.percent ?? fallbackProgress.percent} tone={status.tone} />
+          <div className="mb-2 flex items-center justify-between gap-3 px-1 text-[10px] tabular-nums text-muted-foreground">
+            <span>Acts</span>
+            <span>{progressLabel}</span>
           </div>
           {historyActsState.loading && !historyActsState.data ? <LoadingState label="加载 Act…" /> : null}
           {historyActsState.error ? <div className="mb-3"><InlineError>历史 Act 暂不可用，当前显示执行定义：{historyActsState.error}</InlineError></div> : null}
           {hasHistory && historyActsState.data ? (
             <div className="mb-3 overflow-hidden rounded-md border border-border bg-card">
-              {historyActsState.data.map((act) => <HistoryActNode key={act.id} act={act} activeRun={activeRun} />)}
+              {historyActsState.data.map((act) => <HistoryActNode key={act.id} act={act} />)}
             </div>
           ) : fallbackProgress.acts.length ? (
             <div className="mb-3 overflow-hidden rounded-md border border-border bg-card">
