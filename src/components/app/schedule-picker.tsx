@@ -39,7 +39,6 @@ export function SchedulePicker({
   onDelayUnitChange,
   now,
   className,
-  compact = false,
 }: {
   mode: ScheduleMode
   value: string
@@ -51,7 +50,6 @@ export function SchedulePicker({
   onDelayUnitChange: (unit: DelayUnit) => void
   now: number
   className?: string
-  compact?: boolean
 }) {
   const clock = new Date(now)
   const summary = describeSchedule(value, clock)
@@ -61,30 +59,39 @@ export function SchedulePicker({
   const minimum = toLocalInputValue(minimumScheduleTime(clock))
 
   return (
-    <div className={cn('flex flex-col gap-2', className)}>
-      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+    <div className={cn('grid gap-4', className)}>
+      <div className="grid gap-1.5">
+        <span className="text-[11px] font-medium text-muted-foreground">执行方式</span>
         <Segmented
-          label="执行时间"
+          label="执行方式"
           value={mode}
           onChange={onModeChange}
           options={MODE_OPTIONS}
-          className="w-full shrink-0 sm:w-[210px]"
+          className="h-10 w-full"
         />
+      </div>
 
-        {mode === 'at' ? (
+      {mode === 'at' ? (
+        <div className="grid gap-1.5">
+          <label htmlFor="run-scheduled-at" className="text-[11px] font-medium text-muted-foreground">
+            执行时间
+          </label>
           <TextInput
+            id="run-scheduled-at"
             type="datetime-local"
-            aria-label="执行时刻"
             aria-invalid={invalid || undefined}
             min={minimum}
             value={toLocalInputValue(value)}
             onChange={(event) => onValueChange(fromLocalInputValue(event.target.value))}
-            className={cn('w-full sm:w-[210px]', invalid && 'border-danger focus-visible:border-danger')}
+            className={cn('h-10 w-full', invalid && 'border-danger focus-visible:border-danger')}
           />
-        ) : null}
+        </div>
+      ) : null}
 
-        {mode === 'after' ? (
-          <div className="grid w-full grid-cols-[minmax(0,1fr)_104px] gap-2 sm:w-[250px] sm:grid-cols-[110px_104px]">
+      {mode === 'after' ? (
+        <div className="grid gap-1.5">
+          <span className="text-[11px] font-medium text-muted-foreground">延时时长</span>
+          <div className="grid grid-cols-[minmax(0,1fr)_112px] gap-2">
             <TextInput
               type="number"
               inputMode="numeric"
@@ -94,12 +101,13 @@ export function SchedulePicker({
               aria-invalid={invalid || undefined}
               value={delayAmount}
               onChange={(event) => onDelayAmountChange(event.target.value)}
-              className={cn(invalid && 'border-danger focus-visible:border-danger')}
+              className={cn('h-10', invalid && 'border-danger focus-visible:border-danger')}
             />
             <Select
               aria-label="延时单位"
               value={delayUnit}
               onChange={(event) => onDelayUnitChange(event.target.value as DelayUnit)}
+              className="h-10"
             >
               {DELAY_UNITS.map((unit) => (
                 <option key={unit.value} value={unit.value}>
@@ -108,27 +116,35 @@ export function SchedulePicker({
               ))}
             </Select>
           </div>
-        ) : null}
-      </div>
-
-      {invalid ? (
-        <p className="flex items-center gap-1.5 text-[11px] leading-4 text-warning">
-          <TriangleAlert className="size-3.5 shrink-0" aria-hidden="true" />
-          <span>{unresolved ? (mode === 'at' ? '请选择未来的执行时间' : '延时至少为 1 分钟') : '执行时间必须晚于当前时间'}</span>
-        </p>
-      ) : compact ? null : mode === 'now' ? (
-        <p className="flex items-center gap-1.5 text-[11px] leading-4 text-muted-foreground">
-          <Clock className="size-3.5 shrink-0" aria-hidden="true" />
-          <span>保存并运行后立即排队执行</span>
-        </p>
-      ) : summary.pending ? (
-        <p className="flex items-center gap-1.5 text-[11px] leading-4 text-muted-foreground">
-          <Clock className="size-3.5 shrink-0 text-info" aria-hidden="true" />
-          <span>
-            将于 <span className="text-info">{summary.absolute}</span> 执行 · {summary.relative}
-          </span>
-        </p>
+        </div>
       ) : null}
+
+      <div
+        className={cn(
+          'flex min-h-11 items-start gap-2 rounded-md border border-border bg-muted/35 px-3 py-2.5 text-xs leading-5',
+          invalid ? 'border-warning/30 bg-warning-soft text-warning' : 'text-muted-foreground',
+        )}
+        role={invalid ? 'alert' : 'status'}
+      >
+        {invalid ? (
+          <TriangleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+        ) : (
+          <Clock className={cn('mt-0.5 size-3.5 shrink-0', mode !== 'now' && 'text-info')} aria-hidden="true" />
+        )}
+        <span>
+          {unresolved
+            ? mode === 'at'
+              ? '请选择未来的执行时间'
+              : '延时至少为 1 分钟'
+            : expired
+              ? '执行时间必须晚于当前时间'
+              : mode === 'now'
+                ? '保存并运行后立即排队执行'
+                : summary.pending
+                  ? `${summary.absolute} · ${summary.relative}`
+                  : '请选择执行计划'}
+        </span>
+      </div>
     </div>
   )
 }
