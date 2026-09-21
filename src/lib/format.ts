@@ -68,13 +68,6 @@ export function modeLabel(mode: DispatchExecutionMode, maxConcurrency: number, u
   return mode === 'parallel' ? `并行 · 最多 ${maxConcurrency} 个${unit}` : '串行'
 }
 
-export function terminalResultLabel(result: string): string {
-  if (result === 'succeeded') return '执行成功'
-  if (result === 'failed') return '执行失败'
-  if (result === 'canceled') return '已取消'
-  return '尚未结束'
-}
-
 export function eventProgressLabel(status: DispatchEventStatus, progress: Record<string, unknown> | null): string {
   if (progress) {
     for (const key of ['message', 'summary', 'phase', 'status']) {

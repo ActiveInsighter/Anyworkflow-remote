@@ -9,9 +9,11 @@ import {
   RUN_COLLECTION,
   TASK_COLLECTION,
 } from './config'
-import { clearSession, requireSession, saveBaseUrl, setSession } from './session'
+import { requireSession, saveBaseUrl, setSession } from './session'
 import { parsePlanMeta } from './plan'
 import { isFutureScheduledAt, isValidScheduledAt } from './schedule'
+import { selectHistoryEventsForDispatchEvent } from './history'
+import { ApiError, assertOwner, collectPages, listOwnedCollection, quoteFilter, request } from './pocketbase'
 import type {
   AuthSession,
   DispatchEventRecord,
@@ -25,89 +27,7 @@ import type {
   WorkflowHistoryMessageRecord,
 } from '../types'
 
-export class ApiError extends Error {
-  status: number
-  code: string
-
-  constructor(message: string, status = 0, code = 'REQUEST_FAILED') {
-    super(message)
-    this.name = 'ApiError'
-    this.status = status
-    this.code = code
-  }
-}
-
-function errorMessage(payload: unknown, fallback: string): string {
-  if (!payload || typeof payload !== 'object') return fallback
-  const candidate = payload as { message?: unknown; data?: unknown }
-  let message = typeof candidate.message === 'string' && candidate.message.trim() ? candidate.message.trim() : fallback
-  if (candidate.data && typeof candidate.data === 'object') {
-    const field = Object.entries(candidate.data as Record<string, unknown>).find(([, value]) =>
-      Boolean(value && typeof value === 'object' && typeof (value as { message?: unknown }).message === 'string'),
-    )
-    if (field) message += `（${field[0]}：${(field[1] as { message: string }).message}）`
-  }
-  return message
-}
-
-interface RequestOptions {
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'
-  data?: unknown
-  query?: Record<string, string | number | boolean | undefined>
-  baseUrl?: string
-  token?: string
-  signal?: AbortSignal
-}
-
-export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const session = options.baseUrl ? null : requireSession()
-  const baseUrl = options.baseUrl || session?.baseUrl || ''
-  const token = options.token ?? session?.token
-  const url = new URL(path, `${baseUrl}/`)
-  for (const [key, value] of Object.entries(options.query || {})) {
-    if (value !== undefined) url.searchParams.set(key, String(value))
-  }
-
-  const response = await fetch(url, {
-    method: options.method || 'GET',
-    headers: {
-      Accept: 'application/json',
-      ...(options.data !== undefined ? { 'Content-Type': 'application/json' } : {}),
-      ...(token ? { Authorization: token } : {}),
-    },
-    body: options.data !== undefined ? JSON.stringify(options.data) : undefined,
-    signal: options.signal,
-  })
-
-  if (response.status === 204) return undefined as T
-
-  const text = await response.text()
-  let payload: unknown = null
-  if (text) {
-    try {
-      payload = JSON.parse(text)
-    } catch {
-      payload = text
-    }
-  }
-
-  if (!response.ok) {
-    if (response.status === 401 || response.status === 403) clearSession()
-    throw new ApiError(errorMessage(payload, `请求失败（${response.status}）`), response.status)
-  }
-
-  return payload as T
-}
-
-export function quoteFilter(value: string): string {
-  return value.replace(/\\/gu, '\\\\').replace(/"/gu, '\\"')
-}
-
-export function assertOwner<T extends { owner: string }>(record: T): T {
-  const session = requireSession()
-  if (record.owner !== session.record.id) throw new ApiError('接口返回的数据归属无效', 502, 'INVALID_RECORD_OWNER')
-  return record
-}
+export { ApiError, assertOwner, collectPages, quoteFilter, request } from './pocketbase'
 
 /**
  * `scheduledAt` was added to the deployment after some Runs already existed, and PocketBase's
@@ -147,28 +67,6 @@ function checkedScheduledAt(value: string): string {
   return trimmed
 }
 
-async function listCollection<T extends { owner: string }>(
-  collection: string,
-  query: Record<string, string | number | boolean | undefined>,
-  normalize: (record: T) => T = (record) => record,
-): Promise<PocketBaseListResponse<T>> {
-  const response = await request<PocketBaseListResponse<T>>(`/api/collections/${collection}/records`, { query })
-  if (!response || !Array.isArray(response.items)) throw new ApiError('接口返回的数据格式无效', 502, 'INVALID_API_RESPONSE')
-  return { ...response, items: response.items.map((item) => normalize(assertOwner(item))) }
-}
-
-export async function collectPages<T extends { owner: string }>(
-  first: PocketBaseListResponse<T>,
-  load: (page: number) => Promise<PocketBaseListResponse<T>>,
-  maxItems = 500,
-): Promise<T[]> {
-  const items = [...first.items].slice(0, maxItems)
-  for (let page = 2; page <= first.totalPages && items.length < maxItems; page += 1) {
-    items.push(...(await load(page)).items.slice(0, maxItems - items.length))
-  }
-  return items
-}
-
 export async function login(identity: string, password: string, baseUrlValue: string): Promise<AuthSession> {
   if (!identity.trim() || !password) throw new ApiError('请输入邮箱和密码', 400, 'AUTH_INPUT_REQUIRED')
   const baseUrl = saveBaseUrl(baseUrlValue)
@@ -202,7 +100,7 @@ export async function listRuns(
   filter: RunListFilter = 'all',
 ): Promise<PocketBaseListResponse<DispatchRunRecord>> {
   const session = requireSession()
-  return listCollection<DispatchRunRecord>(
+  return listOwnedCollection<DispatchRunRecord>(
     RUN_COLLECTION,
     {
       page,
@@ -314,7 +212,7 @@ export async function cloneRun(source: DispatchRunRecord, status: 'draft' | 'que
 }
 
 export async function listTasksForRun(runId: string, page = 1, perPage = DEFAULT_PAGE_SIZE) {
-  return listCollection<DispatchTaskRecord>(TASK_COLLECTION, {
+  return listOwnedCollection<DispatchTaskRecord>(TASK_COLLECTION, {
     page,
     perPage,
     sort: '+runIndex',
@@ -322,27 +220,17 @@ export async function listTasksForRun(runId: string, page = 1, perPage = DEFAULT
   }, normalizeTask)
 }
 
-export async function listAllTasksForRun(runId: string): Promise<DispatchTaskRecord[]> {
-  const first = await listTasksForRun(runId)
-  return collectPages(first, (page) => listTasksForRun(runId, page, first.perPage))
-}
-
 export async function getTask(id: string): Promise<DispatchTaskRecord> {
   return normalizeTask(assertOwner(await request<DispatchTaskRecord>(`/api/collections/${TASK_COLLECTION}/records/${encodeURIComponent(id)}`)))
 }
 
 export async function listEventsForTask(taskId: string, page = 1, perPage = DEFAULT_PAGE_SIZE) {
-  return listCollection<DispatchEventRecord>(EVENT_COLLECTION, {
+  return listOwnedCollection<DispatchEventRecord>(EVENT_COLLECTION, {
     page,
     perPage,
     sort: '+eventIndex',
     filter: `task="${quoteFilter(taskId)}"`,
-  })
-}
-
-export async function listAllEventsForTask(taskId: string): Promise<DispatchEventRecord[]> {
-  const first = await listEventsForTask(taskId)
-  return collectPages(first, (page) => listEventsForTask(taskId, page, first.perPage))
+  }, (record) => record)
 }
 
 export async function getEvent(id: string): Promise<DispatchEventRecord> {
@@ -354,27 +242,36 @@ export async function getEvent(id: string): Promise<DispatchEventRecord> {
  * that same value as aw_tasks.taskId, so the relation chain can be traversed
  * without adding a second foreign key to the dispatch collections.
  */
-export async function listHistoryEventsForLocalRun(localRunId: string, page = 1, perPage = DEFAULT_PAGE_SIZE) {
-  return listCollection<WorkflowHistoryEventRecord>(HISTORY_EVENT_COLLECTION, {
+export async function listHistoryEventsForLocalRun(
+  localRunId: string,
+  page = 1,
+  perPage = DEFAULT_PAGE_SIZE,
+  eventIndex?: number,
+) {
+  const eventIndexFilter = Number.isSafeInteger(eventIndex) ? ` && eventIndex = ${eventIndex}` : ''
+  return listOwnedCollection<WorkflowHistoryEventRecord>(HISTORY_EVENT_COLLECTION, {
     page,
     perPage,
     sort: '+eventIndex',
-    filter: `task.taskId="${quoteFilter(localRunId)}"`,
-  })
+    filter: `task.taskId="${quoteFilter(localRunId)}"${eventIndexFilter}`,
+  }, (record) => record)
 }
 
-export async function listAllHistoryEventsForLocalRun(localRunId: string): Promise<WorkflowHistoryEventRecord[]> {
-  const first = await listHistoryEventsForLocalRun(localRunId)
-  return collectPages(first, (page) => listHistoryEventsForLocalRun(localRunId, page, first.perPage))
+export async function listAllHistoryEventsForLocalRun(
+  localRunId: string,
+  eventIndex?: number,
+): Promise<WorkflowHistoryEventRecord[]> {
+  const first = await listHistoryEventsForLocalRun(localRunId, 1, DEFAULT_PAGE_SIZE, eventIndex)
+  return collectPages(first, (page) => listHistoryEventsForLocalRun(localRunId, page, first.perPage, eventIndex))
 }
 
 export async function listHistoryActsForEvent(historyEventId: string, page = 1, perPage = DEFAULT_PAGE_SIZE) {
-  return listCollection<WorkflowHistoryActRecord>(HISTORY_ACT_COLLECTION, {
+  return listOwnedCollection<WorkflowHistoryActRecord>(HISTORY_ACT_COLLECTION, {
     page,
     perPage,
     sort: '+actIndex',
     filter: `event="${quoteFilter(historyEventId)}"`,
-  })
+  }, (record) => record)
 }
 
 export async function listAllHistoryActsForEvent(historyEventId: string): Promise<WorkflowHistoryActRecord[]> {
@@ -384,18 +281,21 @@ export async function listAllHistoryActsForEvent(historyEventId: string): Promis
 
 export async function listHistoryActsForDispatchEvent(event: DispatchEventRecord): Promise<WorkflowHistoryActRecord[]> {
   if (!event.localRunId) return []
-  const historyEvents = await listAllHistoryEventsForLocalRun(event.localRunId)
+  const historyEvents = selectHistoryEventsForDispatchEvent(
+    await listAllHistoryEventsForLocalRun(event.localRunId, event.eventIndex),
+    event,
+  )
   const acts = (await Promise.all(historyEvents.map((historyEvent) => listAllHistoryActsForEvent(historyEvent.id)))).flat()
   return acts.sort((left, right) => left.actIndex - right.actIndex || left.id.localeCompare(right.id))
 }
 
 export async function listHistoryMessagesForAct(actId: string, page = 1, perPage = DEFAULT_PAGE_SIZE) {
-  return listCollection<WorkflowHistoryMessageRecord>(HISTORY_MESSAGE_COLLECTION, {
+  return listOwnedCollection<WorkflowHistoryMessageRecord>(HISTORY_MESSAGE_COLLECTION, {
     page,
     perPage,
     sort: '+nodeIndex',
     filter: `act="${quoteFilter(actId)}"`,
-  })
+  }, (record) => record)
 }
 
 export async function listAllHistoryMessagesForAct(actId: string): Promise<WorkflowHistoryMessageRecord[]> {

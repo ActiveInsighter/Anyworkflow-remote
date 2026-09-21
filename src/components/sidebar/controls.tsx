@@ -87,29 +87,3 @@ export const SidebarTrigger = React.forwardRef<HTMLButtonElement, SidebarTrigger
     )
   },
 )
-
-export type SidebarSectionActionProps = React.ComponentPropsWithoutRef<'button'> & {
-  tooltip?: React.ReactNode
-}
-
-export const SidebarSectionAction = React.forwardRef<HTMLButtonElement, SidebarSectionActionProps>(
-  function SidebarSectionAction({ tooltip, type = 'button', children, ...props }, forwardedRef) {
-    const button = (
-      <button
-        {...props}
-        ref={forwardedRef}
-        type={type}
-        data-slot="sidebar-section-action"
-        aria-label={props['aria-label'] ?? (typeof tooltip === 'string' ? tooltip : undefined)}
-      >
-        {children}
-      </button>
-    )
-
-    return (
-      <SidebarTooltip content={tooltip} side="right">
-        {button}
-      </SidebarTooltip>
-    )
-  },
-)

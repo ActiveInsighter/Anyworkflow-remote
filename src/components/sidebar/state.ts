@@ -1,3 +1,5 @@
+import { readStorage, writeStorage } from '@/lib/storage'
+
 export type SidebarShortcutEvent = {
   key: string
   ctrlKey: boolean
@@ -42,22 +44,14 @@ export function sidebarStorageKey(key: string): string {
 
 /** Reads the persisted desktop state. Returns undefined when nothing valid is stored. */
 export function readSidebarState(storageKey: string): boolean | undefined {
-  try {
-    const raw = localStorage.getItem(sidebarStorageKey(storageKey))
-    if (raw === 'true') return true
-    if (raw === 'false') return false
-    return undefined
-  } catch {
-    return undefined
-  }
+  const raw = readStorage(sidebarStorageKey(storageKey))
+  if (raw === 'true') return true
+  if (raw === 'false') return false
+  return undefined
 }
 
 export function writeSidebarState(storageKey: string, open: boolean): void {
-  try {
-    localStorage.setItem(sidebarStorageKey(storageKey), String(open))
-  } catch {
-    // Storage can be unavailable (private mode, quota). The state simply is not remembered.
-  }
+  writeStorage(sidebarStorageKey(storageKey), String(open))
 }
 
 export function matchesSidebarShortcut(

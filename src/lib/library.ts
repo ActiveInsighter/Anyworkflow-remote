@@ -6,17 +6,19 @@ import {
   RUN_FAVORITE_COLLECTION,
   TEMPLATE_COLLECTION,
 } from '@/lib/config'
-import { ApiError, assertOwner, collectPages, quoteFilter, request } from '@/lib/api'
+import { ApiError, assertOwner, collectPages, listOwnedCollection, quoteFilter, request } from '@/lib/pocketbase'
+import { otherScope, scopedFolders } from './library-tree'
 import { requireSession } from '@/lib/session'
 import type {
   DispatchRunRecord,
-  FlattenedLibraryFolder,
   LibraryFolderRecord,
   LibraryFolderScope,
   PocketBaseListResponse,
   RunFavoriteRecord,
   WorkflowTemplateRecord,
 } from '@/types'
+
+export { flattenLibraryFolders } from './library-tree'
 
 type ExpandedFavorite = RunFavoriteRecord & {
   expand?: {
@@ -110,53 +112,35 @@ function parseTemplate(value: ExpandedTemplate): WorkflowTemplateRecord {
 
 async function listFoldersPage(page: number): Promise<PocketBaseListResponse<LibraryFolderRecord>> {
   const session = requireSession()
-  const response = await request<PocketBaseListResponse<LibraryFolderRecord>>(
-    `/api/collections/${LIBRARY_FOLDER_COLLECTION}/records`,
-    {
-      query: {
-        page,
-        perPage: DEFAULT_PAGE_SIZE,
-        sort: '+sortOrder,+name',
-        filter: `owner="${quoteFilter(session.record.id)}"`,
-      },
-    },
-  )
-  return { ...response, items: response.items.map(parseFolder) }
+  return listOwnedCollection(LIBRARY_FOLDER_COLLECTION, {
+    page,
+    perPage: DEFAULT_PAGE_SIZE,
+    sort: '+sortOrder,+name',
+    filter: `owner="${quoteFilter(session.record.id)}"`,
+  }, parseFolder)
 }
 
 async function listFavoritesPage(page: number, extraFilter = ''): Promise<PocketBaseListResponse<RunFavoriteRecord>> {
   const session = requireSession()
   const filter = [`owner="${quoteFilter(session.record.id)}"`, extraFilter].filter(Boolean).join(' && ')
-  const response = await request<PocketBaseListResponse<ExpandedFavorite>>(
-    `/api/collections/${RUN_FAVORITE_COLLECTION}/records`,
-    {
-      query: {
-        page,
-        perPage: DEFAULT_PAGE_SIZE,
-        sort: '-updated',
-        expand: 'run,folder',
-        filter,
-      },
-    },
-  )
-  return { ...response, items: response.items.map(parseFavorite) }
+  return listOwnedCollection<ExpandedFavorite, RunFavoriteRecord>(RUN_FAVORITE_COLLECTION, {
+    page,
+    perPage: DEFAULT_PAGE_SIZE,
+    sort: '-updated',
+    expand: 'run,folder',
+    filter,
+  }, parseFavorite)
 }
 
 async function listTemplatesPage(page: number): Promise<PocketBaseListResponse<WorkflowTemplateRecord>> {
   const session = requireSession()
-  const response = await request<PocketBaseListResponse<ExpandedTemplate>>(
-    `/api/collections/${TEMPLATE_COLLECTION}/records`,
-    {
-      query: {
-        page,
-        perPage: DEFAULT_PAGE_SIZE,
-        sort: '-updated',
-        expand: 'folder',
-        filter: `owner="${quoteFilter(session.record.id)}"`,
-      },
-    },
-  )
-  return { ...response, items: response.items.map(parseTemplate) }
+  return listOwnedCollection<ExpandedTemplate, WorkflowTemplateRecord>(TEMPLATE_COLLECTION, {
+    page,
+    perPage: DEFAULT_PAGE_SIZE,
+    sort: '-updated',
+    expand: 'folder',
+    filter: `owner="${quoteFilter(session.record.id)}"`,
+  }, parseTemplate)
 }
 
 export async function listAllLibraryFolders(): Promise<LibraryFolderRecord[]> {
@@ -172,45 +156,6 @@ export async function listAllRunFavorites(): Promise<RunFavoriteRecord[]> {
 export async function listAllWorkflowTemplates(): Promise<WorkflowTemplateRecord[]> {
   const first = await listTemplatesPage(1)
   return collectPages(first, listTemplatesPage)
-}
-
-/**
- * The visible tree for one tab. Two rules, in order:
- *
- *   1. A folder tagged with this scope is always visible. That is what makes a freshly created,
- *      still empty folder appear straight away instead of waiting for its first item.
- *   2. A legacy folder with no scope stays visible wherever an item references it or one of its
- *      descendants, so folders created before `scope` existed keep rendering as they did.
- *
- * A folder tagged with the *other* scope is never pulled in by rule 2, so the two trees stay
- * separate even when old data nests one tab's folder under the other tab's ancestor.
- */
-function scopedFolders(
-  folders: LibraryFolderRecord[],
-  scope: LibraryFolderScope,
-  referencedFolderIds: string[],
-): LibraryFolderRecord[] {
-  const byId = new Map(folders.map((folder) => [folder.id, folder]))
-  const included = new Set(folders.filter((folder) => folder.scope === scope).map((folder) => folder.id))
-  for (const id of referencedFolderIds.filter(Boolean)) {
-    let current = id
-    const seen = new Set<string>()
-    while (current && !seen.has(current)) {
-      seen.add(current)
-      const folder = byId.get(current)
-      if (!folder) break
-      if (!folder.scope || folder.scope === scope) included.add(folder.id)
-      current = folder.parent
-    }
-  }
-  return folders.filter((folder) => included.has(folder.id))
-}
-
-/** The sibling tree, used to keep a delete from reaching across the separation. */
-function otherScope(scope?: LibraryFolderScope): LibraryFolderScope | undefined {
-  if (scope === 'favorite') return 'template'
-  if (scope === 'template') return 'favorite'
-  return undefined
 }
 
 export async function listLibrary() {
@@ -403,38 +348,4 @@ export async function deleteWorkflowTemplate(id: string): Promise<void> {
     `/api/collections/${TEMPLATE_COLLECTION}/records/${encodeURIComponent(requiredId(id, '模板 ID'))}`,
     { method: 'DELETE' },
   )
-}
-
-function compareFolders(a: LibraryFolderRecord, b: LibraryFolderRecord): number {
-  return a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'zh-CN')
-}
-
-export function flattenLibraryFolders(folders: LibraryFolderRecord[]): FlattenedLibraryFolder[] {
-  const byId = new Map(folders.map((folder) => [folder.id, folder]))
-  const children = new Map<string, LibraryFolderRecord[]>()
-  const roots: LibraryFolderRecord[] = []
-
-  for (const folder of folders) {
-    if (!folder.parent || !byId.has(folder.parent) || folder.parent === folder.id) {
-      roots.push(folder)
-      continue
-    }
-    const siblings = children.get(folder.parent) ?? []
-    siblings.push(folder)
-    children.set(folder.parent, siblings)
-  }
-  roots.sort(compareFolders)
-  children.forEach((items) => items.sort(compareFolders))
-
-  const result: FlattenedLibraryFolder[] = []
-  const visited = new Set<string>()
-  const visit = (folder: LibraryFolderRecord, depth: number) => {
-    if (visited.has(folder.id)) return
-    visited.add(folder.id)
-    result.push({ ...folder, depth, label: folder.name })
-    for (const child of children.get(folder.id) ?? []) visit(child, depth + 1)
-  }
-  roots.forEach((folder) => visit(folder, 0))
-  folders.slice().sort(compareFolders).forEach((folder) => visit(folder, 0))
-  return result
 }

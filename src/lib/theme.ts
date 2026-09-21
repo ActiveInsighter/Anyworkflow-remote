@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { readStorage, writeStorage } from './storage'
 
 export type ThemePreference = 'system' | 'light' | 'dark'
 
@@ -20,12 +21,7 @@ function isPreference(value: unknown): value is ThemePreference {
  * has not changed. A string primitive satisfies that naturally.
  */
 function readPreference(): ThemePreference {
-  let raw: string | null = null
-  try {
-    raw = localStorage.getItem(THEME_KEY)
-  } catch {
-    raw = null
-  }
+  const raw = readStorage(THEME_KEY) ?? null
 
   if (raw === cachedRaw) return cachedPreference
   cachedRaw = raw
@@ -53,11 +49,7 @@ export function getThemePreference(): ThemePreference {
 }
 
 export function setThemePreference(preference: ThemePreference): void {
-  try {
-    localStorage.setItem(THEME_KEY, preference)
-  } catch {
-    // Theme persistence is best effort; the choice still applies for this session.
-  }
+  writeStorage(THEME_KEY, preference)
   cachedRaw = preference
   cachedPreference = preference
   applyPreference(preference)

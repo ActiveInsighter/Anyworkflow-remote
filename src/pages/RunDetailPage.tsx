@@ -2,11 +2,9 @@ import {
   BookmarkPlus,
   BookmarkX,
   CalendarClock,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Copy,
-  FileText,
   Pencil,
   Pause,
   Play,
@@ -16,7 +14,7 @@ import {
   XCircle,
   Zap,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import {
   AppPage,
@@ -30,8 +28,9 @@ import {
   StatusBadge,
 } from '@/components/app/ui'
 import { ConfirmDeleteDialog } from '@/components/app/confirm-delete-dialog'
+import { TaskNode } from '@/components/run/RunTaskNode'
+import { RUN_DETAIL_PAGE_SIZE } from '@/components/run/run-detail-constants'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useAsyncData, invalidateAsyncDataCache } from '@/hooks/useAsyncData'
 import { useNow } from '@/hooks/useNow'
 import {
@@ -39,303 +38,25 @@ import {
   commandRun,
   deleteRun,
   getRun,
-  listAllHistoryMessagesForAct,
-  listHistoryActsForDispatchEvent,
-  listEventsForTask,
   listTasksForRun,
   toErrorMessage,
   updateRunDraft,
 } from '@/lib/api'
 import { createRunFavorite, createWorkflowTemplateFromRun, deleteRunFavorite, getRunFavoriteForRun } from '@/lib/library'
 import {
-  eventProgressLabel,
-  eventStatusMeta,
   formatDateTime,
-  historyStatusCompleted,
-  historyStatusMeta,
   modeLabel,
   progressPercent,
   progressText,
   runStatusMeta,
 } from '@/lib/format'
 import { describeSchedule } from '@/lib/schedule'
-import { deriveEventProgress } from '@/lib/event-structure'
-import type {
-  DispatchEventRecord,
-  DispatchRequestedAction,
-  DispatchRunRecord,
-  DispatchTaskRecord,
-  WorkflowHistoryActRecord,
-} from '@/types'
+import type { DispatchRequestedAction } from '@/types'
 import { toast } from 'sonner'
-
-const PAGE_SIZE = 20
 
 function positivePage(value: string | null): number {
   const page = Number(value)
   return Number.isInteger(page) && page > 0 ? page : 1
-}
-
-function eventTitle(event: DispatchEventRecord): string {
-  return event.queueTextOverride.match(/^\s*@event\s*=\s*(.*?)\s*$/imu)?.[1]?.trim() || `Event ${event.eventIndex + 1}`
-}
-
-interface ProgressSummary {
-  completed: number
-  total: number
-  percent: number
-}
-
-function historyActsProgress(acts: readonly WorkflowHistoryActRecord[], event: DispatchEventRecord): ProgressSummary {
-  const total = acts.length
-  const completed = event.terminalResult === 'succeeded'
-    ? total
-    : acts.filter((act) => historyStatusCompleted(act.status)).length
-  return { completed, total, percent: progressPercent(completed, total) }
-}
-
-function HistoryActNode({ act }: { act: WorkflowHistoryActRecord }) {
-  const status = historyStatusMeta(act.status)
-  const messagesState = useAsyncData(
-    async () => listAllHistoryMessagesForAct(act.id),
-    [act.id, act.attempt],
-    { enabled: true, staleMs: 8_000, cacheKey: 'history-messages:' + act.id + ':' + act.attempt, errorMessage: toErrorMessage },
-  )
-
-  return (
-    <div className="border-b border-border last:border-b-0">
-      <div className="flex min-w-0 items-center gap-2.5 px-3 py-2.5 sm:px-4">
-        <span className="grid size-7 shrink-0 place-items-center rounded-md bg-muted text-[10px] font-semibold tabular-nums text-muted-foreground">
-          {act.actIndex + 1}
-        </span>
-        <span className="min-w-0 flex-1 truncate text-[12px] font-medium">{act.title || `Act ${act.actIndex + 1}`}</span>
-        <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-      </div>
-      {messagesState.data?.length ? (
-        <div className="space-y-2 px-3 pb-3 sm:px-4">
-          {messagesState.data.map((message) => (
-            <div key={message.id} className="rounded-md border border-border bg-muted/25 p-2.5 text-[11px] leading-5">
-              <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-muted-foreground">
-                <span>消息 {message.nodeIndex + 1}</span>
-                {message.conversationUrl ? <span className="font-mono">线程 {message.conversationUrl}</span> : null}
-              </div>
-              <div className="whitespace-pre-wrap break-words text-foreground/90">{message.assistantMarkdown || message.userMarkdown}</div>
-            </div>
-          ))}
-        </div>
-      ) : null}
-    </div>
-  )
-}
-
-function FallbackActNode({ act }: { act: ReturnType<typeof deriveEventProgress>['acts'][number] }) {
-  const status = act.state === 'running'
-    ? { label: '执行中', tone: 'warning' as const }
-    : act.state === 'completed'
-      ? { label: '已完成', tone: 'success' as const }
-      : { label: '等待执行', tone: 'neutral' as const }
-
-  return (
-    <div className="border-b border-border last:border-b-0">
-      <div className="flex min-w-0 items-center gap-2.5 px-3 py-2.5 sm:px-4">
-        <span className="grid size-7 shrink-0 place-items-center rounded-md bg-muted text-[10px] font-semibold tabular-nums text-muted-foreground">
-          {act.id.replace('act-', '')}
-        </span>
-        <span className="min-w-0 flex-1 truncate text-[12px] font-medium">{act.title}</span>
-        <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-      </div>
-    </div>
-  )
-}
-
-function EventNode({ event, deepLinked, activeRun }: { event: DispatchEventRecord; deepLinked: boolean; activeRun: boolean }) {
-  const [open, setOpen] = useState(true)
-  const [contentOpen, setContentOpen] = useState(false)
-
-  useEffect(() => {
-    if (deepLinked) setOpen(true)
-  }, [deepLinked])
-
-  const status = eventStatusMeta(event.status, event.terminalResult)
-  const fallbackProgress = deriveEventProgress(event.queueTextOverride, event.progress, event.terminalResult)
-  const historyActsState = useAsyncData(
-    async () => listHistoryActsForDispatchEvent(event),
-    [event.id, event.localRunId, event.attempt],
-    {
-      enabled: open && Boolean(event.localRunId),
-      pollMs: open && activeRun ? 8_000 : undefined,
-      staleMs: 8_000,
-      cacheKey: open && event.localRunId ? 'history-acts:' + event.id + ':' + event.localRunId : undefined,
-      errorMessage: toErrorMessage,
-    },
-  )
-  const hasHistory = Boolean(historyActsState.data?.length)
-  const historyProgress = hasHistory && historyActsState.data ? historyActsProgress(historyActsState.data, event) : null
-  const progressLabel = historyProgress
-    ? `${historyProgress.completed} / ${historyProgress.total} Acts · ${historyProgress.percent}%`
-    : fallbackProgress.totalActs
-      ? `${fallbackProgress.completedActs} / ${fallbackProgress.totalActs} Acts · ${fallbackProgress.percent}%`
-      : eventProgressLabel(event.status, event.progress)
-
-  return (
-    <div id={'event-' + event.id} className="border-b border-border last:border-b-0">
-      <button
-        type="button"
-        className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left outline-none transition-colors hover:bg-muted/35 focus-visible:bg-muted/45 sm:px-4"
-        onClick={() => setOpen((value) => !value)}
-        aria-expanded={open}
-      >
-        {open ? <ChevronDown className="size-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="size-4 shrink-0 text-muted-foreground" />}
-        <span className="grid size-7 shrink-0 place-items-center rounded-md bg-muted text-[10px] font-semibold tabular-nums text-muted-foreground">
-          {event.eventIndex + 1}
-        </span>
-        <span className="min-w-0 flex-1 truncate text-[12px] font-medium">{eventTitle(event)}</span>
-        <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-        <span className="max-w-[42%] shrink-0 truncate text-[10px] tabular-nums text-muted-foreground">{progressLabel}</span>
-      </button>
-
-      {open ? (
-        <div className="border-t border-border bg-muted/10 px-3 py-2.5 sm:px-4">
-          <div className="mb-2 flex items-center justify-between gap-3 px-1 text-[10px] tabular-nums text-muted-foreground">
-            <span>Acts</span>
-            <span>{progressLabel}</span>
-          </div>
-          {historyActsState.loading && !historyActsState.data ? <LoadingState label="加载 Act…" /> : null}
-          {historyActsState.error ? <div className="mb-3"><InlineError>历史 Act 暂不可用，当前显示执行定义：{historyActsState.error}</InlineError></div> : null}
-          {hasHistory && historyActsState.data ? (
-            <div className="mb-3 overflow-hidden rounded-md border border-border bg-card">
-              {historyActsState.data.map((act) => <HistoryActNode key={act.id} act={act} />)}
-            </div>
-          ) : fallbackProgress.acts.length ? (
-            <div className="mb-3 overflow-hidden rounded-md border border-border bg-card">
-              {fallbackProgress.acts.map((act) => <FallbackActNode key={act.id} act={act} />)}
-            </div>
-          ) : null}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
-            {event.attempt > 0 ? <span>尝试 {event.attempt}</span> : null}
-            <span>{formatDateTime(event.updated)}</span>
-            {event.workerId ? <span className="hidden sm:inline">Worker {event.workerId}</span> : null}
-            {event.queueTextOverride.trim() ? (
-              <Button
-                size="sm"
-                variant="link"
-                className="h-auto gap-1 p-0 text-[10px] text-info"
-                onClick={() => setContentOpen(true)}
-              >
-                <FileText className="size-3.5" />
-                查看执行内容
-              </Button>
-            ) : null}
-          </div>
-          {event.lastError ? <div className="mt-2"><InlineError>{event.lastError}</InlineError></div> : null}
-        </div>
-      ) : null}
-
-      <Dialog open={contentOpen} onOpenChange={setContentOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>执行内容</DialogTitle>
-            <DialogDescription>{eventTitle(event)}</DialogDescription>
-          </DialogHeader>
-          <pre className="max-h-[68vh] overflow-y-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-muted/45 p-3 text-[12px] leading-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {event.queueTextOverride}
-          </pre>
-        </DialogContent>
-      </Dialog>
-    </div>
-  )
-}
-
-function TaskNode({
-  task,
-  deepTaskId,
-  deepEventId,
-  deepEventPage,
-  activeRun,
-}: {
-  task: DispatchTaskRecord
-  deepTaskId: string
-  deepEventId: string
-  deepEventPage: number
-  activeRun: boolean
-}) {
-  const deepLinked = task.id === deepTaskId
-  const [open, setOpen] = useState(deepLinked)
-  const [eventPage, setEventPage] = useState(deepLinked ? deepEventPage : 1)
-
-  useEffect(() => {
-    if (!deepLinked) return
-    setOpen(true)
-    setEventPage(deepEventPage)
-  }, [deepLinked, deepEventPage])
-
-  const eventsState = useAsyncData(
-    async () => listEventsForTask(task.id, eventPage, PAGE_SIZE),
-    [task.id, eventPage],
-    {
-      enabled: open,
-      pollMs: open && activeRun ? 8_000 : undefined,
-      staleMs: 8_000,
-      cacheKey: open ? 'events:' + task.id + ':' + eventPage : undefined,
-      errorMessage: toErrorMessage,
-    },
-  )
-
-  const status = runStatusMeta(task.status, task.requestedAction)
-  const percent = progressPercent(task.completedEvents, task.totalEvents)
-
-  return (
-    <div id={'task-' + task.id} className="border-b border-border last:border-b-0">
-      <button
-        type="button"
-        className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left outline-none transition-colors hover:bg-muted/35 focus-visible:bg-muted/45 sm:px-4"
-        onClick={() => setOpen((value) => !value)}
-        aria-expanded={open}
-      >
-        {open ? <ChevronDown className="size-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="size-4 shrink-0 text-muted-foreground" />}
-        <span className="hidden size-7 shrink-0 place-items-center rounded-md bg-muted text-[10px] font-semibold tabular-nums text-muted-foreground sm:grid">
-          {task.runIndex + 1}
-        </span>
-        <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{task.title || 'Task ' + (task.runIndex + 1)}</span>
-        {task.executorKind === 'codex' ? <span className="shrink-0 rounded bg-info/10 px-1.5 py-0.5 text-[10px] font-medium text-info">Codex</span> : null}
-        <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-        <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
-          {progressText(task.completedEvents, task.totalEvents, 'Events')} · {percent}%
-        </span>
-      </button>
-
-      {open ? (
-        <div className="border-t border-border bg-muted/10">
-          {task.compileError ? <div className="px-3 pt-3 sm:px-4"><InlineError>{task.compileError}</InlineError></div> : null}
-          {eventsState.loading && !eventsState.data ? <div className="p-3 sm:p-4"><LoadingState label="加载 Event…" /></div> : null}
-          {eventsState.error ? <div className="px-3 pt-3 sm:px-4"><InlineError>{eventsState.error}</InlineError></div> : null}
-          {eventsState.data?.items.length ? (
-            <div className="ms-3 border-s border-border sm:ms-7">
-              {eventsState.data.items.map((event) => (
-                <EventNode key={event.id} event={event} deepLinked={event.id === deepEventId} activeRun={activeRun} />
-              ))}
-            </div>
-          ) : null}
-          {eventsState.data && eventsState.data.items.length === 0 ? (
-            <div className="px-4 py-5 text-xs text-muted-foreground">暂无 Event</div>
-          ) : null}
-          {eventsState.data && eventsState.data.totalPages > 1 ? (
-            <div className="flex items-center justify-between gap-3 border-t border-border px-3 py-2.5 text-[11px] text-muted-foreground sm:px-4">
-              <span>{eventsState.data.totalItems} 条 · {eventPage}/{eventsState.data.totalPages} 页</span>
-              <span className="flex items-center gap-1">
-                <Button size="sm" variant="ghost" disabled={eventPage <= 1} onClick={() => setEventPage((value) => Math.max(1, value - 1))}>
-                  <ChevronLeft />上一页
-                </Button>
-                <Button size="sm" variant="ghost" disabled={eventPage >= eventsState.data.totalPages} onClick={() => setEventPage((value) => value + 1)}>
-                  下一页<ChevronRight />
-                </Button>
-              </span>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-    </div>
-  )
 }
 
 export function RunDetailPage() {
@@ -371,7 +92,7 @@ export function RunDetailPage() {
   const active = run?.status === 'queued' || run?.status === 'running'
 
   const tasksState = useAsyncData(
-    async () => listTasksForRun(runId, taskPage, PAGE_SIZE),
+    async () => listTasksForRun(runId, taskPage, RUN_DETAIL_PAGE_SIZE),
     [runId, taskPage],
     {
       enabled: Boolean(runId && run),

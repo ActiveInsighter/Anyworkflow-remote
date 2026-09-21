@@ -79,16 +79,8 @@ function NavRow({ item, active }: { item: AppNavItem; active: boolean }) {
   )
 }
 
-function AccountSummary({ compact = false }: { compact?: boolean }) {
+function AccountSummary() {
   const session = useSession()
-
-  if (compact) {
-    return (
-      <div className="grid size-6 shrink-0 place-items-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground" aria-hidden="true">
-        {(session?.record.name || session?.record.email || '?').slice(0, 1).toUpperCase()}
-      </div>
-    )
-  }
 
   const name = session ? session.record.name || session.record.email || '已登录' : '未连接'
   let host = ''
@@ -181,5 +173,3 @@ export function AppSidebar() {
     </SidebarShell>
   )
 }
-
-export { AccountSummary, BrandMark }

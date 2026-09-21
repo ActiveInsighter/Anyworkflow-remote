@@ -29,7 +29,7 @@ AnyWorkflow 的响应式 Web 控制端。项目参考 `Anyworkflow-wechat` 的�
 - 手机侧边导航、顶部路径导航与触控优化
 - 自动深色模式
 - Web App manifest
-- GitHub Actions 类型检查与构建
+- GitHub Actions 回归测试、类型检查与构建
 - GitHub Actions 自动部署到 Cloudflare Workers Static Assets
 
 ## 后端兼容
@@ -78,6 +78,12 @@ npm run preflight
 
 静态产物位于 `dist/`。
 
+回归测试可单独运行：
+
+```bash
+npm test
+```
+
 ## Agent 工作方式
 
 根目录 `AGENTS.md` 是本项目统一的 Agent 入口，本地 Git checkout 与云端 CI 源码产物都遵循同一套规则。
@@ -93,7 +99,7 @@ Agent 应先读取 `AGENTS.md`，再按任务只加载相关的 `.agents/skills/
 
 ## CI 源码与 Skills 产物
 
-`.github/workflows/ci.yml` 在类型检查和构建全部成功后，会自动生成 Linux/Unix 友好的源码 ZIP，并上传到当前 GitHub Actions Run 的 Artifacts。
+`.github/workflows/ci.yml` 在回归测试、类型检查和构建全部成功后，会自动生成 Linux/Unix 友好的源码 ZIP，并上传到当前 GitHub Actions Run 的 Artifacts。
 
 Artifact 名固定为：
 

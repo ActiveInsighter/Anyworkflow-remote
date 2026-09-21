@@ -21,7 +21,7 @@ import {
   indentOnInput,
   syntaxHighlighting,
 } from '@codemirror/language'
-import { forEachDiagnostic, linter, lintKeymap, type Diagnostic } from '@codemirror/lint'
+import { forEachDiagnostic, linter, lintKeymap } from '@codemirror/lint'
 import { highlightSelectionMatches } from '@codemirror/search'
 import { EditorState } from '@codemirror/state'
 import {
@@ -35,29 +35,12 @@ import {
   rectangularSelection,
 } from '@codemirror/view'
 import {
-  AlignLeft,
-  Bot,
-  Braces,
   Check,
+  CircleAlert,
   ChevronDown,
   ChevronUp,
-  CircleAlert,
-  ClipboardPaste,
-  Copy,
   Info,
-  Link as LinkIcon,
-  ListTree,
-  Maximize2,
-  Minimize2,
-  Percent,
-  Redo2,
-  Repeat,
-  Save,
-  Trash2,
   TriangleAlert,
-  Undo2,
-  Variable,
-  Zap,
 } from 'lucide-react'
 import {
   forwardRef,
@@ -66,10 +49,8 @@ import {
   useImperativeHandle,
   useRef,
   useState,
-  type ReactNode,
 } from 'react'
-import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import {
   anyWorkflowCompletion,
   collectUsableVariables,
@@ -81,6 +62,10 @@ import {
   type StructuredInsertKind,
   validateAnyWorkflowSource,
 } from '@/components/editor/anyworkflow-dsl'
+import { EditorToolbar } from '@/components/editor/EditorToolbar'
+import { offsetForLineColumn, sameIssues, type EditorIssue } from '@/components/editor/editor-helpers'
+export type { EditorIssue } from '@/components/editor/editor-helpers'
+import { readClipboard, writeClipboard } from '@/lib/clipboard'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
@@ -94,14 +79,6 @@ export interface AnyWorkflowEditorHandle {
   /** Selects a range so the offending line is visibly marked, then scrolls to it. */
   reveal: (from: number, to: number) => void
   getSource: () => string
-}
-
-export interface EditorIssue {
-  from: number
-  to: number
-  line: number
-  severity: Diagnostic['severity']
-  message: string
 }
 
 interface AnyWorkflowEditorProps {
@@ -179,55 +156,6 @@ const editorTheme = EditorView.theme({
   },
 })
 
-/** Clipboard access needs a secure context and can still be refused; fall back before failing. */
-async function readClipboard(): Promise<string> {
-  if (!navigator.clipboard?.readText) throw new Error('Clipboard read is unavailable')
-  return navigator.clipboard.readText()
-}
-
-async function writeClipboard(text: string): Promise<boolean> {
-  try {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text)
-      return true
-    }
-  } catch {
-    // fall through to the legacy path
-  }
-
-  try {
-    const area = document.createElement('textarea')
-    area.value = text
-    area.setAttribute('readonly', '')
-    area.style.position = 'fixed'
-    area.style.top = '-1000px'
-    document.body.appendChild(area)
-    area.select()
-    const ok = document.execCommand('copy')
-    area.remove()
-    return ok
-  } catch {
-    return false
-  }
-}
-
-/** Line/column offsets survive formatting because the formatter never adds or removes lines. */
-function offsetForLineColumn(text: string, lineNumber: number, column: number): number {
-  const lines = text.split('\n')
-  const index = Math.max(0, Math.min(lineNumber - 1, lines.length - 1))
-  let offset = 0
-  for (let i = 0; i < index; i += 1) offset += lines[i].length + 1
-  return offset + Math.max(0, Math.min(column - 1, lines[index].length))
-}
-
-function sameIssues(a: EditorIssue[], b: EditorIssue[]): boolean {
-  if (a.length !== b.length) return false
-  for (let i = 0; i < a.length; i += 1) {
-    if (a[i].from !== b[i].from || a[i].to !== b[i].to || a[i].message !== b[i].message) return false
-  }
-  return true
-}
-
 /** Severity is never communicated by colour alone: each row also carries its text label. */
 const SEVERITY_META = {
   error: { label: '错误', Icon: CircleAlert, tone: 'text-danger' },
@@ -235,46 +163,6 @@ const SEVERITY_META = {
   info: { label: '提示', Icon: Info, tone: 'text-muted-foreground' },
   hint: { label: '建议', Icon: Info, tone: 'text-muted-foreground' },
 } as const
-
-/** Compact icon-only toolbar controls; labels remain available to screen readers and tooltips. */
-function ToolButton({
-  icon,
-  label,
-  hint,
-  onClick,
-  disabled,
-  className,
-}: {
-  icon: ReactNode
-  label: string
-  hint?: string
-  onClick: () => void
-  disabled?: boolean
-  className?: string
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          onClick={onClick}
-          disabled={disabled}
-          aria-label={label}
-          className={cn('size-8 shrink-0 p-0', className)}
-        >
-          {icon}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side="bottom">{hint ? `${label} · ${hint}` : label}</TooltipContent>
-    </Tooltip>
-  )
-}
-
-function ToolDivider() {
-  return <span className="mx-0.5 h-4 w-px shrink-0 bg-cm-border" aria-hidden="true" />
-}
 
 export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflowEditorProps>(
   function AnyWorkflowEditor(
@@ -691,135 +579,24 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
             !fullscreen && className,
           )}
         >
-          <div className="shrink-0 border-b border-cm-border bg-cm-toolbar-bg">
-            <div className="flex min-h-10 items-center gap-1 overflow-x-auto px-2 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {readOnly ? null : (
-                <div className="flex shrink-0 items-center gap-0.5">
-                <ToolButton
-                  icon={<Braces className="size-3.5" />}
-                  label="Task"
-                  hint="追加到 Run 最外层"
-                  onClick={() => insertStructured('task')}
-                />
-                <ToolButton
-                  icon={<Bot className="size-3.5" />}
-                  label="Codex"
-                  hint="追加到 Run 最外层，交给云端 Codex"
-                  onClick={() => insertStructured('codex')}
-                />
-                <ToolButton
-                  icon={<Zap className="size-3.5" />}
-                  label="Event"
-                  hint="添加到光标所在 Task"
-                  onClick={() => insertStructured('event')}
-                />
-                <ToolButton
-                  icon={<ListTree className="size-3.5" />}
-                  label="Act"
-                  hint="添加到光标所在 Event"
-                  onClick={() => insertStructured('act')}
-                />
-                <ToolButton
-                  icon={<Repeat className="size-3.5" />}
-                  label="循环"
-                  hint="插入循环"
-                  onClick={() => insert('@for i in range(1, 3) {\n  \n}\n', 5, 1)}
-                />
-                <ToolButton
-                  icon={<Variable className="size-3.5" />}
-                  label="变量"
-                  hint="添加到光标所在 Task 的变量区"
-                  onClick={() => insertStructured('variable')}
-                />
-                <ToolButton
-                  icon={<Percent className="size-3.5" />}
-                  label="使用变量"
-                  hint="插入 %% 并选择当前位置可用变量"
-                  onClick={insertVariableReference}
-                />
-                <ToolButton
-                  icon={<Braces className="size-3.5" />}
-                  label="消息块"
-                  hint="插入 { }"
-                  onClick={() => insert('{\n\n}', 2)}
-                />
-                <ToolButton
-                  icon={<LinkIcon className="size-3.5" />}
-                  label="链接"
-                  hint="插入 <>，直接粘贴链接"
-                  onClick={() => insert('<>', 1)}
-                />
-                <ToolButton
-                  icon={<Trash2 className="size-3.5" />}
-                  label="智能删除"
-                  hint="选中结构括号删除整块，否则删除当前行或选中行"
-                  onClick={runSmartDelete}
-                />
-              </div>
-            )}
-            </div>
-
-            <div className="flex min-h-10 items-center gap-1 overflow-x-auto border-t border-cm-border/70 bg-background/35 px-2 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <div className="ms-auto flex shrink-0 items-center gap-0.5">
-              {readOnly ? null : (
-                <>
-                  <ToolButton
-                    icon={<Undo2 className="size-3.5" />}
-                    label="撤销"
-                    hint="Ctrl/⌘ Z"
-                    onClick={runUndo}
-                    disabled={!status.canUndo}
-                  />
-                  <ToolButton
-                    icon={<Redo2 className="size-3.5" />}
-                    label="重做"
-                    hint="Ctrl/⌘ Shift Z"
-                    onClick={runRedo}
-                    disabled={!status.canRedo}
-                  />
-                  <ToolButton
-                    icon={<ClipboardPaste className="size-3.5" />}
-                    label="粘贴"
-                    hint="粘贴到当前光标位置"
-                    onClick={() => void runPaste()}
-                  />
-                  <ToolDivider />
-                  <ToolButton
-                    icon={<AlignLeft className="size-3.5" />}
-                    label="格式化"
-                    hint="按块结构重排缩进"
-                    onClick={runFormat}
-                  />
-                  {onSave ? (
-                    <>
-                      <ToolDivider />
-                      <ToolButton
-                        icon={<Save className="size-3.5" />}
-                        label="保存"
-                        hint="Ctrl/⌘ S"
-                        onClick={() => saveRef.current?.()}
-                        className="bg-primary/70 text-primary-foreground hover:bg-primary"
-                      />
-                    </>
-                  ) : null}
-                </>
-              )}
-              <ToolButton
-                icon={copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-                label={copied ? '已复制' : '复制'}
-                hint="复制全文"
-                onClick={() => void runCopy()}
-              />
-              <ToolDivider />
-              <ToolButton
-                icon={fullscreen ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
-                label={fullscreen ? '退出全屏' : '全屏'}
-                hint="Esc 退出"
-                onClick={() => setFullscreen((prev) => !prev)}
-              />
-              </div>
-            </div>
-          </div>
+          <EditorToolbar
+            readOnly={readOnly}
+            canUndo={status.canUndo}
+            canRedo={status.canRedo}
+            copied={copied}
+            fullscreen={fullscreen}
+            onInsertStructured={insertStructured}
+            onInsert={insert}
+            onInsertVariable={insertVariableReference}
+            onSmartDelete={runSmartDelete}
+            onUndo={runUndo}
+            onRedo={runRedo}
+            onPaste={runPaste}
+            onFormat={runFormat}
+            onSave={onSave ? () => saveRef.current?.() : undefined}
+            onCopy={runCopy}
+            onToggleFullscreen={() => setFullscreen((prev) => !prev)}
+          />
 
           <div ref={mountRef} className="aw-code-editor min-h-0 flex-1 overflow-hidden" />
 

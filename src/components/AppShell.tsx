@@ -1,4 +1,4 @@
-import { Outlet } from 'react-router'
+import { Outlet, useLocation } from 'react-router'
 import { AppSidebar } from '@/components/app/AppSidebar'
 import { AppTopBar } from '@/components/app/AppTopBar'
 import { SidebarInset, SidebarRoot } from '@/components/sidebar'
@@ -7,6 +7,9 @@ import { Toaster } from '@/components/ui/sonner'
 const SIDEBAR_PERSISTENCE = { key: 'desktop' } as const
 
 export function AppShell() {
+  const { pathname } = useLocation()
+  const isEditorRoute = pathname === '/runs/new' || /^\/runs\/[^/]+\/edit$/u.test(pathname)
+
   return (
     <>
       <SidebarRoot
@@ -17,7 +20,7 @@ export function AppShell() {
         <AppSidebar />
         <SidebarInset className="min-w-0 overflow-hidden">
           <AppTopBar />
-          <div data-slot="app-page-host">
+          <div data-editor={isEditorRoute ? 'true' : undefined} data-slot="app-page-host">
             <Outlet />
           </div>
         </SidebarInset>

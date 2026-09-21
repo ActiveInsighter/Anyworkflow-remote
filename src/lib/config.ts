@@ -1,5 +1,5 @@
 export const DEFAULT_POCKETBASE_URL =
-  (import.meta.env.VITE_POCKETBASE_URL as string | undefined)?.trim() || 'https://pb.any1.tech'
+  (import.meta.env?.VITE_POCKETBASE_URL as string | undefined)?.trim() || 'https://pb.any1.tech'
 
 export const AUTH_COLLECTION = 'aw_clients'
 export const RUN_COLLECTION = 'aw_dispatch_runs'

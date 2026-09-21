@@ -33,11 +33,8 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Typecheck
-        run: npm run typecheck
-
-      - name: Build
-        run: npm run build
+      - name: Validate
+        run: npm run preflight
 
       - name: Deploy preview to Cloudflare Workers
         id: deploy

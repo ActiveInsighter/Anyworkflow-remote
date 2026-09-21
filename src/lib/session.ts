@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import { DEFAULT_POCKETBASE_URL } from './config'
+import { readStorage, removeStorage, writeStorage } from './storage'
 import type { AuthSession } from '../types'
 
 export const SESSION_STORAGE_KEY = 'anyworkflow.auth.session.v1'
@@ -8,6 +9,10 @@ export const SESSION_CHANGE_EVENT = 'anyworkflow:session-change'
 
 let cachedSessionRaw: string | null | undefined
 let cachedSession: AuthSession | null = null
+
+function dispatchSessionChange(): void {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(SESSION_CHANGE_EVENT))
+}
 
 function normalizeBaseUrl(value: string): string {
   const url = new URL(value.trim())
@@ -26,12 +31,24 @@ function isSession(value: unknown): value is AuthSession {
       candidate.record &&
       typeof candidate.record.id === 'string' &&
       candidate.record.id &&
-      typeof candidate.baseUrl === 'string',
+      typeof candidate.baseUrl === 'string' &&
+      isValidBaseUrl(candidate.baseUrl),
   )
 }
 
+function isValidBaseUrl(value: string): boolean {
+  try {
+    normalizeBaseUrl(value)
+    return true
+  } catch {
+    return false
+  }
+}
+
 function readSessionSnapshot(): AuthSession | null {
-  const raw = localStorage.getItem(SESSION_STORAGE_KEY)
+  const raw = readStorage(SESSION_STORAGE_KEY)
+
+  if (raw === undefined) return cachedSession
 
   // useSyncExternalStore requires getSnapshot() to return the same reference
   // while the underlying store has not changed. Parsing JSON on every call
@@ -55,7 +72,7 @@ function readSessionSnapshot(): AuthSession | null {
 }
 
 export function getBaseUrl(): string {
-  const raw = localStorage.getItem(BASE_URL_KEY)
+  const raw = readStorage(BASE_URL_KEY)
   if (!raw) return DEFAULT_POCKETBASE_URL
   try {
     return normalizeBaseUrl(raw)
@@ -66,7 +83,7 @@ export function getBaseUrl(): string {
 
 export function saveBaseUrl(value: string): string {
   const normalized = normalizeBaseUrl(value)
-  localStorage.setItem(BASE_URL_KEY, normalized)
+  writeStorage(BASE_URL_KEY, normalized)
   return normalized
 }
 
@@ -76,17 +93,17 @@ export function getSession(): AuthSession | null {
 
 export function setSession(session: AuthSession): void {
   const raw = JSON.stringify(session)
-  localStorage.setItem(SESSION_STORAGE_KEY, raw)
   cachedSessionRaw = raw
   cachedSession = session
-  window.dispatchEvent(new Event(SESSION_CHANGE_EVENT))
+  writeStorage(SESSION_STORAGE_KEY, raw)
+  dispatchSessionChange()
 }
 
 export function clearSession(): void {
-  localStorage.removeItem(SESSION_STORAGE_KEY)
   cachedSessionRaw = null
   cachedSession = null
-  window.dispatchEvent(new Event(SESSION_CHANGE_EVENT))
+  removeStorage(SESSION_STORAGE_KEY)
+  dispatchSessionChange()
 }
 
 export function requireSession(): AuthSession {

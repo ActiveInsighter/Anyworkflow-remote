@@ -14,24 +14,13 @@ export {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarMenuActions,
-  SidebarMenuAction,
   SidebarShortcutHint,
 } from './menu'
 export type {
   SidebarMenuItemProps,
   SidebarMenuButtonProps,
-  SidebarMenuActionProps,
   SidebarShortcutHintProps,
 } from './menu'
-export {
-  SidebarSection,
-  SidebarSectionHeader,
-  SidebarSectionTrigger,
-  SidebarSectionActions,
-  SidebarSectionContent,
-} from './section'
-export type { SidebarSectionProps } from './section'
 export {
   SidebarRail,
   SidebarRailHeader,
@@ -40,11 +29,10 @@ export {
   SidebarRailButton,
 } from './rail'
 export type { SidebarRailButtonProps } from './rail'
-export { SidebarIconButton, SidebarTrigger, SidebarSectionAction } from './controls'
+export { SidebarIconButton, SidebarTrigger } from './controls'
 export type {
   SidebarIconButtonProps,
   SidebarTriggerProps,
-  SidebarSectionActionProps,
 } from './controls'
 export { SidebarTooltip } from './tooltip'
 export type { SidebarTooltipProps } from './tooltip'

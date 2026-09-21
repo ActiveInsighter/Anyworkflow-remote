@@ -1,6 +1,5 @@
-import { CalendarClock, Clock, TriangleAlert } from 'lucide-react'
+import { Clock, TriangleAlert } from 'lucide-react'
 import { Segmented, TextInput } from '@/components/app/ui'
-import { Badge } from '@/components/ui/badge'
 import { Select } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import {
@@ -146,21 +145,5 @@ export function SchedulePicker({
         </span>
       </div>
     </div>
-  )
-}
-
-/** Row-sized marker for a Run that is queued but still waiting for its boundary. */
-export function ScheduleBadge({ value, now }: { value: string; now: number }) {
-  const summary = describeSchedule(value, new Date(now))
-  if (!summary.set || !summary.pending) return null
-
-  return (
-    <Badge
-      variant="plain"
-      className="h-[22px] shrink-0 gap-1 rounded-md border-transparent bg-info-soft px-2 text-[11px] font-medium text-info"
-    >
-      <CalendarClock className="size-3" aria-hidden="true" />
-      已定时 {summary.absolute}
-    </Badge>
   )
 }

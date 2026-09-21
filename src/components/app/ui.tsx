@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes, ReactElement, ReactNode, TextareaHTMLAttributes } from 'react'
+import type { InputHTMLAttributes, ReactElement, ReactNode } from 'react'
 import * as React from 'react'
 import { AlertCircle, CircleDashed, LoaderCircle, TriangleAlert } from 'lucide-react'
 import type { StatusTone } from '@/types'
@@ -7,8 +7,6 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Progress } from '@/components/ui/progress'
-import { Select, type SelectProps } from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 
 const toneClasses: Record<StatusTone, string> = {
@@ -369,14 +367,6 @@ export function Field({
 
 export function TextInput(props: InputHTMLAttributes<HTMLInputElement>) {
   return <Input {...props} className={cn('h-9', props.className)} />
-}
-
-export function TextArea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <Textarea {...props} className={cn(props.className)} />
-}
-
-export function SelectInput({ className, containerClassName, ...props }: SelectProps) {
-  return <Select className={cn('h-9', className)} containerClassName={cn('w-full', containerClassName)} {...props} />
 }
 
 /** Monospace surface used for DSL sources and raw queue payloads. */

@@ -1,4 +1,5 @@
 import type { DispatchExecutionMode } from '../types'
+import { readStorage, removeStorage, writeStorage } from './storage'
 
 const PREFIX = 'anyworkflow.editor-draft.'
 
@@ -31,9 +32,9 @@ export function draftScopeFor(ownerId: string | undefined, runId?: string, templ
  * full (quota), and losing an autosave is never worth breaking the editor over.
  */
 export function readEditorDraft(scope: DraftScope): EditorDraft | null {
+  const raw = readStorage(PREFIX + scope)
+  if (!raw) return null
   try {
-    const raw = window.localStorage.getItem(PREFIX + scope)
-    if (!raw) return null
     const parsed = JSON.parse(raw) as Partial<EditorDraft>
     if (typeof parsed.source !== 'string' || !parsed.source) return null
     return {
@@ -51,17 +52,9 @@ export function readEditorDraft(scope: DraftScope): EditorDraft | null {
 }
 
 export function writeEditorDraft(scope: DraftScope, draft: Omit<EditorDraft, 'savedAt'>): void {
-  try {
-    window.localStorage.setItem(PREFIX + scope, JSON.stringify({ ...draft, savedAt: Date.now() }))
-  } catch {
-    // Best effort only.
-  }
+  writeStorage(PREFIX + scope, JSON.stringify({ ...draft, savedAt: Date.now() }))
 }
 
 export function clearEditorDraft(scope: DraftScope): void {
-  try {
-    window.localStorage.removeItem(PREFIX + scope)
-  } catch {
-    // Best effort only.
-  }
+  removeStorage(PREFIX + scope)
 }

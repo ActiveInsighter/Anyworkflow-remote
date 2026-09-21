@@ -254,15 +254,6 @@
   }
 }
 
-* {
-  box-sizing: border-box;
-}
-
-/*
- * Tailwind v4 preflight resolves the default border color to `currentColor`, which renders
- * bare `border` / `border-b` / `border-t` far too heavily. Pin it to the semantic token so
- * every hairline in the app stays quiet and theme aware.
- */
 /*
  * Everything below lives in `@layer base` on purpose.
  *

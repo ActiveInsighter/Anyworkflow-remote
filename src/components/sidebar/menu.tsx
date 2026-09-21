@@ -1,6 +1,5 @@
 import * as React from 'react'
 import { useSidebarContext } from './context'
-import { SidebarTooltip } from './tooltip'
 import { cn } from '@/lib/utils'
 
 type SidebarMenuItemContextValue = { active: boolean }
@@ -101,39 +100,6 @@ export const SidebarMenuButton = React.forwardRef<HTMLElement, SidebarMenuButton
       >
         {content}
       </button>
-    )
-  },
-)
-
-/** Row of hover-revealed controls rendered next to a menu item. */
-export const SidebarMenuActions = React.forwardRef<HTMLDivElement, React.ComponentPropsWithoutRef<'div'>>(
-  function SidebarMenuActions(props, forwardedRef) {
-    return <div ref={forwardedRef} data-slot="sidebar-menu-actions" {...props} />
-  },
-)
-
-export type SidebarMenuActionProps = React.ComponentPropsWithoutRef<'button'> & {
-  tooltip?: React.ReactNode
-}
-
-export const SidebarMenuAction = React.forwardRef<HTMLButtonElement, SidebarMenuActionProps>(
-  function SidebarMenuAction({ tooltip, type = 'button', children, ...props }, forwardedRef) {
-    const button = (
-      <button
-        {...props}
-        ref={forwardedRef}
-        type={type}
-        data-slot="sidebar-menu-action"
-        aria-label={props['aria-label'] ?? (typeof tooltip === 'string' ? tooltip : undefined)}
-      >
-        {children}
-      </button>
-    )
-
-    return (
-      <SidebarTooltip content={tooltip} side="right">
-        {button}
-      </SidebarTooltip>
     )
   },
 )
