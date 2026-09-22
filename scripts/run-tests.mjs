@@ -1,6 +1,7 @@
 const testFiles = [
   'event-structure.test.mjs',
   'codex-dsl.test.mjs',
+  'workflow-dsl.test.mjs',
   'history-selection.test.mjs',
   'editor-helpers.test.mjs',
   'library-tree.test.mjs',

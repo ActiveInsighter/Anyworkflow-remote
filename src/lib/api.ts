@@ -12,6 +12,7 @@ import {
 import { requireSession, saveBaseUrl, setSession } from './session'
 import { parsePlanMeta } from './plan'
 import { isFutureScheduledAt, isValidScheduledAt } from './schedule'
+import { validateWorkflowSource } from './workflow-dsl'
 import { selectHistoryEventsForDispatchEvent } from './history'
 import { ApiError, assertOwner, collectPages, listOwnedCollection, quoteFilter, request } from './pocketbase'
 import type {
@@ -48,10 +49,14 @@ function normalizeTask<T extends DispatchTaskRecord>(task: T): T {
  * answers with an opaque 400, so failing here is what turns a bad instant into an actionable
  * message. Empty is always valid: it means "no boundary, start immediately".
  */
-function checkedPlanText(value: string): string {
+function checkedPlanText(value: string, requireExecutable = false): string {
   if (!value.trim()) throw new ApiError('工作流定义不能为空', 400, 'RUN_PLAN_REQUIRED')
   if (new TextEncoder().encode(value).byteLength > MAX_PLAN_TEXT_BYTES) {
     throw new ApiError('工作流定义超过 2 MiB', 400, 'RUN_PLAN_TOO_LARGE')
+  }
+  if (requireExecutable) {
+    const firstError = validateWorkflowSource(value).find((diagnostic) => diagnostic.severity === 'error')
+    if (firstError) throw new ApiError(firstError.message, 400, 'RUN_PLAN_INVALID')
   }
   return value
 }
@@ -124,7 +129,7 @@ export async function createRun(
   scheduledAt = '',
 ): Promise<DispatchRunRecord> {
   const session = requireSession()
-  const checkedPlan = checkedPlanText(planText)
+  const checkedPlan = checkedPlanText(planText, status === 'queued')
   const meta = parsePlanMeta(checkedPlan)
   return normalizeRun(assertOwner(await request<DispatchRunRecord>(`/api/collections/${RUN_COLLECTION}/records`, {
     method: 'POST',
@@ -157,7 +162,7 @@ export async function updateRunDraft(
   if (current.status !== 'draft') {
     throw new ApiError('只有草稿 Run 可以修改定义', 409, 'ACTIVE_RUN_EDIT')
   }
-  const checkedPlan = checkedPlanText(planText)
+  const checkedPlan = checkedPlanText(planText, options.publish === true)
   const meta = parsePlanMeta(checkedPlan)
   const data: Record<string, unknown> = {
     title: meta.title,

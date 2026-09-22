@@ -1,18 +1,15 @@
-import type { DispatchExecutionMode, PlanMeta } from '../types'
+import type { PlanMeta } from '../types'
 import { MAX_CONCURRENCY } from './config'
+import { readRunPlanMeta } from './workflow-dsl'
 
 const titlePattern = /^\s*@run\s*=\s*(.*?)\s*$/imu
 const modePattern = /^\s*@mode\s*=\s*(serial|parallel)\s*$/imu
 const concurrencyPattern = /^\s*@maxConcurrency\s*=\s*(\d+)\s*$/imu
+const runBlockPattern = /^\s*@(task|codex)(?:\s+.*?)?\s*\{\s*$/iu
+const runLoopPattern = /^\s*@for\s+[A-Za-z_][A-Za-z0-9_]*\s+in\s+range\(.*?\)\s*\{\s*$/iu
 
 export function parsePlanMeta(source: string): PlanMeta {
-  const title = source.match(titlePattern)?.[1]?.trim() || 'Cloud run'
-  const mode = (source.match(modePattern)?.[1]?.toLowerCase() || 'serial') as DispatchExecutionMode
-  const rawConcurrency = Number(source.match(concurrencyPattern)?.[1] || 1)
-  const maxConcurrency = mode === 'serial'
-    ? 1
-    : Math.max(1, Math.min(MAX_CONCURRENCY, Number.isFinite(rawConcurrency) ? Math.floor(rawConcurrency) : 1))
-  return { title, mode, maxConcurrency }
+  return readRunPlanMeta(source)
 }
 
 export function applyPlanMeta(source: string, meta: PlanMeta): string {
@@ -22,10 +19,16 @@ export function applyPlanMeta(source: string, meta: PlanMeta): string {
     ? 1
     : Math.max(1, Math.min(MAX_CONCURRENCY, Math.floor(meta.maxConcurrency || 1)))
 
-  let body = source
-    .replace(titlePattern, '')
-    .replace(modePattern, '')
-    .replace(concurrencyPattern, '')
+  let seenBlock = false
+  const body = source
+    .replace(/\r\n?/gu, '\n')
+    .split('\n')
+    .filter((line) => {
+      if (!seenBlock && (titlePattern.test(line) || modePattern.test(line) || concurrencyPattern.test(line))) return false
+      if (runBlockPattern.test(line) || runLoopPattern.test(line)) seenBlock = true
+      return true
+    })
+    .join('\n')
     .replace(/^\s+/, '')
 
   const header = [
@@ -34,8 +37,8 @@ export function applyPlanMeta(source: string, meta: PlanMeta): string {
     ...(mode === 'parallel' ? [`@maxConcurrency=${maxConcurrency}`] : []),
   ].join('\n')
 
-  body = body.trim()
-  return body ? `${header}\n\n${body}\n` : `${header}\n\n`
+  const trimmedBody = body.trim()
+  return trimmedBody ? `${header}\n\n${trimmedBody}\n` : `${header}\n\n`
 }
 
 export function createStarterPlan(): string {
@@ -47,7 +50,7 @@ export function createStarterPlan(): string {
 
   @event Event {
     {
-
+      在这里写第一条消息
     }
   }
 }
