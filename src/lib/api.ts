@@ -1,5 +1,6 @@
 import {
   AUTH_COLLECTION,
+  CHECKPOINT_COLLECTION,
   DEFAULT_PAGE_SIZE,
   EVENT_COLLECTION,
   HISTORY_ACT_COLLECTION,
@@ -17,10 +18,12 @@ import { selectHistoryEventsForDispatchEvent } from './history'
 import { ApiError, assertOwner, collectPages, listOwnedCollection, quoteFilter, request } from './pocketbase'
 import type {
   AuthSession,
+  DispatchCheckpointRecord,
   DispatchEventRecord,
   DispatchExecutorKind,
   DispatchRequestedAction,
   DispatchRunRecord,
+  DispatchRunOrigin,
   DispatchTaskRecord,
   PocketBaseListResponse,
   WorkflowHistoryActRecord,
@@ -36,12 +39,38 @@ export { ApiError, assertOwner, collectPages, quoteFilter, request } from './poc
  * truthiness check off the `undefined` case.
  */
 function normalizeRun<T extends DispatchRunRecord>(run: T): T {
-  return { ...run, scheduledAt: typeof run.scheduledAt === 'string' ? run.scheduledAt : '' }
+  const origin: DispatchRunOrigin = ['initial', 'rerun', 'resume', 'edited_rerun'].includes(run.origin)
+    ? run.origin
+    : 'initial'
+  return {
+    ...run,
+    familyId: typeof run.familyId === 'string' && run.familyId ? run.familyId : run.id,
+    versionNumber: Number.isSafeInteger(run.versionNumber) && run.versionNumber > 0 ? run.versionNumber : 1,
+    versionMajor: Number.isSafeInteger(run.versionMajor) && run.versionMajor > 0 ? run.versionMajor : 1,
+    versionMinor: Number.isSafeInteger(run.versionMinor) && run.versionMinor >= 0 ? run.versionMinor : 0,
+    parentRun: typeof run.parentRun === 'string' ? run.parentRun : '',
+    origin,
+    scheduledAt: typeof run.scheduledAt === 'string' ? run.scheduledAt : '',
+  }
 }
 
 function normalizeTask<T extends DispatchTaskRecord>(task: T): T {
   const executorKind: DispatchExecutorKind = task.executorKind === 'codex' ? 'codex' : 'browser'
-  return { ...task, executorKind }
+  return {
+    ...task,
+    executorKind,
+    runPlanChecksum: typeof task.runPlanChecksum === 'string' ? task.runPlanChecksum : '',
+    inheritedFrom: typeof task.inheritedFrom === 'string' ? task.inheritedFrom : '',
+  }
+}
+
+function normalizeEvent<T extends DispatchEventRecord>(event: T): T {
+  return {
+    ...event,
+    queueChecksum: typeof event.queueChecksum === 'string' && event.queueChecksum ? event.queueChecksum : null,
+    inheritedFrom: typeof event.inheritedFrom === 'string' ? event.inheritedFrom : '',
+    resumeSpec: event.resumeSpec && typeof event.resumeSpec === 'object' ? event.resumeSpec : null,
+  }
 }
 
 /**
@@ -70,6 +99,56 @@ function checkedScheduledAt(value: string): string {
     throw new ApiError('执行时间必须晚于当前时间', 400, 'SCHEDULED_AT_NOT_FUTURE')
   }
   return trimmed
+}
+
+function isAmbiguousWriteFailure(error: unknown): error is ApiError {
+  return error instanceof ApiError && (error.status === 0 || error.status >= 500)
+}
+
+function samePlanText(left: string, right: string): boolean {
+  return left.replace(/\r\n?/gu, '\n').trim() === right.replace(/\r\n?/gu, '\n').trim()
+}
+
+function sameScheduledAt(left: string, right: string): boolean {
+  if (!left.trim() || !right.trim()) return !left.trim() && !right.trim()
+  const leftTime = Date.parse(left)
+  const rightTime = Date.parse(right)
+  return Number.isFinite(leftTime) && leftTime === rightTime
+}
+
+function savedCreateMatches(
+  run: DispatchRunRecord,
+  expected: {
+    title: string
+    planText: string
+    status: 'draft' | 'queued'
+    scheduledAt: string
+    executionMode: string
+    maxConcurrency: number
+  },
+  requestStartedAt: number,
+): boolean {
+  const createdAt = Date.parse(run.created)
+  const statusMatches = expected.status === 'draft'
+    ? run.status === 'draft'
+    : ['queued', 'running', 'succeeded', 'failed', 'canceled'].includes(run.status)
+  return Number.isFinite(createdAt) && createdAt >= requestStartedAt - 30_000 &&
+    run.title === expected.title && samePlanText(run.planText, expected.planText) &&
+    statusMatches && sameScheduledAt(run.scheduledAt, expected.scheduledAt) &&
+    run.executionMode === expected.executionMode && run.maxConcurrency === expected.maxConcurrency
+}
+
+function savedDraftUpdateMatches(
+  run: DispatchRunRecord,
+  expected: { title: string; planText: string; executionMode: string; maxConcurrency: number },
+  options: { publish?: boolean; scheduledAt?: string },
+): boolean {
+  const statusMatches = options.publish
+    ? ['queued', 'running', 'succeeded', 'failed', 'canceled'].includes(run.status)
+    : run.status === 'draft'
+  return statusMatches && run.title === expected.title && samePlanText(run.planText, expected.planText) &&
+    run.executionMode === expected.executionMode && run.maxConcurrency === expected.maxConcurrency &&
+    (options.scheduledAt === undefined || sameScheduledAt(run.scheduledAt, options.scheduledAt))
 }
 
 export async function login(identity: string, password: string, baseUrlValue: string): Promise<AuthSession> {
@@ -117,6 +196,21 @@ export async function listRuns(
   )
 }
 
+export async function listRunVersions(familyId: string): Promise<DispatchRunRecord[]> {
+  const first = await listOwnedCollection<DispatchRunRecord>(RUN_COLLECTION, {
+    page: 1,
+    perPage: DEFAULT_PAGE_SIZE,
+    sort: '+versionNumber',
+    filter: `familyId="${quoteFilter(familyId)}"`,
+  }, normalizeRun)
+  return collectPages(first, (page) => listOwnedCollection<DispatchRunRecord>(RUN_COLLECTION, {
+    page,
+    perPage: first.perPage,
+    sort: '+versionNumber',
+    filter: `familyId="${quoteFilter(familyId)}"`,
+  }, normalizeRun))
+}
+
 export async function getRun(id: string): Promise<DispatchRunRecord> {
   return normalizeRun(
     assertOwner(await request<DispatchRunRecord>(`/api/collections/${RUN_COLLECTION}/records/${encodeURIComponent(id)}`)),
@@ -127,25 +221,53 @@ export async function createRun(
   planText: string,
   status: 'draft' | 'queued',
   scheduledAt = '',
+  lineage: { parentRun: string; origin: Exclude<DispatchRunOrigin, 'initial'>; title?: string } | null = null,
 ): Promise<DispatchRunRecord> {
   const session = requireSession()
   const checkedPlan = checkedPlanText(planText, status === 'queued')
   const meta = parsePlanMeta(checkedPlan)
-  return normalizeRun(assertOwner(await request<DispatchRunRecord>(`/api/collections/${RUN_COLLECTION}/records`, {
-    method: 'POST',
-    data: {
-      owner: session.record.id,
-      title: meta.title,
-      planText: checkedPlan,
-      planChecksum: '',
-      executionMode: meta.mode,
-      maxConcurrency: meta.maxConcurrency,
-      status,
-      requestedAction: 'none',
-      commandVersion: 0,
-      scheduledAt: checkedScheduledAt(scheduledAt),
-    },
-  })))
+  const checkedSchedule = checkedScheduledAt(scheduledAt)
+  const expected = {
+    title: lineage?.title ?? meta.title,
+    planText: checkedPlan,
+    status,
+    scheduledAt: checkedSchedule,
+    executionMode: meta.mode,
+    maxConcurrency: meta.maxConcurrency,
+  }
+  const data: Record<string, unknown> = {
+    owner: session.record.id,
+    title: expected.title,
+    planText: expected.planText,
+    planChecksum: '',
+    executionMode: expected.executionMode,
+    maxConcurrency: expected.maxConcurrency,
+    status: expected.status,
+    requestedAction: 'none',
+    commandVersion: 0,
+    ...(lineage ? { parentRun: lineage.parentRun, origin: lineage.origin } : {}),
+  }
+  // PocketBase date fields should be omitted for an immediate Run. Sending an
+  // empty string is not needed for a new row and can fail date coercion in JSVM.
+  if (checkedSchedule) data.scheduledAt = checkedSchedule
+
+  const requestStartedAt = Date.now()
+  try {
+    return normalizeRun(assertOwner(await request<DispatchRunRecord>(`/api/collections/${RUN_COLLECTION}/records`, {
+      method: 'POST',
+      data,
+    })))
+  } catch (error) {
+    if (!isAmbiguousWriteFailure(error)) throw error
+    try {
+      const recentRuns = await listRuns(1, 100, 'all')
+      const matches = recentRuns.items.filter((run) => savedCreateMatches(run, expected, requestStartedAt))
+      if (matches.length === 1) return matches[0]
+    } catch {
+      // Keep the original write error when the verification read is unavailable.
+    }
+    throw error
+  }
 }
 
 /**
@@ -164,8 +286,9 @@ export async function updateRunDraft(
   }
   const checkedPlan = checkedPlanText(planText, options.publish === true)
   const meta = parsePlanMeta(checkedPlan)
+  const previousMeta = parsePlanMeta(current.planText)
   const data: Record<string, unknown> = {
-    title: meta.title,
+    title: meta.title === previousMeta.title ? current.title : meta.title,
     planText: checkedPlan,
     planChecksum: '',
     executionMode: meta.mode,
@@ -174,10 +297,26 @@ export async function updateRunDraft(
   if (options.publish) data.status = 'queued'
   if (options.scheduledAt !== undefined) data.scheduledAt = checkedScheduledAt(options.scheduledAt)
 
-  return normalizeRun(assertOwner(await request<DispatchRunRecord>(`/api/collections/${RUN_COLLECTION}/records/${encodeURIComponent(id)}`, {
-    method: 'PATCH',
-    data,
-  })))
+  try {
+    return normalizeRun(assertOwner(await request<DispatchRunRecord>(`/api/collections/${RUN_COLLECTION}/records/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      data,
+    })))
+  } catch (error) {
+    if (!isAmbiguousWriteFailure(error)) throw error
+    try {
+      const saved = await getRun(id)
+      if (savedDraftUpdateMatches(saved, {
+        title: String(data.title),
+        planText: checkedPlan,
+        executionMode: meta.mode,
+        maxConcurrency: meta.maxConcurrency,
+      }, options)) return saved
+    } catch {
+      // Keep the original write error when the verification read is unavailable.
+    }
+    throw error
+  }
 }
 
 export async function commandRun(
@@ -212,8 +351,99 @@ export async function cloneRun(source: DispatchRunRecord, status: 'draft' | 'que
   if (!source.planText.trim()) throw new ApiError('此 Run 没有可复制的工作流定义', 409, 'RUN_PLAN_MISSING')
   const suffix = status === 'draft' ? ' · 草稿' : ' · 重跑'
   const title = (source.title.trim() || '未命名工作流').slice(0, Math.max(1, 512 - suffix.length)) + suffix
-  const planText = source.planText.replace(/^\s*@run\s*=.*$/imu, `@run=${title}`)
-  return createRun(planText, status)
+  return createRun(source.planText, status, '', {
+    parentRun: source.id,
+    origin: status === 'draft' ? 'edited_rerun' : 'rerun',
+    title,
+  })
+}
+
+function isSafeConversationUrl(value: string): boolean {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:' &&
+      ['chatgpt.com', 'chat.openai.com'].includes(url.hostname.toLowerCase()) &&
+      /^\/c\/[^/]+/u.test(url.pathname)
+  } catch {
+    return false
+  }
+}
+
+function checkpointIsSafe(
+  checkpoint: DispatchCheckpointRecord,
+  event: DispatchEventRecord,
+  planChecksum: string,
+): boolean {
+  if (
+    checkpoint.eventAttempt !== event.attempt ||
+    checkpoint.planChecksum !== planChecksum ||
+    !event.queueChecksum || checkpoint.queueChecksum !== event.queueChecksum ||
+    !Number.isSafeInteger(checkpoint.nextNodeIndex) || checkpoint.nextNodeIndex < 0 ||
+    !Number.isSafeInteger(checkpoint.totalNodes) || checkpoint.totalNodes < checkpoint.nextNodeIndex
+  ) return false
+  if (checkpoint.phase === 'unsafe') return false
+  if (checkpoint.phase === 'continue') {
+    return Object.keys(checkpoint.providerState || {}).length === 0 && (
+      checkpoint.nextNodeIndex >= checkpoint.totalNodes ||
+      (Boolean(event.localRunId) && event.localAttempt > 0 &&
+        (checkpoint.nextNodeIndex === 0 || isSafeConversationUrl(checkpoint.conversationUrl)))
+    )
+  }
+  const state = checkpoint.providerState
+  const sentUserMessageId = state?.sentUserMessageId ??
+    (state?.snapshot && typeof state.snapshot === 'object'
+      ? (state.snapshot as Record<string, unknown>).sentUserMessageId
+      : undefined)
+  return Boolean(event.localRunId) && event.localAttempt > 0 &&
+    isSafeConversationUrl(checkpoint.conversationUrl) &&
+    typeof sentUserMessageId === 'string' && sentUserMessageId.trim().length > 0
+}
+
+async function assertRunCanResume(run: DispatchRunRecord): Promise<void> {
+  const session = requireSession()
+  if (run.owner !== session.record.id) throw new ApiError('当前 Run 不属于登录账号', 403, 'INVALID_RECORD_OWNER')
+  if (run.status !== 'failed') throw new ApiError('只有失败的 Run 可以从检查点恢复', 409, 'RUN_NOT_RESUMABLE')
+  if (!run.planText.trim() || !/^[a-f0-9]{64}$/u.test(run.planChecksum)) {
+    throw new ApiError('Run 缺少有效的不可变计划校验和', 409, 'RUN_RESUME_PLAN_INVALID')
+  }
+
+  const firstTasks = await listTasksForRun(run.id, 1, DEFAULT_PAGE_SIZE)
+  const tasks = await collectPages(firstTasks, (page) => listTasksForRun(run.id, page, firstTasks.perPage))
+  if (!tasks.length) throw new ApiError('Run 没有可恢复的 Task', 409, 'RUN_RESUME_TASKS_MISSING')
+  for (const task of tasks) {
+    const firstEvents = await listEventsForTask(task.id, 1, DEFAULT_PAGE_SIZE)
+    const events = await collectPages(firstEvents, (page) => listEventsForTask(task.id, page, firstEvents.perPage))
+    if (!events.length) throw new ApiError(`Task「${task.title}」没有可恢复的 Event`, 409, 'RUN_RESUME_EVENTS_MISSING')
+    for (const event of events) {
+      if (event.status === 'terminal' && event.terminalResult === 'succeeded') continue
+      if (
+        event.attempt === 0 &&
+        (event.status === 'waiting' || event.status === 'ready' ||
+          (event.status === 'terminal' && event.terminalResult === 'canceled'))
+      ) continue
+      const firstCheckpoints = await listOwnedCollection<DispatchCheckpointRecord>(CHECKPOINT_COLLECTION, {
+        page: 1,
+        perPage: DEFAULT_PAGE_SIZE,
+        sort: '-checkpointSeq',
+        filter: `event="${quoteFilter(event.id)}" && eventAttempt=${event.attempt}`,
+      }, (record) => record)
+      // The newest checkpoint is sufficient. Avoid downloading every prior
+      // provider snapshot for an Event that may have many node transitions.
+      const latest = firstCheckpoints.items[0]
+      if (!latest || !checkpointIsSafe(latest, event, run.planChecksum)) {
+        throw new ApiError(
+          `Event ${event.eventIndex + 1} 没有与当前计划匹配的安全检查点，已阻止恢复以避免重复发送。`,
+          409,
+          'RUN_RESUME_CHECKPOINT_UNSAFE',
+        )
+      }
+    }
+  }
+}
+
+export async function resumeFailedRun(source: DispatchRunRecord): Promise<DispatchRunRecord> {
+  await assertRunCanResume(source)
+  return createRun(source.planText, 'queued', '', { parentRun: source.id, origin: 'resume' })
 }
 
 export async function listTasksForRun(runId: string, page = 1, perPage = DEFAULT_PAGE_SIZE) {
@@ -235,11 +465,11 @@ export async function listEventsForTask(taskId: string, page = 1, perPage = DEFA
     perPage,
     sort: '+eventIndex',
     filter: `task="${quoteFilter(taskId)}"`,
-  }, (record) => record)
+  }, normalizeEvent)
 }
 
 export async function getEvent(id: string): Promise<DispatchEventRecord> {
-  return assertOwner(await request<DispatchEventRecord>(`/api/collections/${EVENT_COLLECTION}/records/${encodeURIComponent(id)}`))
+  return normalizeEvent(assertOwner(await request<DispatchEventRecord>(`/api/collections/${EVENT_COLLECTION}/records/${encodeURIComponent(id)}`)))
 }
 
 /**
@@ -252,6 +482,7 @@ export async function listHistoryEventsForLocalRun(
   page = 1,
   perPage = DEFAULT_PAGE_SIZE,
   eventIndex?: number,
+  signal?: AbortSignal,
 ) {
   const eventIndexFilter = Number.isSafeInteger(eventIndex) ? ` && eventIndex = ${eventIndex}` : ''
   return listOwnedCollection<WorkflowHistoryEventRecord>(HISTORY_EVENT_COLLECTION, {
@@ -259,37 +490,44 @@ export async function listHistoryEventsForLocalRun(
     perPage,
     sort: '+eventIndex',
     filter: `task.taskId="${quoteFilter(localRunId)}"${eventIndexFilter}`,
-  }, (record) => record)
+  }, (record) => record, signal)
 }
 
 export async function listAllHistoryEventsForLocalRun(
   localRunId: string,
   eventIndex?: number,
+  signal?: AbortSignal,
 ): Promise<WorkflowHistoryEventRecord[]> {
-  const first = await listHistoryEventsForLocalRun(localRunId, 1, DEFAULT_PAGE_SIZE, eventIndex)
-  return collectPages(first, (page) => listHistoryEventsForLocalRun(localRunId, page, first.perPage, eventIndex))
+  const first = await listHistoryEventsForLocalRun(localRunId, 1, DEFAULT_PAGE_SIZE, eventIndex, signal)
+  return collectPages(first, (page) => listHistoryEventsForLocalRun(localRunId, page, first.perPage, eventIndex, signal))
 }
 
-export async function listHistoryActsForEvent(historyEventId: string, page = 1, perPage = DEFAULT_PAGE_SIZE) {
+export async function listHistoryActsForEvent(historyEventId: string, page = 1, perPage = DEFAULT_PAGE_SIZE, signal?: AbortSignal) {
   return listOwnedCollection<WorkflowHistoryActRecord>(HISTORY_ACT_COLLECTION, {
     page,
     perPage,
     sort: '+actIndex',
     filter: `event="${quoteFilter(historyEventId)}"`,
-  }, (record) => record)
+  }, (record) => record, signal)
 }
 
-export async function listAllHistoryActsForEvent(historyEventId: string): Promise<WorkflowHistoryActRecord[]> {
-  const first = await listHistoryActsForEvent(historyEventId)
-  return collectPages(first, (page) => listHistoryActsForEvent(historyEventId, page, first.perPage))
+export async function listAllHistoryActsForEvent(historyEventId: string, signal?: AbortSignal): Promise<WorkflowHistoryActRecord[]> {
+  const first = await listHistoryActsForEvent(historyEventId, 1, DEFAULT_PAGE_SIZE, signal)
+  return collectPages(first, (page) => listHistoryActsForEvent(historyEventId, page, first.perPage, signal))
+}
+
+async function historyEventsForDispatchEvent(
+  event: DispatchEventRecord,
+  signal?: AbortSignal,
+): Promise<WorkflowHistoryEventRecord[]> {
+  if (!event.localRunId) return []
+  let candidates = await listAllHistoryEventsForLocalRun(event.localRunId, event.eventIndex, signal)
+  if (!candidates.length) candidates = await listAllHistoryEventsForLocalRun(event.localRunId, undefined, signal)
+  return selectHistoryEventsForDispatchEvent(candidates, event)
 }
 
 export async function listHistoryActsForDispatchEvent(event: DispatchEventRecord): Promise<WorkflowHistoryActRecord[]> {
-  if (!event.localRunId) return []
-  const historyEvents = selectHistoryEventsForDispatchEvent(
-    await listAllHistoryEventsForLocalRun(event.localRunId, event.eventIndex),
-    event,
-  )
+  const historyEvents = await historyEventsForDispatchEvent(event)
   const acts = (await Promise.all(historyEvents.map((historyEvent) => listAllHistoryActsForEvent(historyEvent.id)))).flat()
   return acts.sort((left, right) => left.actIndex - right.actIndex || left.id.localeCompare(right.id))
 }
@@ -301,6 +539,45 @@ export async function listHistoryMessagesForAct(actId: string, page = 1, perPage
     sort: '+nodeIndex',
     filter: `act="${quoteFilter(actId)}"`,
   }, (record) => record)
+}
+
+/** Loads one message record only after the user opens its details. */
+export async function getHistoryMessageForAct(
+  actId: string,
+  nodeIndex: number | null,
+  signal?: AbortSignal,
+): Promise<WorkflowHistoryMessageRecord | null> {
+  if (!actId.trim()) throw new ApiError('Act 标识无效', 400, 'HISTORY_ACT_REQUIRED')
+  if (nodeIndex !== null && (!Number.isSafeInteger(nodeIndex) || nodeIndex < 0)) {
+    throw new ApiError('消息序号无效', 400, 'HISTORY_MESSAGE_INDEX_INVALID')
+  }
+
+  const result = await listOwnedCollection<WorkflowHistoryMessageRecord>(HISTORY_MESSAGE_COLLECTION, {
+    page: 1,
+    perPage: 1,
+    sort: '+nodeIndex',
+    filter: `act="${quoteFilter(actId)}"${nodeIndex === null ? '' : ` && nodeIndex=${nodeIndex}`}`,
+  }, (record) => record, signal)
+  return result.items[0] ?? null
+}
+
+/** Resolve a planned/fallback Act to persisted history only when its message is opened. */
+export async function getHistoryMessageForDispatchEvent(
+  event: DispatchEventRecord,
+  actIndex: number,
+  nodeIndex: number | null,
+  signal?: AbortSignal,
+): Promise<WorkflowHistoryMessageRecord | null> {
+  if (!event.localRunId || !Number.isSafeInteger(actIndex) || actIndex < 0) return null
+  const historyEvents = await historyEventsForDispatchEvent(event, signal)
+  if (!historyEvents.length) return null
+
+  const historyActs = (await Promise.all(historyEvents.map((historyEvent) =>
+    listAllHistoryActsForEvent(historyEvent.id, signal),
+  ))).flat()
+  const historyAct = historyActs.find((act) => act.actIndex === actIndex)
+  if (!historyAct) return null
+  return getHistoryMessageForAct(historyAct.id, nodeIndex, signal)
 }
 
 export async function listAllHistoryMessagesForAct(actId: string): Promise<WorkflowHistoryMessageRecord[]> {

@@ -1,6 +1,7 @@
 export type DispatchStatus = 'draft' | 'queued' | 'running' | 'succeeded' | 'failed' | 'canceled'
 export type DispatchRequestedAction = 'none' | 'pause' | 'resume' | 'cancel'
 export type DispatchExecutionMode = 'serial' | 'parallel'
+export type DispatchRunOrigin = 'initial' | 'rerun' | 'resume' | 'edited_rerun'
 export type DispatchExecutorKind = 'browser' | 'codex'
 export type DispatchEventStatus = 'waiting' | 'ready' | 'leased' | 'running' | 'paused' | 'terminal'
 export type StatusTone = 'neutral' | 'info' | 'success' | 'danger' | 'warning'
@@ -24,6 +25,15 @@ export interface DispatchRunRecord {
   title: string
   planText: string
   planChecksum: string
+  familyId: string
+  /** Monotonic family order retained for stable persistence and legacy clients. */
+  versionNumber: number
+  /** Semantic Run version: major increments when execution content changes. */
+  versionMajor: number
+  /** Semantic Run version: minor increments for a content-identical rerun. */
+  versionMinor: number
+  parentRun: string
+  origin: DispatchRunOrigin
   executionMode: DispatchExecutionMode
   maxConcurrency: number
   status: DispatchStatus
@@ -48,6 +58,8 @@ export interface DispatchTaskRecord {
   owner: string
   run: string
   runIndex: number
+  runPlanChecksum: string
+  inheritedFrom: string
   /** Legacy records without this field are normalized to `browser` by the API layer. */
   executorKind: DispatchExecutorKind
   title: string
@@ -81,11 +93,43 @@ export interface DispatchEventRecord {
   tabId: number
   localRunId: string
   localAttempt: number
+  queueChecksum: string | null
+  inheritedFrom: string
+  resumeSpec: {
+    version: 1
+    sourceEventId: string
+    sourceLocalRunId: string | null
+    sourceLocalAttempt: number
+    nextNodeIndex: number
+    phase: 'continue' | 'reconcile_pending'
+    conversationUrl: string
+    providerState: Record<string, unknown>
+    checkpointSeq: number
+  } | null
   progress: Record<string, unknown> | null
   lastHeartbeatAt: string
   lastError: string
   lastSeq: number
   terminalResult: '' | 'succeeded' | 'failed' | 'canceled'
+  created: string
+  updated: string
+}
+
+export interface DispatchCheckpointRecord {
+  id: string
+  owner: string
+  run: string
+  task: string
+  event: string
+  eventAttempt: number
+  checkpointSeq: number
+  planChecksum: string
+  queueChecksum: string
+  nextNodeIndex: number
+  totalNodes: number
+  phase: 'continue' | 'reconcile_pending' | 'unsafe'
+  conversationUrl: string
+  providerState: Record<string, unknown>
   created: string
   updated: string
 }
