@@ -134,6 +134,7 @@ assert.equal(Object.hasOwn(JSON.parse(String(ambiguousCreateCall.init.body)), 's
 const draftBeforeSave = { ...parentRun, id: 'run-draft-save', status: 'draft', scheduledAt: '' }
 const draftAfterSave = { ...draftBeforeSave, planText: createPlan, title: 'Resume fixture', executionMode: 'serial', maxConcurrency: 1 }
 let draftReadCount = 0
+let draftPatchBody
 globalThis.fetch = async (input, init = {}) => {
   const url = new URL(String(input))
   if (url.pathname.endsWith('/aw_dispatch_runs/records/run-draft-save') && init.method === 'GET') {
@@ -141,12 +142,32 @@ globalThis.fetch = async (input, init = {}) => {
     return Response.json(draftReadCount === 1 ? draftBeforeSave : draftAfterSave)
   }
   if (url.pathname.endsWith('/aw_dispatch_runs/records/run-draft-save') && init.method === 'PATCH') {
+    draftPatchBody = JSON.parse(String(init.body))
     return Response.json({ message: 'Something went wrong while processing your request.' }, { status: 500 })
   }
   throw new Error(`Unexpected draft recovery request: ${init.method || 'GET'} ${url.pathname}`)
 }
 const recoveredDraft = await updateRunDraft(draftBeforeSave.id, createPlan, { scheduledAt: '' })
 assert.equal(recoveredDraft.planText, createPlan, 'a draft PATCH committed before a server error should be confirmed by re-reading it')
+assert.equal(Object.hasOwn(draftPatchBody, 'scheduledAt'), false,
+  'saving an already unscheduled draft should omit the unchanged blank date field')
+
+const scheduledDraft = { ...draftBeforeSave, id: 'run-scheduled-draft', scheduledAt: '2026-09-25T12:00:00.000Z' }
+const clearedScheduledDraft = { ...scheduledDraft, scheduledAt: '' }
+let clearedSchedulePatchBody
+globalThis.fetch = async (input, init = {}) => {
+  const url = new URL(String(input))
+  if (url.pathname.endsWith('/aw_dispatch_runs/records/run-scheduled-draft') && init.method === 'GET') {
+    return Response.json(scheduledDraft)
+  }
+  if (url.pathname.endsWith('/aw_dispatch_runs/records/run-scheduled-draft') && init.method === 'PATCH') {
+    clearedSchedulePatchBody = JSON.parse(String(init.body))
+    return Response.json(clearedScheduledDraft)
+  }
+  throw new Error(`Unexpected scheduled draft request: ${init.method || 'GET'} ${url.pathname}`)
+}
+await updateRunDraft(scheduledDraft.id, createPlan, { scheduledAt: '' })
+assert.equal(clearedSchedulePatchBody.scheduledAt, '', 'clearing an existing schedule should still send an explicit empty date')
 
 const fallbackDispatchEvent = {
   id: 'event-fallback-2', owner: 'owner-1', task: 'dispatch-task-1', eventIndex: 2,

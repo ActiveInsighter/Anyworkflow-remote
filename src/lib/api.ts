@@ -295,7 +295,12 @@ export async function updateRunDraft(
     maxConcurrency: meta.maxConcurrency,
   }
   if (options.publish) data.status = 'queued'
-  if (options.scheduledAt !== undefined) data.scheduledAt = checkedScheduledAt(options.scheduledAt)
+  if (options.scheduledAt !== undefined) {
+    const checkedSchedule = checkedScheduledAt(options.scheduledAt)
+    // Omit an unchanged empty date. PocketBase can reject an empty date value
+    // during draft updates even though the field is already unset.
+    if (!sameScheduledAt(current.scheduledAt, checkedSchedule)) data.scheduledAt = checkedSchedule
+  }
 
   try {
     return normalizeRun(assertOwner(await request<DispatchRunRecord>(`/api/collections/${RUN_COLLECTION}/records/${encodeURIComponent(id)}`, {

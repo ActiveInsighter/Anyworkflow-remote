@@ -84,6 +84,20 @@ const validWithoutRunTitle = `@task Search {
 }`
 assert.equal(errors(validWithoutRunTitle).length, 0, 'missing @run is valid because the compiler supplies a default title')
 
+const editorStarterPlan = `@run=新工作流
+@mode=serial
+
+@task Task {
+  @mode=serial
+
+  @event Event {
+    {
+      在这里写第一条消息
+    }
+  }
+}`
+assert.equal(errors(editorStarterPlan).length, 0, 'the editor starter syntax is valid for a browser Run')
+
 const validCodexPlan = `@run=Codex
 @Codex Research {
   @event Prompt {
