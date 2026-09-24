@@ -601,6 +601,20 @@ function leadingQueueRepeat(value: string): number | null {
   return repeat
 }
 
+function collectLeadingQueueVariables(text: string, variables: Set<string>): void {
+  for (const rawLine of text.split('\n')) {
+    const line = rawLine.trim()
+    if (!line) continue
+    const declaration = line.match(/^@var\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*.*$/iu)
+    if (declaration?.[1]) {
+      variables.add(declaration[1])
+      continue
+    }
+    if (/^@(task|event|repeat|start|step)\s*=/iu.test(line)) continue
+    break
+  }
+}
+
 function validateQueueMetadata(
   kind: 'repeat' | 'start' | 'step',
   rawValue: string,
@@ -664,7 +678,8 @@ function validateQueueBody(value: string, options: QueueValidationOptions): bool
   let executable = false
   const depth = options.depth ?? 0
   const pollDepth = options.pollDepth ?? 0
-  const activeVariables = options.activeVariables ?? new Set<string>()
+  const activeVariables = new Set(options.activeVariables ?? [])
+  collectLeadingQueueVariables(text, activeVariables)
   const topLevel = depth === 0 && pollDepth === 0
   let topLevelLooseSeen = false
   let leadingRepeat = 1
@@ -753,8 +768,14 @@ function validateQueueBody(value: string, options: QueueValidationOptions): bool
     }
 
     if (leading && /^@var\b/iu.test(line)) {
-      addQueueError(options, '在 Event 内声明了 @var；变量只能定义在 Task 层级')
-      return false
+      const declaration = line.match(/^@var\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/iu)
+      if (!declaration?.[1]) {
+        addQueueError(options, '包含无效的 @var 声明')
+        return false
+      }
+      activeVariables.add(declaration[1])
+      cursor = end < text.length ? end + 1 : end
+      continue
     }
 
     if (leading && /^@action\s*=/iu.test(line)) {
@@ -847,6 +868,7 @@ function validateQueueBody(value: string, options: QueueValidationOptions): bool
         const nestedPromptBudget = options.flavor === 'codex' ? { prompts: 0 } : undefined
         const nested = validateQueueBody(text.slice(openAt + 1, closeAt), {
           ...options,
+          activeVariables: new Set(activeVariables),
           depth: depth + 1,
           codexPromptBudget: nestedPromptBudget,
           codexPromptMultiplier: 1,
@@ -1115,7 +1137,9 @@ export function collectWorkflowVariables(source: string, at: number): string[] {
 
     const context = variableContext(frames)
     const variable = line.match(/^@var\s+([A-Za-z_][A-Za-z0-9_]*)\s*=/iu)
-    if (variable?.[1] && context === 'task') frames.at(-1)?.variables.add(variable[1])
+    if (variable?.[1] && (context === 'task' || ['event', 'act', 'for-queue'].includes(frames.at(-1)?.kind ?? ''))) {
+      frames.at(-1)?.variables.add(variable[1])
+    }
 
     const loop = line.match(/^@for\s+([A-Za-z_][A-Za-z0-9_]*)\s+in\s+range\([^)]*\)\s*\{/iu)
     if (loop?.[1]) {

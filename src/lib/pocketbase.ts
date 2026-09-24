@@ -4,12 +4,14 @@ import type { PocketBaseListResponse } from '../types'
 export class ApiError extends Error {
   status: number
   code: string
+  details: unknown
 
-  constructor(message: string, status = 0, code = 'REQUEST_FAILED') {
+  constructor(message: string, status = 0, code = 'REQUEST_FAILED', details: unknown = null) {
     super(message)
     this.name = 'ApiError'
     this.status = status
     this.code = code
+    this.details = details
   }
 }
 
@@ -77,7 +79,13 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 
   if (response.status === 204) return undefined as T
 
-  const text = await response.text()
+  let text: string
+  try {
+    text = await response.text()
+  } catch (error) {
+    if (options.signal?.aborted || (error instanceof Error && error.name === 'AbortError')) throw error
+    throw new ApiError('连接中断，无法确认请求结果', 0, 'NETWORK_ERROR')
+  }
   let payload: unknown = null
   if (text) {
     try {
@@ -89,7 +97,8 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 
   if (!response.ok) {
     if (response.status === 401 || response.status === 403) clearSession()
-    throw new ApiError(errorMessage(payload, `请求失败（${response.status}）`), response.status)
+    const details = payload && typeof payload === 'object' && 'data' in payload ? payload.data : null
+    throw new ApiError(errorMessage(payload, `请求失败（${response.status}）`), response.status, 'REQUEST_FAILED', details)
   }
 
   return payload as T

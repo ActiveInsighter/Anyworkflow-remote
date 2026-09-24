@@ -74,9 +74,8 @@ function normalizeEvent<T extends DispatchEventRecord>(event: T): T {
 }
 
 /**
- * Rejects a schedule before it reaches the API. The PocketBase hook performs the same check and
- * answers with an opaque 400, so failing here is what turns a bad instant into an actionable
- * message. Empty is always valid: it means "no boundary, start immediately".
+ * Rejects a schedule before PocketBase date-field coercion can erase malformed input. Empty is
+ * valid: it means "no boundary, start immediately".
  */
 function checkedPlanText(value: string, requireExecutable = false): string {
   if (!value.trim()) throw new ApiError('工作流定义不能为空', 400, 'RUN_PLAN_REQUIRED')
@@ -105,6 +104,32 @@ function isAmbiguousWriteFailure(error: unknown): error is ApiError {
   return error instanceof ApiError && (error.status === 0 || error.status >= 500)
 }
 
+function isRunVersionConflict(error: unknown): error is ApiError {
+  if (!(error instanceof ApiError) || error.status !== 400 ||
+      !error.details || typeof error.details !== 'object' || Array.isArray(error.details)) return false
+  const fields = error.details as Record<string, unknown>
+  const isUnique = (name: string): boolean => {
+    const field = fields[name]
+    return Boolean(field && typeof field === 'object' &&
+      (field as { code?: unknown }).code === 'validation_not_unique')
+  }
+  return isUnique('familyId') && (isUnique('versionNumber') || (isUnique('versionMajor') && isUnique('versionMinor')))
+}
+
+function newRunId(): string {
+  const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789'
+  let id = ''
+  while (id.length < 15) {
+    const bytes = crypto.getRandomValues(new Uint8Array(24))
+    for (const byte of bytes) {
+      if (byte >= 252) continue
+      id += alphabet[byte % alphabet.length]
+      if (id.length === 15) return id
+    }
+  }
+  return id
+}
+
 function samePlanText(left: string, right: string): boolean {
   return left.replace(/\r\n?/gu, '\n').trim() === right.replace(/\r\n?/gu, '\n').trim()
 }
@@ -125,17 +150,17 @@ function savedCreateMatches(
     scheduledAt: string
     executionMode: string
     maxConcurrency: number
+    parentRun: string
+    origin: DispatchRunOrigin
   },
-  requestStartedAt: number,
 ): boolean {
-  const createdAt = Date.parse(run.created)
   const statusMatches = expected.status === 'draft'
     ? run.status === 'draft'
     : ['queued', 'running', 'succeeded', 'failed', 'canceled'].includes(run.status)
-  return Number.isFinite(createdAt) && createdAt >= requestStartedAt - 30_000 &&
-    run.title === expected.title && samePlanText(run.planText, expected.planText) &&
+  return run.title === expected.title && samePlanText(run.planText, expected.planText) &&
     statusMatches && sameScheduledAt(run.scheduledAt, expected.scheduledAt) &&
-    run.executionMode === expected.executionMode && run.maxConcurrency === expected.maxConcurrency
+    run.executionMode === expected.executionMode && run.maxConcurrency === expected.maxConcurrency &&
+    run.parentRun === expected.parentRun && run.origin === expected.origin
 }
 
 function savedDraftUpdateMatches(
@@ -227,6 +252,7 @@ export async function createRun(
   const checkedPlan = checkedPlanText(planText, status === 'queued')
   const meta = parsePlanMeta(checkedPlan)
   const checkedSchedule = checkedScheduledAt(scheduledAt)
+  const origin: DispatchRunOrigin = lineage?.origin ?? 'initial'
   const expected = {
     title: lineage?.title ?? meta.title,
     planText: checkedPlan,
@@ -234,8 +260,12 @@ export async function createRun(
     scheduledAt: checkedSchedule,
     executionMode: meta.mode,
     maxConcurrency: meta.maxConcurrency,
+    parentRun: lineage?.parentRun ?? '',
+    origin,
   }
+  const runId = newRunId()
   const data: Record<string, unknown> = {
+    id: runId,
     owner: session.record.id,
     title: expected.title,
     planText: expected.planText,
@@ -251,22 +281,32 @@ export async function createRun(
   // empty string is not needed for a new row and can fail date coercion in JSVM.
   if (checkedSchedule) data.scheduledAt = checkedSchedule
 
-  const requestStartedAt = Date.now()
-  try {
-    return normalizeRun(assertOwner(await request<DispatchRunRecord>(`/api/collections/${RUN_COLLECTION}/records`, {
-      method: 'POST',
-      data,
-    })))
-  } catch (error) {
-    if (!isAmbiguousWriteFailure(error)) throw error
+  let versionConflictRetries = 0
+  while (true) {
     try {
-      const recentRuns = await listRuns(1, 100, 'all')
-      const matches = recentRuns.items.filter((run) => savedCreateMatches(run, expected, requestStartedAt))
-      if (matches.length === 1) return matches[0]
-    } catch {
-      // Keep the original write error when the verification read is unavailable.
+      return normalizeRun(assertOwner(await request<DispatchRunRecord>(`/api/collections/${RUN_COLLECTION}/records`, {
+        method: 'POST',
+        data,
+      })))
+    } catch (error) {
+      if (lineage && isRunVersionConflict(error)) {
+        if (versionConflictRetries >= 7) {
+          throw new ApiError('Run 版本分配冲突，请重试', 409, 'RUN_VERSION_CONFLICT', error.details)
+        }
+        const backoffMs = 25 * 2 ** versionConflictRetries + Math.floor(Math.random() * 25)
+        versionConflictRetries += 1
+        await new Promise((resolve) => setTimeout(resolve, backoffMs))
+        continue
+      }
+      if (!isAmbiguousWriteFailure(error)) throw error
+      try {
+        const saved = await getRun(runId)
+        if (savedCreateMatches(saved, expected)) return saved
+      } catch {
+        // Keep the original write error when the exact-ID verification read is unavailable.
+      }
+      throw error
     }
-    throw error
   }
 }
 
@@ -295,7 +335,12 @@ export async function updateRunDraft(
     maxConcurrency: meta.maxConcurrency,
   }
   if (options.publish) data.status = 'queued'
-  if (options.scheduledAt !== undefined) data.scheduledAt = checkedScheduledAt(options.scheduledAt)
+  if (options.scheduledAt !== undefined) {
+    const checkedSchedule = checkedScheduledAt(options.scheduledAt)
+    // Omit an unchanged empty date. PocketBase can reject an empty date value
+    // during draft updates even though the field is already unset.
+    if (!sameScheduledAt(current.scheduledAt, checkedSchedule)) data.scheduledAt = checkedSchedule
+  }
 
   try {
     return normalizeRun(assertOwner(await request<DispatchRunRecord>(`/api/collections/${RUN_COLLECTION}/records/${encodeURIComponent(id)}`, {

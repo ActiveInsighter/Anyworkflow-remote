@@ -23,7 +23,7 @@ When `.git/` is available:
 - Check the current branch and working tree before editing.
 - Preserve unrelated user changes; never reset, clean, or overwrite them just to simplify the task.
 - Use Git history/diff when it helps explain an existing implementation.
-- Install dependencies with `npm install` when needed. This repository intentionally does not require a lockfile.
+- Install dependencies with `npm ci` from the committed `package-lock.json` when needed.
 - Before finishing code changes, run `npm run preflight`.
 
 ### CI / cloud source artifact
@@ -36,7 +36,7 @@ When working from that artifact:
 - A missing `.git/` directory is expected; do not assume the source is incomplete because Git metadata is absent.
 - Read this file first, then load only the task-relevant skills from `.agents/skills/`.
 - Do not spend connector calls re-reading files that are already present in the extracted artifact.
-- The artifact excludes `node_modules/` and `dist/`; run `npm install` before local verification when dependencies are not already available.
+- The artifact excludes `node_modules/` and `dist/`; run `npm ci` before local verification when dependencies are not already available.
 - Use the commit SHA encoded in the inner ZIP filename as the source snapshot identity.
 - If the task requires newer code than the extracted SHA, fetch a newer successful artifact rather than mixing files from multiple commits.
 

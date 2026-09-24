@@ -110,30 +110,81 @@ const recentCreatedRun = {
   title: 'Resume fixture',
   status: 'draft',
   scheduledAt: '',
-  created: new Date().toISOString(),
+  created: new Date(Date.now() - 60_000).toISOString(),
   updated: new Date().toISOString(),
 }
 const createRecoveryCalls = []
+let submittedRunId
 globalThis.fetch = async (input, init = {}) => {
   const url = new URL(String(input))
   createRecoveryCalls.push({ url, init })
   if (url.pathname.endsWith('/aw_dispatch_runs/records') && init.method === 'POST') {
+    submittedRunId = JSON.parse(String(init.body)).id
+    assert.match(submittedRunId, /^[a-z0-9]{15}$/u)
     return Response.json({ message: 'Something went wrong while processing your request.' }, { status: 500 })
   }
-  if (url.pathname.endsWith('/aw_dispatch_runs/records') && init.method === 'GET') {
-    return Response.json({ page: 1, perPage: 100, totalItems: 1, totalPages: 1, items: [recentCreatedRun] })
+  if (url.pathname.endsWith(`/aw_dispatch_runs/records/${submittedRunId}`) && init.method === 'GET') {
+    return Response.json({ ...recentCreatedRun, id: submittedRunId })
   }
   throw new Error(`Unexpected create recovery request: ${init.method || 'GET'} ${url.pathname}`)
 }
 const recoveredCreate = await createRun(createPlan, 'draft')
-assert.equal(recoveredCreate.id, recentCreatedRun.id, 'a server error after commit should be confirmed from the owned Run list')
+assert.equal(recoveredCreate.id, submittedRunId, 'a server error after commit should be confirmed by the submitted Run ID')
 const ambiguousCreateCall = createRecoveryCalls.find(({ url, init }) => url.pathname.endsWith('/aw_dispatch_runs/records') && init.method === 'POST')
 assert.equal(Object.hasOwn(JSON.parse(String(ambiguousCreateCall.init.body)), 'scheduledAt'), false,
   'immediate Runs should omit the optional date field instead of sending an empty date')
 
+let interruptedRunId
+globalThis.fetch = async (input, init = {}) => {
+  const url = new URL(String(input))
+  if (url.pathname.endsWith('/aw_dispatch_runs/records') && init.method === 'POST') {
+    interruptedRunId = JSON.parse(String(init.body)).id
+    return { status: 200, ok: true, text: async () => { throw new TypeError('response stream interrupted') } }
+  }
+  if (url.pathname.endsWith(`/aw_dispatch_runs/records/${interruptedRunId}`) && init.method === 'GET') {
+    return Response.json({ ...recentCreatedRun, id: interruptedRunId })
+  }
+  throw new Error(`Unexpected interrupted create request: ${init.method || 'GET'} ${url.pathname}`)
+}
+assert.equal((await createRun(createPlan, 'draft')).id, interruptedRunId,
+  'a committed POST with an interrupted response body is confirmed by its exact ID')
+
+const versionConflict = {
+  message: 'Failed to create record.',
+  data: {
+    familyId: { code: 'validation_not_unique', message: 'Value must be unique.' },
+    versionMajor: { code: 'validation_not_unique', message: 'Value must be unique.' },
+    versionMinor: { code: 'validation_not_unique', message: 'Value must be unique.' },
+  },
+}
+let versionCreateCount = 0
+globalThis.fetch = async (input, init = {}) => {
+  const url = new URL(String(input))
+  if (!url.pathname.endsWith('/aw_dispatch_runs/records') || init.method !== 'POST') {
+    throw new Error(`Unexpected version create request: ${init.method || 'GET'} ${url.pathname}`)
+  }
+  versionCreateCount += 1
+  return versionCreateCount === 1
+    ? Response.json(versionConflict, { status: 400 })
+    : Response.json({ ...recentCreatedRun, id: 'run-retried-version' })
+}
+const retriedVersion = await createRun(createPlan, 'draft', '', { parentRun: parentRun.id, origin: 'rerun' })
+assert.equal(retriedVersion.id, 'run-retried-version')
+assert.equal(versionCreateCount, 2, 'only a verified unique version collision should be retried')
+
+let unrelatedCreateCount = 0
+globalThis.fetch = async () => {
+  unrelatedCreateCount += 1
+  return Response.json({ message: 'Invalid parent Run.' }, { status: 400 })
+}
+await assert.rejects(createRun(createPlan, 'draft', '', { parentRun: parentRun.id, origin: 'rerun' }),
+  (error) => error instanceof ApiError && error.status === 400)
+assert.equal(unrelatedCreateCount, 1, 'other validation errors must not be retried')
+
 const draftBeforeSave = { ...parentRun, id: 'run-draft-save', status: 'draft', scheduledAt: '' }
 const draftAfterSave = { ...draftBeforeSave, planText: createPlan, title: 'Resume fixture', executionMode: 'serial', maxConcurrency: 1 }
 let draftReadCount = 0
+let draftPatchBody
 globalThis.fetch = async (input, init = {}) => {
   const url = new URL(String(input))
   if (url.pathname.endsWith('/aw_dispatch_runs/records/run-draft-save') && init.method === 'GET') {
@@ -141,12 +192,32 @@ globalThis.fetch = async (input, init = {}) => {
     return Response.json(draftReadCount === 1 ? draftBeforeSave : draftAfterSave)
   }
   if (url.pathname.endsWith('/aw_dispatch_runs/records/run-draft-save') && init.method === 'PATCH') {
+    draftPatchBody = JSON.parse(String(init.body))
     return Response.json({ message: 'Something went wrong while processing your request.' }, { status: 500 })
   }
   throw new Error(`Unexpected draft recovery request: ${init.method || 'GET'} ${url.pathname}`)
 }
 const recoveredDraft = await updateRunDraft(draftBeforeSave.id, createPlan, { scheduledAt: '' })
 assert.equal(recoveredDraft.planText, createPlan, 'a draft PATCH committed before a server error should be confirmed by re-reading it')
+assert.equal(Object.hasOwn(draftPatchBody, 'scheduledAt'), false,
+  'saving an already unscheduled draft should omit the unchanged blank date field')
+
+const scheduledDraft = { ...draftBeforeSave, id: 'run-scheduled-draft', scheduledAt: '2026-09-25T12:00:00.000Z' }
+const clearedScheduledDraft = { ...scheduledDraft, scheduledAt: '' }
+let clearedSchedulePatchBody
+globalThis.fetch = async (input, init = {}) => {
+  const url = new URL(String(input))
+  if (url.pathname.endsWith('/aw_dispatch_runs/records/run-scheduled-draft') && init.method === 'GET') {
+    return Response.json(scheduledDraft)
+  }
+  if (url.pathname.endsWith('/aw_dispatch_runs/records/run-scheduled-draft') && init.method === 'PATCH') {
+    clearedSchedulePatchBody = JSON.parse(String(init.body))
+    return Response.json(clearedScheduledDraft)
+  }
+  throw new Error(`Unexpected scheduled draft request: ${init.method || 'GET'} ${url.pathname}`)
+}
+await updateRunDraft(scheduledDraft.id, createPlan, { scheduledAt: '' })
+assert.equal(clearedSchedulePatchBody.scheduledAt, '', 'clearing an existing schedule should still send an explicit empty date')
 
 const fallbackDispatchEvent = {
   id: 'event-fallback-2', owner: 'owner-1', task: 'dispatch-task-1', eventIndex: 2,

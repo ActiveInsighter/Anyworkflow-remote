@@ -47,7 +47,7 @@ Run 控制仍使用 `requestedAction + commandVersion + 1`。Run DSL 仍写入 `
 ## 本地开发
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 

@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "name": "editor starter",
+      "executor": "browser",
+      "valid": true,
+      "plan": "@run=新工作流\n@mode=serial\n@task Task {\n  @mode=serial\n  @event Event {\n    {\n      在这里写第一条消息\n    }\n  }\n}",
+      "queue": "@task=Task\n@event=Event\n{\n      在这里写第一条消息\n    }"
+    },
+    {
+      "name": "Event local variable in Act",
+      "executor": "browser",
+      "valid": true,
+      "plan": "@run=Variables\n@task T {\n  @event E {\n    @act {\n      @var query=browser syntax\n      @event=Search %query%\n      { find %query% }\n    }\n  }\n}",
+      "queue": "@task=T\n@event=E\n@act {\n      @var query=browser syntax\n      @event=Search %query%\n      { find %query% }\n    }"
+    },
+    {
+      "name": "Event local variable in direct message",
+      "executor": "browser",
+      "valid": true,
+      "plan": "@run=Variables\n@task T {\n  @event E {\n    @var query=browser syntax\n    { find %query% }\n  }\n}",
+      "queue": "@task=T\n@event=E\n@var query=browser syntax\n    { find %query% }"
+    },
+    {
+      "name": "browser loop",
+      "executor": "browser",
+      "valid": true,
+      "plan": "@run=Loop\n@task T {\n  @event E {\n    @for i in range(1, 2) {\n      { find %i% }\n    }\n  }\n}",
+      "queue": "@task=T\n@event=E\n@for i in range(1, 2) {\n      { find %i% }\n    }"
+    },
+    {
+      "name": "browser repeat",
+      "executor": "browser",
+      "valid": true,
+      "plan": "@run=Repeat\n@task T {\n  @event E {\n    @repeat=3\n    { repeated }\n  }\n}",
+      "queue": "@task=T\n@event=E\n@repeat=3\n    { repeated }"
+    },
+    {
+      "name": "browser repeat beyond limit",
+      "executor": "browser",
+      "valid": false,
+      "plan": "@run=Repeat\n@task T {\n  @event E {\n    @repeat=11\n    { repeated }\n  }\n}",
+      "queue": "@task=T\n@event=E\n@repeat=11\n    { repeated }"
+    },
+    {
+      "name": "forward local variable in Act metadata",
+      "executor": "browser",
+      "valid": true,
+      "plan": "@run=F\n@task T {\n@event E {\n@act {\n@event=Search %query%\n@var query=browser syntax\n{ find %query% }\n}\n}\n}",
+      "queue": "@task=T\n@event=E\n@act {\n@event=Search %query%\n@var query=browser syntax\n{ find %query% }\n}"
+    },
+    {
+      "name": "bare browser message",
+      "executor": "browser",
+      "valid": false,
+      "plan": "@run=Bare\n@task T {\n  @event E {\n    find the answer\n  }\n}",
+      "queue": "@task=T\n@event=E\nfind the answer"
+    },
+    {
+      "name": "removed action directive",
+      "executor": "browser",
+      "valid": false,
+      "plan": "@run=Old\n@task T {\n  @event E {\n    @act {\n      @action=Search\n      { find the answer }\n    }\n  }\n}",
+      "queue": "@task=T\n@event=E\n@act {\n  @action=Search\n  { find the answer }\n}"
+    },
+    {
+      "name": "Codex Act",
+      "executor": "codex",
+      "valid": true,
+      "plan": "@run=Codex\n@Codex Research {\n  @event Prompt {\n    @act {\n      @event=Search\n      { search the web }\n    }\n  }\n}",
+      "queue": "@task=Research\n@event=Prompt\n@act {\n      @event=Search\n      { search the web }\n    }"
+    }
+  ]
+}
