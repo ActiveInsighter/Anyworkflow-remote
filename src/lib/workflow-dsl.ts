@@ -86,7 +86,6 @@ interface QueueValidationOptions {
   expansionBudget?: QueueExpansionBudget
   codexPromptBudget?: QueuePromptBudget
   codexPromptMultiplier?: number
-  allowAction?: boolean
 }
 
 interface QueueExpansionBudget {
@@ -596,7 +595,7 @@ function leadingQueueRepeat(value: string): number | null {
       }
       continue
     }
-    if (/^@(task|event|start|step|var|action)(?:\s|=)/iu.test(line)) continue
+    if (/^@(task|event|start|step|var)(?:\s|=)/iu.test(line)) continue
     break
   }
   return repeat
@@ -663,7 +662,6 @@ function validateQueueBody(value: string, options: QueueValidationOptions): bool
   let cursor = 0
   let leading = true
   let executable = false
-  let actionSeen = false
   const depth = options.depth ?? 0
   const pollDepth = options.pollDepth ?? 0
   const activeVariables = options.activeVariables ?? new Set<string>()
@@ -728,7 +726,6 @@ function validateQueueBody(value: string, options: QueueValidationOptions): bool
           ...options,
           activeVariables,
           pollDepth: pollDepth + 1,
-          allowAction: false,
         })
       }
       executable = true
@@ -760,21 +757,13 @@ function validateQueueBody(value: string, options: QueueValidationOptions): bool
       return false
     }
 
-    const action = line.match(/^@action\s*=\s*(.*?)\s*$/iu)
-    if (leading && options.allowAction && action) {
-      if (actionSeen && options.flavor === 'browser') addQueueError(options, '中的 @action 重复定义')
-      actionSeen = true
-      cursor = end < text.length ? end + 1 : end
-      continue
+    if (leading && /^@action\s*=/iu.test(line)) {
+      addQueueError(options, '中的 @action 已不再支持，请使用原有的 @event=名称语法')
+      return false
     }
 
     const metadata = isQueueMetadataDirective(line)
     if (leading && metadata) {
-      if (metadata === 'event' && options.allowAction && options.flavor === 'browser') {
-        addQueueError(options, '中的执行块不能定义 @event，请改用 @action')
-        cursor = end < text.length ? end + 1 : end
-        continue
-      }
       if (metadata === 'task' || metadata === 'event') {
         const rawValue = line.replace(/^@[^=]+=/u, '')
         validateBrowserTemplateTokens(rawValue, { ...options, activeVariables })
@@ -843,7 +832,6 @@ function validateQueueBody(value: string, options: QueueValidationOptions): bool
           ...options,
           activeVariables: loopVariables,
           depth: depth + 1,
-          allowAction: options.flavor === 'codex',
           codexPromptBudget: nestedPromptBudget,
           codexPromptMultiplier: nestedPromptMultiplier,
         })
@@ -860,7 +848,6 @@ function validateQueueBody(value: string, options: QueueValidationOptions): bool
         const nested = validateQueueBody(text.slice(openAt + 1, closeAt), {
           ...options,
           depth: depth + 1,
-          allowAction: true,
           codexPromptBudget: nestedPromptBudget,
           codexPromptMultiplier: 1,
         })

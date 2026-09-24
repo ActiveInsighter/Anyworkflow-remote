@@ -308,7 +308,7 @@ export function planStructuredInsert(
 
   const text =
     `${separator}${indent}@act {\n` +
-    `${indent}  @action=\n` +
+    `${indent}  @event=\n` +
     `${indent}  {\n` +
     `${indent}    \n` +
     `${indent}  }\n` +
@@ -317,7 +317,7 @@ export function planStructuredInsert(
     ok: true,
     from,
     text,
-    cursorOffset: separator.length + indent.length + '@act {\n'.length + indent.length + '  @action='.length,
+    cursorOffset: separator.length + indent.length + '@act {\n'.length + indent.length + '  @event='.length,
   }
 }
 
@@ -481,7 +481,7 @@ function directiveOptions(context: DslContext): Completion[] {
   }
 
   return [
-    snippetCompletion('@act {\n  @action=${动作名称}\n  {\n    ${消息}\n  }\n}', { label: '@act', type: 'keyword', detail: 'Act 块' }),
+    snippetCompletion('@act {\n  @event=${事件名称}\n  {\n    ${消息}\n  }\n}', { label: '@act', type: 'keyword', detail: 'Act 块' }),
     snippetCompletion('{\n  ${消息}\n}', { label: '{ message }', type: 'text', detail: '消息块' }),
     snippetCompletion('<${链接}>', { label: '<链接>', type: 'text', detail: '打开页面' }),
   ]

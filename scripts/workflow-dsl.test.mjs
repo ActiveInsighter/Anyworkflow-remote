@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 
-const { validateAnyWorkflowSource } = await import('../src/components/editor/anyworkflow-dsl.ts')
+const { planStructuredInsert, validateAnyWorkflowSource } = await import('../src/components/editor/anyworkflow-dsl.ts')
 
 function errors(source) {
   return validateAnyWorkflowSource(source).filter((diagnostic) => diagnostic.severity === 'error')
@@ -88,12 +88,38 @@ const validCodexPlan = `@run=Codex
 @Codex Research {
   @event Prompt {
     @act {
-      @action=Search
+      @event=Search
       { search the web }
     }
   }
 }`
 assert.equal(errors(validCodexPlan).length, 0, 'valid Codex plan should pass')
+
+const validBrowserAct = `@run=Browser act
+@task T {
+  @event E {
+    @act {
+      @event=Search
+      { search the web }
+    }
+  }
+}`
+assert.equal(errors(validBrowserAct).length, 0, 'an Act may use its original local @event title')
+
+const removedActionDirective = `@run=Old action directive
+@task T {
+  @event E {
+    @act {
+      @action=Search
+      { search the web }
+    }
+  }
+}`
+assertHasError(removedActionDirective, 'removed @action directive')
+assert.ok(
+  errors(removedActionDirective).some((diagnostic) => diagnostic.message.includes('@action') && diagnostic.message.includes('@event=')),
+  'legacy @action must have an actionable diagnostic that points back to @event',
+)
 
 const validCaseInsensitiveMode = `@run=Parallel
 @mode=PARALLEL
@@ -123,13 +149,13 @@ const eventDirectiveInsideBrowserAct = `@run=Browser act
     }
   }
 }`
-assertHasError(eventDirectiveInsideBrowserAct, 'browser @event directive inside an Act')
+assert.equal(errors(eventDirectiveInsideBrowserAct).length, 0, 'browser Acts may use local @event titles')
 
 const nestedBrowserAct = `@run=Nested act
 @task T {
   @event E {
     @act {
-      @action=Outer
+      @event=Outer
       @act {
         { hello }
       }
@@ -138,16 +164,28 @@ const nestedBrowserAct = `@run=Nested act
 }`
 assertHasError(nestedBrowserAct, 'nested browser Act')
 
-const browserActionInsideLoop = `@run=Loop action
+const browserEventInsideLoop = `@run=Loop event
 @task T {
   @event E {
     @for i in range(1, 2) {
-      @action=Wrong
+      @event=Question %i%
       { hello %i% }
     }
   }
 }`
-assertHasError(browserActionInsideLoop, 'browser Action inside a local loop')
+assert.equal(errors(browserEventInsideLoop).length, 0, 'browser loop bodies may use local @event titles')
+
+const eventBody = `@task T {
+  @event E {
+
+  }
+}`
+const actInsert = planStructuredInsert(eventBody, eventBody.indexOf('\n\n') + 1, 'act')
+assert.equal(actInsert.ok, true, 'Act insertion should work inside an Event')
+if (actInsert.ok) {
+  assert.match(actInsert.text, /@event=/u)
+  assert.doesNotMatch(actInsert.text, /@action/u)
+}
 
 const decimalCodexLoop = `@run=Codex loop
 @Codex T {
