@@ -1,5 +1,6 @@
 import {
   AUTH_COLLECTION,
+  CHECKPOINT_COLLECTION,
   DEFAULT_PAGE_SIZE,
   EVENT_COLLECTION,
   HISTORY_ACT_COLLECTION,
@@ -17,10 +18,12 @@ import { selectHistoryEventsForDispatchEvent } from './history'
 import { ApiError, assertOwner, collectPages, listOwnedCollection, quoteFilter, request } from './pocketbase'
 import type {
   AuthSession,
+  DispatchCheckpointRecord,
   DispatchEventRecord,
   DispatchExecutorKind,
   DispatchRequestedAction,
   DispatchRunRecord,
+  DispatchRunOrigin,
   DispatchTaskRecord,
   PocketBaseListResponse,
   WorkflowHistoryActRecord,
@@ -36,12 +39,36 @@ export { ApiError, assertOwner, collectPages, quoteFilter, request } from './poc
  * truthiness check off the `undefined` case.
  */
 function normalizeRun<T extends DispatchRunRecord>(run: T): T {
-  return { ...run, scheduledAt: typeof run.scheduledAt === 'string' ? run.scheduledAt : '' }
+  const origin: DispatchRunOrigin = ['initial', 'rerun', 'resume', 'edited_rerun'].includes(run.origin)
+    ? run.origin
+    : 'initial'
+  return {
+    ...run,
+    familyId: typeof run.familyId === 'string' && run.familyId ? run.familyId : run.id,
+    versionNumber: Number.isSafeInteger(run.versionNumber) && run.versionNumber > 0 ? run.versionNumber : 1,
+    parentRun: typeof run.parentRun === 'string' ? run.parentRun : '',
+    origin,
+    scheduledAt: typeof run.scheduledAt === 'string' ? run.scheduledAt : '',
+  }
 }
 
 function normalizeTask<T extends DispatchTaskRecord>(task: T): T {
   const executorKind: DispatchExecutorKind = task.executorKind === 'codex' ? 'codex' : 'browser'
-  return { ...task, executorKind }
+  return {
+    ...task,
+    executorKind,
+    runPlanChecksum: typeof task.runPlanChecksum === 'string' ? task.runPlanChecksum : '',
+    inheritedFrom: typeof task.inheritedFrom === 'string' ? task.inheritedFrom : '',
+  }
+}
+
+function normalizeEvent<T extends DispatchEventRecord>(event: T): T {
+  return {
+    ...event,
+    queueChecksum: typeof event.queueChecksum === 'string' && event.queueChecksum ? event.queueChecksum : null,
+    inheritedFrom: typeof event.inheritedFrom === 'string' ? event.inheritedFrom : '',
+    resumeSpec: event.resumeSpec && typeof event.resumeSpec === 'object' ? event.resumeSpec : null,
+  }
 }
 
 /**
@@ -117,6 +144,21 @@ export async function listRuns(
   )
 }
 
+export async function listRunVersions(familyId: string): Promise<DispatchRunRecord[]> {
+  const first = await listOwnedCollection<DispatchRunRecord>(RUN_COLLECTION, {
+    page: 1,
+    perPage: DEFAULT_PAGE_SIZE,
+    sort: '+versionNumber',
+    filter: `familyId="${quoteFilter(familyId)}"`,
+  }, normalizeRun)
+  return collectPages(first, (page) => listOwnedCollection<DispatchRunRecord>(RUN_COLLECTION, {
+    page,
+    perPage: first.perPage,
+    sort: '+versionNumber',
+    filter: `familyId="${quoteFilter(familyId)}"`,
+  }, normalizeRun))
+}
+
 export async function getRun(id: string): Promise<DispatchRunRecord> {
   return normalizeRun(
     assertOwner(await request<DispatchRunRecord>(`/api/collections/${RUN_COLLECTION}/records/${encodeURIComponent(id)}`)),
@@ -127,6 +169,7 @@ export async function createRun(
   planText: string,
   status: 'draft' | 'queued',
   scheduledAt = '',
+  lineage: { parentRun: string; origin: Exclude<DispatchRunOrigin, 'initial'> } | null = null,
 ): Promise<DispatchRunRecord> {
   const session = requireSession()
   const checkedPlan = checkedPlanText(planText, status === 'queued')
@@ -144,6 +187,7 @@ export async function createRun(
       requestedAction: 'none',
       commandVersion: 0,
       scheduledAt: checkedScheduledAt(scheduledAt),
+      ...(lineage ? { parentRun: lineage.parentRun, origin: lineage.origin } : {}),
     },
   })))
 }
@@ -213,7 +257,98 @@ export async function cloneRun(source: DispatchRunRecord, status: 'draft' | 'que
   const suffix = status === 'draft' ? ' · 草稿' : ' · 重跑'
   const title = (source.title.trim() || '未命名工作流').slice(0, Math.max(1, 512 - suffix.length)) + suffix
   const planText = source.planText.replace(/^\s*@run\s*=.*$/imu, `@run=${title}`)
-  return createRun(planText, status)
+  return createRun(planText, status, '', {
+    parentRun: source.id,
+    origin: status === 'draft' ? 'edited_rerun' : 'rerun',
+  })
+}
+
+function isSafeConversationUrl(value: string): boolean {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:' &&
+      ['chatgpt.com', 'chat.openai.com'].includes(url.hostname.toLowerCase()) &&
+      /^\/c\/[^/]+/u.test(url.pathname)
+  } catch {
+    return false
+  }
+}
+
+function checkpointIsSafe(
+  checkpoint: DispatchCheckpointRecord,
+  event: DispatchEventRecord,
+  planChecksum: string,
+): boolean {
+  if (
+    checkpoint.eventAttempt !== event.attempt ||
+    checkpoint.planChecksum !== planChecksum ||
+    !event.queueChecksum || checkpoint.queueChecksum !== event.queueChecksum ||
+    !Number.isSafeInteger(checkpoint.nextNodeIndex) || checkpoint.nextNodeIndex < 0 ||
+    !Number.isSafeInteger(checkpoint.totalNodes) || checkpoint.totalNodes < checkpoint.nextNodeIndex
+  ) return false
+  if (checkpoint.phase === 'unsafe') return false
+  if (checkpoint.phase === 'continue') {
+    return Object.keys(checkpoint.providerState || {}).length === 0 && (
+      checkpoint.nextNodeIndex >= checkpoint.totalNodes ||
+      (Boolean(event.localRunId) && event.localAttempt > 0 &&
+        (checkpoint.nextNodeIndex === 0 || isSafeConversationUrl(checkpoint.conversationUrl)))
+    )
+  }
+  const state = checkpoint.providerState
+  const sentUserMessageId = state?.sentUserMessageId ??
+    (state?.snapshot && typeof state.snapshot === 'object'
+      ? (state.snapshot as Record<string, unknown>).sentUserMessageId
+      : undefined)
+  return Boolean(event.localRunId) && event.localAttempt > 0 &&
+    isSafeConversationUrl(checkpoint.conversationUrl) &&
+    typeof sentUserMessageId === 'string' && sentUserMessageId.trim().length > 0
+}
+
+async function assertRunCanResume(run: DispatchRunRecord): Promise<void> {
+  const session = requireSession()
+  if (run.owner !== session.record.id) throw new ApiError('当前 Run 不属于登录账号', 403, 'INVALID_RECORD_OWNER')
+  if (run.status !== 'failed') throw new ApiError('只有失败的 Run 可以从检查点恢复', 409, 'RUN_NOT_RESUMABLE')
+  if (!run.planText.trim() || !/^[a-f0-9]{64}$/u.test(run.planChecksum)) {
+    throw new ApiError('Run 缺少有效的不可变计划校验和', 409, 'RUN_RESUME_PLAN_INVALID')
+  }
+
+  const firstTasks = await listTasksForRun(run.id, 1, DEFAULT_PAGE_SIZE)
+  const tasks = await collectPages(firstTasks, (page) => listTasksForRun(run.id, page, firstTasks.perPage))
+  if (!tasks.length) throw new ApiError('Run 没有可恢复的 Task', 409, 'RUN_RESUME_TASKS_MISSING')
+  for (const task of tasks) {
+    const firstEvents = await listEventsForTask(task.id, 1, DEFAULT_PAGE_SIZE)
+    const events = await collectPages(firstEvents, (page) => listEventsForTask(task.id, page, firstEvents.perPage))
+    if (!events.length) throw new ApiError(`Task「${task.title}」没有可恢复的 Event`, 409, 'RUN_RESUME_EVENTS_MISSING')
+    for (const event of events) {
+      if (event.status === 'terminal' && event.terminalResult === 'succeeded') continue
+      if (
+        event.attempt === 0 &&
+        (event.status === 'waiting' || event.status === 'ready' ||
+          (event.status === 'terminal' && event.terminalResult === 'canceled'))
+      ) continue
+      const firstCheckpoints = await listOwnedCollection<DispatchCheckpointRecord>(CHECKPOINT_COLLECTION, {
+        page: 1,
+        perPage: DEFAULT_PAGE_SIZE,
+        sort: '-checkpointSeq',
+        filter: `event="${quoteFilter(event.id)}" && eventAttempt=${event.attempt}`,
+      }, (record) => record)
+      // The newest checkpoint is sufficient. Avoid downloading every prior
+      // provider snapshot for an Event that may have many node transitions.
+      const latest = firstCheckpoints.items[0]
+      if (!latest || !checkpointIsSafe(latest, event, run.planChecksum)) {
+        throw new ApiError(
+          `Event ${event.eventIndex + 1} 没有与当前计划匹配的安全检查点，已阻止恢复以避免重复发送。`,
+          409,
+          'RUN_RESUME_CHECKPOINT_UNSAFE',
+        )
+      }
+    }
+  }
+}
+
+export async function resumeFailedRun(source: DispatchRunRecord): Promise<DispatchRunRecord> {
+  await assertRunCanResume(source)
+  return createRun(source.planText, 'queued', '', { parentRun: source.id, origin: 'resume' })
 }
 
 export async function listTasksForRun(runId: string, page = 1, perPage = DEFAULT_PAGE_SIZE) {
@@ -235,11 +370,11 @@ export async function listEventsForTask(taskId: string, page = 1, perPage = DEFA
     perPage,
     sort: '+eventIndex',
     filter: `task="${quoteFilter(taskId)}"`,
-  }, (record) => record)
+  }, normalizeEvent)
 }
 
 export async function getEvent(id: string): Promise<DispatchEventRecord> {
-  return assertOwner(await request<DispatchEventRecord>(`/api/collections/${EVENT_COLLECTION}/records/${encodeURIComponent(id)}`))
+  return normalizeEvent(assertOwner(await request<DispatchEventRecord>(`/api/collections/${EVENT_COLLECTION}/records/${encodeURIComponent(id)}`)))
 }
 
 /**

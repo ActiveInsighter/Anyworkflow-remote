@@ -5,6 +5,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
+  GitBranch,
   Pencil,
   Pause,
   Play,
@@ -39,6 +40,8 @@ import {
   deleteRun,
   getRun,
   listTasksForRun,
+  listRunVersions,
+  resumeFailedRun,
   toErrorMessage,
   updateRunDraft,
 } from '@/lib/api'
@@ -99,6 +102,17 @@ export function RunDetailPage() {
       pollMs: active ? 8_000 : undefined,
       staleMs: 8_000,
       cacheKey: runId ? 'tasks:' + runId + ':' + taskPage : undefined,
+      errorMessage: toErrorMessage,
+    },
+  )
+
+  const versionsState = useAsyncData(
+    async () => listRunVersions(run?.familyId || runId),
+    [run?.familyId, runId],
+    {
+      enabled: Boolean(run),
+      staleMs: 30_000,
+      cacheKey: run ? 'run-family:' + run.familyId : undefined,
       errorMessage: toErrorMessage,
     },
   )
@@ -189,6 +203,25 @@ export function RunDetailPage() {
     }
   }
 
+  async function resumeFromCheckpoint() {
+    if (!run || run.status !== 'failed' || acting) return
+    setActing(true)
+    setActionError('')
+    try {
+      const resumed = await resumeFailedRun(run)
+      invalidateAsyncDataCache('runs:')
+      invalidateAsyncDataCache('run-family:' + run.familyId)
+      toast.success('已创建检查点恢复版本')
+      navigate('/runs/' + resumed.id)
+    } catch (error) {
+      const message = toErrorMessage(error)
+      setActionError(message)
+      toast.error('无法恢复此 Run', { description: message })
+    } finally {
+      setActing(false)
+    }
+  }
+
   async function toggleFavorite() {
     if (!state.data || acting) return
     setActing(true)
@@ -270,6 +303,7 @@ export function RunDetailPage() {
             {run.status === 'draft' ? <Button variant="secondary" onClick={() => void (schedule.pending ? publishDraft() : runImmediately())} disabled={acting}><Play />{schedule.pending ? '按计划运行' : '运行'}</Button> : null}
             {canPause ? <Button variant="outline" onClick={() => void control('pause')} disabled={acting}><Pause />暂停</Button> : null}
             {canResume ? <Button variant="secondary" onClick={() => void control('resume')} disabled={acting}><Play />继续</Button> : null}
+            {run.status === 'failed' ? <Button variant="secondary" onClick={() => void resumeFromCheckpoint()} disabled={acting}><RotateCcw />从检查点恢复</Button> : null}
             {canCancel ? <Button variant="destructive" onClick={() => void control('cancel')} disabled={acting}><XCircle />取消</Button> : null}
           </>
         }
@@ -284,12 +318,32 @@ export function RunDetailPage() {
           <span className="font-semibold tabular-nums">{progressText(run.completedTasks, totalTasks, 'Tasks')} · {percent}%</span>
           <ProgressBar className="w-20 shrink-0" value={percent} tone={status.tone} />
           <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+          <span className="inline-flex items-center gap-1 text-muted-foreground"><GitBranch className="size-3" />v{run.versionNumber} · {run.origin === 'resume' ? '恢复' : run.origin === 'rerun' ? '重跑' : run.origin === 'edited_rerun' ? '编辑副本' : '初始'}</span>
           <span className="text-muted-foreground">{modeLabel(run.executionMode, run.maxConcurrency, '任务')}</span>
           <span className="text-muted-foreground">{schedule.set ? schedule.absolute : '立即执行'}</span>
           <span className="text-muted-foreground">更新 {formatDateTime(run.updated)}</span>
         </div>
         {run.lastError ? <div className="mt-2"><InlineError>{run.lastError}</InlineError></div> : null}
       </Panel>
+
+      {versionsState.data?.length && versionsState.data.length > 1 ? (
+        <Panel className="mt-2 px-3 py-2.5 sm:px-4">
+          <div className="mb-2 flex items-center gap-2 text-xs font-semibold"><GitBranch className="size-3.5" />Run 版本</div>
+          <div className="flex flex-wrap gap-2">
+            {versionsState.data.map((version) => (
+              <Link
+                key={version.id}
+                to={'/runs/' + version.id}
+                aria-current={version.id === run.id ? 'page' : undefined}
+                className={'rounded-md border px-2.5 py-1.5 text-xs transition-colors ' +
+                  (version.id === run.id ? 'border-primary/40 bg-primary/5 font-medium' : 'border-border hover:bg-muted')}
+              >
+                v{version.versionNumber} · {version.title || '未命名 Run'}
+              </Link>
+            ))}
+          </div>
+        </Panel>
+      ) : null}
 
       {scheduleLive ? (
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-info/25 bg-info-soft px-3 py-2.5">
