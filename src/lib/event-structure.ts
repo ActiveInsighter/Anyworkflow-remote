@@ -135,8 +135,8 @@ function countMessages(source: string): number {
   return total
 }
 
-function actionTitle(body: string, fallback: string): string {
-  const match = body.match(/^\s*@action\s*=\s*(.*?)\s*$/imu)
+function eventTitle(body: string, fallback: string): string {
+  const match = body.match(/^\s*@event\s*=\s*(.*?)\s*$/imu)
   return match?.[1]?.trim() || fallback
 }
 
@@ -183,7 +183,7 @@ export function parseEventActs(queueText: string): EventActStructure[] {
       const number = acts.length + 1
       acts.push({
         id: `act-${number}`,
-        title: actionTitle(body, `Act ${number}`),
+        title: eventTitle(body, `Act ${number}`),
         messageCount: count,
       })
     }
