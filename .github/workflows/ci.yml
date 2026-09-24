@@ -15,7 +15,7 @@ jobs:
         with:
           node-version: "22.22"
 
-      - run: npm install
+      - run: npm ci
       - run: npm run preflight
 
       - name: Package tested source and skills

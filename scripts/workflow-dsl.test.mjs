@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 
-const { planStructuredInsert, validateAnyWorkflowSource } = await import('../src/components/editor/anyworkflow-dsl.ts')
+const { collectUsableVariables, planStructuredInsert, validateAnyWorkflowSource } = await import('../src/components/editor/anyworkflow-dsl.ts')
 
 function errors(source) {
   return validateAnyWorkflowSource(source).filter((diagnostic) => diagnostic.severity === 'error')
@@ -10,6 +11,11 @@ function assertHasError(source, message) {
   const diagnostics = errors(source)
   assert.ok(diagnostics.length > 0, `expected an error for: ${message}`)
   return diagnostics
+}
+
+const conformance = JSON.parse(readFileSync(new URL('./fixtures/dsl-conformance.json', import.meta.url), 'utf8'))
+for (const fixture of conformance.cases) {
+  assert.equal(errors(fixture.plan).length === 0, fixture.valid, `DSL conformance: ${fixture.name}`)
 }
 
 const browserPlan = `@run=Browser
@@ -97,6 +103,25 @@ const editorStarterPlan = `@run=新工作流
   }
 }`
 assert.equal(errors(editorStarterPlan).length, 0, 'the editor starter syntax is valid for a browser Run')
+
+const eventLocalVariable = `@run=Variables\n@task T {\n  @event E {\n    @var query=browser syntax\n    @act {\n      @event=Search %query%\n      { find %query% }\n    }\n  }\n}`
+assert.equal(errors(eventLocalVariable).length, 0, 'Event-local variables are valid in browser queues')
+assert.ok(collectUsableVariables(eventLocalVariable, eventLocalVariable.indexOf('{ find')).includes('query'),
+  'Event-local variables appear in editor completions')
+
+const actLocalVariable = `@run=Variables\n@task T {\n  @event E {\n    @act {\n      @var query=browser syntax\n      @event=Search %query%\n      { find %query% }\n    }\n  }\n}`
+assert.equal(errors(actLocalVariable).length, 0, 'Act-local variables are valid in browser queues')
+assertHasError(actLocalVariable.replace('@var query=browser syntax', '@var bad-name=browser syntax'), 'invalid local variable name')
+
+const forwardLocalVariable = actLocalVariable.replace(
+  '@var query=browser syntax\n      @event=Search %query%',
+  '@event=Search %query%\n      @var query=browser syntax',
+)
+assert.equal(errors(forwardLocalVariable).length, 0, 'queue metadata may reference a later local @var')
+
+const localVariableInsert = planStructuredInsert(eventLocalVariable, eventLocalVariable.indexOf('@act'), 'variable')
+assert.equal(localVariableInsert.ok, true, 'the variable toolbar inserts into an Event at the cursor')
+if (localVariableInsert.ok) assert.ok(localVariableInsert.from > eventLocalVariable.indexOf('@event E {'))
 
 const validCodexPlan = `@run=Codex
 @Codex Research {

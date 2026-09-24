@@ -225,11 +225,11 @@ function appendSeparator(before: string): string {
   return '\n\n'
 }
 
-function variableInsertPoint(source: string, task: StructuralBlock): number {
-  let cursor = task.headerEnd
+function variableInsertPoint(source: string, container: StructuralBlock): number {
+  let cursor = container.headerEnd
   let insertAt = cursor
 
-  while (cursor < task.closeAt) {
+  while (cursor < container.closeAt) {
     const end = source.indexOf('\n', cursor)
     const lineEnd = end < 0 ? source.length : end
     const line = source.slice(cursor, lineEnd)
@@ -241,7 +241,10 @@ function variableInsertPoint(source: string, task: StructuralBlock): number {
       continue
     }
 
-    if (/^@(mode|maxConcurrency)\s*=/iu.test(trimmed) || /^@var\s+[A-Za-z_][A-Za-z0-9_]*\s*=/iu.test(trimmed)) {
+    const directive = container.kind === 'task'
+      ? /^@(mode|maxConcurrency)\s*=/iu.test(trimmed)
+      : /^@(task|event|repeat|start|step)\s*=/iu.test(trimmed)
+    if (directive || /^@var\s+[A-Za-z_][A-Za-z0-9_]*\s*=/iu.test(trimmed)) {
       insertAt = next
       cursor = next
       continue
@@ -268,11 +271,13 @@ export function planStructuredInsert(
     return { ok: true, from: source.length, text, cursorOffset: separator.length + directive.length + 1 }
   }
 
-  const targetKind = kind === 'event' || kind === 'variable' ? 'task' : 'event'
-  const container = containingBlock(source, at, targetKind)
+  const targetKind = kind === 'event' ? 'task' : 'event'
+  const container = kind === 'variable'
+    ? containingBlock(source, at, 'event') ?? containingBlock(source, at, 'task')
+    : containingBlock(source, at, targetKind)
   if (!container) {
     const label = kind === 'event' ? 'Event' : kind === 'act' ? 'Act' : '变量'
-    const required = kind === 'event' || kind === 'variable' ? 'Task' : 'Event'
+    const required = kind === 'event' ? 'Task' : kind === 'variable' ? 'Task 或 Event' : 'Event'
     return { ok: false, message: `${label} 只能在 ${required} 内添加，请先把光标放到对应的 ${required} 中。` }
   }
   if (container.closeAt < 0) {

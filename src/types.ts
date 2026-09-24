@@ -90,8 +90,8 @@ export interface DispatchEventRecord {
   leaseId: string
   leaseUntil: string
   workerId: string
-  tabId: number
-  localRunId: string
+  tabId: number | null
+  localRunId: string | null
   localAttempt: number
   queueChecksum: string | null
   inheritedFrom: string
@@ -107,7 +107,7 @@ export interface DispatchEventRecord {
     checkpointSeq: number
   } | null
   progress: Record<string, unknown> | null
-  lastHeartbeatAt: string
+  lastHeartbeatAt: string | null
   lastError: string
   lastSeq: number
   terminalResult: '' | 'succeeded' | 'failed' | 'canceled'
