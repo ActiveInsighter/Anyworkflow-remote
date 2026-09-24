@@ -441,6 +441,26 @@ export async function listHistoryMessagesForAct(actId: string, page = 1, perPage
   }, (record) => record)
 }
 
+/** Loads one message record only after the user opens its details. */
+export async function getHistoryMessageForAct(
+  actId: string,
+  nodeIndex: number,
+  signal?: AbortSignal,
+): Promise<WorkflowHistoryMessageRecord | null> {
+  if (!actId.trim()) throw new ApiError('Act 标识无效', 400, 'HISTORY_ACT_REQUIRED')
+  if (!Number.isSafeInteger(nodeIndex) || nodeIndex < 0) {
+    throw new ApiError('消息序号无效', 400, 'HISTORY_MESSAGE_INDEX_INVALID')
+  }
+
+  const result = await listOwnedCollection<WorkflowHistoryMessageRecord>(HISTORY_MESSAGE_COLLECTION, {
+    page: 1,
+    perPage: 1,
+    sort: '+nodeIndex',
+    filter: `act="${quoteFilter(actId)}" && nodeIndex=${nodeIndex}`,
+  }, (record) => record, signal)
+  return result.items[0] ?? null
+}
+
 export async function listAllHistoryMessagesForAct(actId: string): Promise<WorkflowHistoryMessageRecord[]> {
   const first = await listHistoryMessagesForAct(actId)
   return collectPages(first, (page) => listHistoryMessagesForAct(actId, page, first.perPage))

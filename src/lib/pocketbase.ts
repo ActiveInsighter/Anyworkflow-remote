@@ -40,8 +40,9 @@ export async function listOwnedCollection<T extends { owner: string }, R extends
   collection: string,
   query: Record<string, string | number | boolean | undefined>,
   normalize: (record: T) => R,
+  signal?: AbortSignal,
 ): Promise<PocketBaseListResponse<R>> {
-  const response = await request<PocketBaseListResponse<T>>(`/api/collections/${collection}/records`, { query })
+  const response = await request<PocketBaseListResponse<T>>(`/api/collections/${collection}/records`, { query, signal })
   if (!response || !Array.isArray(response.items)) {
     throw new ApiError('接口返回的数据格式无效', 502, 'INVALID_API_RESPONSE')
   }

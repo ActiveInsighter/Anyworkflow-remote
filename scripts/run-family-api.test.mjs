@@ -14,13 +14,48 @@ Object.defineProperty(globalThis, 'localStorage', {
 const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' })
 try {
 const { setSession } = await server.ssrLoadModule('/src/lib/session.ts')
-const { ApiError, cloneRun, resumeFailedRun } = await server.ssrLoadModule('/src/lib/api.ts')
+const { ApiError, cloneRun, getHistoryMessageForAct, resumeFailedRun } = await server.ssrLoadModule('/src/lib/api.ts')
 
 setSession({
   token: 'session-token',
   record: { id: 'owner-1', email: 'owner@example.invalid' },
   baseUrl: 'https://pb.example.invalid',
 })
+
+const savedMessage = {
+  id: 'message-1',
+  owner: 'owner-1',
+  act: 'act-1',
+  nodeIndex: 2,
+  attempt: 1,
+  status: 'succeeded',
+  userMarkdown: '用户输入',
+  assistantMarkdown: 'AI 回复',
+  conversationUrl: '',
+  sentAt: '2026-09-24T00:00:00.000Z',
+  receivedAt: '2026-09-24T00:00:01.000Z',
+  details: null,
+  checksum: 'c'.repeat(64),
+  created: '2026-09-24T00:00:00.000Z',
+  updated: '2026-09-24T00:00:01.000Z',
+}
+let messageRequest
+globalThis.fetch = async (input, init = {}) => {
+  messageRequest = { url: new URL(String(input)), init }
+  return Response.json({ page: 1, perPage: 1, totalItems: 1, totalPages: 1, items: [savedMessage] })
+}
+const queryController = new AbortController()
+const loadedMessage = await getHistoryMessageForAct('act-1', 2, queryController.signal)
+assert.deepEqual(loadedMessage, savedMessage)
+assert.equal(messageRequest.url.pathname, '/api/collections/aw_messages/records')
+assert.equal(messageRequest.url.searchParams.get('perPage'), '1', 'message detail reads a single matching row')
+assert.equal(messageRequest.url.searchParams.get('filter'), 'act="act-1" && nodeIndex=2')
+assert.equal(messageRequest.init.headers.Authorization, 'session-token')
+assert.equal(messageRequest.init.signal, queryController.signal, 'closing the message view can cancel the request')
+await assert.rejects(
+  getHistoryMessageForAct('act-1', -1),
+  (error) => error instanceof ApiError && error.code === 'HISTORY_MESSAGE_INDEX_INVALID',
+)
 
 const planText = `@run=Resume fixture
 @task Search {
@@ -100,6 +135,14 @@ assert.doesNotMatch(viewSource, /setSearchParams\(/u, 'Run detail view-only cont
 const librarySource = await (await import('node:fs/promises')).readFile(new URL('../src/pages/LibraryPage.tsx', import.meta.url), 'utf8')
 assert.equal((librarySource.match(/setSearchParams\(params, \{ replace: true \}\)/gu) || []).length, 2,
   'library Tab and folder selections should replace the current history entry')
+const actNodeSource = await (await import('node:fs/promises')).readFile(new URL('../src/components/run/RunActNode.tsx', import.meta.url), 'utf8')
+const messageNodeSource = await (await import('node:fs/promises')).readFile(new URL('../src/components/run/RunMessageNode.tsx', import.meta.url), 'utf8')
+assert.match(actNodeSource, /<HistoryMessageNode/u, 'each persisted Act should expose Message child nodes')
+assert.doesNotMatch(actNodeSource, /listAllHistoryMessagesForAct/u, 'opening an Act must not fetch message bodies')
+assert.match(messageNodeSource, /aria-label=\{`查看消息/u, 'message content stays behind an explicit, accessible action')
+assert.match(messageNodeSource, /enabled: open/u, 'message records are fetched only while the detail dialog is open')
+assert.match(messageNodeSource, /message\.userMarkdown/u)
+assert.match(messageNodeSource, /message\.assistantMarkdown/u)
 const task = {
   id: 'task-source-1', owner: 'owner-1', run: parentRun.id, runIndex: 0,
   runPlanChecksum: parentRun.planChecksum, inheritedFrom: '', executorKind: 'browser',
