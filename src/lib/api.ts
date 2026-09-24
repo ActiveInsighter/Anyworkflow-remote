@@ -46,6 +46,8 @@ function normalizeRun<T extends DispatchRunRecord>(run: T): T {
     ...run,
     familyId: typeof run.familyId === 'string' && run.familyId ? run.familyId : run.id,
     versionNumber: Number.isSafeInteger(run.versionNumber) && run.versionNumber > 0 ? run.versionNumber : 1,
+    versionMajor: Number.isSafeInteger(run.versionMajor) && run.versionMajor > 0 ? run.versionMajor : 1,
+    versionMinor: Number.isSafeInteger(run.versionMinor) && run.versionMinor >= 0 ? run.versionMinor : 0,
     parentRun: typeof run.parentRun === 'string' ? run.parentRun : '',
     origin,
     scheduledAt: typeof run.scheduledAt === 'string' ? run.scheduledAt : '',
@@ -169,7 +171,7 @@ export async function createRun(
   planText: string,
   status: 'draft' | 'queued',
   scheduledAt = '',
-  lineage: { parentRun: string; origin: Exclude<DispatchRunOrigin, 'initial'> } | null = null,
+  lineage: { parentRun: string; origin: Exclude<DispatchRunOrigin, 'initial'>; title?: string } | null = null,
 ): Promise<DispatchRunRecord> {
   const session = requireSession()
   const checkedPlan = checkedPlanText(planText, status === 'queued')
@@ -178,7 +180,7 @@ export async function createRun(
     method: 'POST',
     data: {
       owner: session.record.id,
-      title: meta.title,
+      title: lineage?.title ?? meta.title,
       planText: checkedPlan,
       planChecksum: '',
       executionMode: meta.mode,
@@ -208,8 +210,9 @@ export async function updateRunDraft(
   }
   const checkedPlan = checkedPlanText(planText, options.publish === true)
   const meta = parsePlanMeta(checkedPlan)
+  const previousMeta = parsePlanMeta(current.planText)
   const data: Record<string, unknown> = {
-    title: meta.title,
+    title: meta.title === previousMeta.title ? current.title : meta.title,
     planText: checkedPlan,
     planChecksum: '',
     executionMode: meta.mode,
@@ -256,10 +259,10 @@ export async function cloneRun(source: DispatchRunRecord, status: 'draft' | 'que
   if (!source.planText.trim()) throw new ApiError('此 Run 没有可复制的工作流定义', 409, 'RUN_PLAN_MISSING')
   const suffix = status === 'draft' ? ' · 草稿' : ' · 重跑'
   const title = (source.title.trim() || '未命名工作流').slice(0, Math.max(1, 512 - suffix.length)) + suffix
-  const planText = source.planText.replace(/^\s*@run\s*=.*$/imu, `@run=${title}`)
-  return createRun(planText, status, '', {
+  return createRun(source.planText, status, '', {
     parentRun: source.id,
     origin: status === 'draft' ? 'edited_rerun' : 'rerun',
+    title,
   })
 }
 

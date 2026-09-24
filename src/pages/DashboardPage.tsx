@@ -181,8 +181,8 @@ export function DashboardPage() {
                   >
                     {run.title || '未命名 Run'}
                   </Link>
-                  <span className="inline-flex shrink-0 items-center gap-1 rounded border border-border px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground" title={'Run 版本 ' + run.versionNumber}>
-                    <GitBranch className="size-3" />v{run.versionNumber}
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded border border-border px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground" title={'Run 版本 ' + run.versionMajor + '.' + run.versionMinor}>
+                    <GitBranch className="size-3" />v{run.versionMajor}.{run.versionMinor}
                   </span>
                   <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
                 </div>

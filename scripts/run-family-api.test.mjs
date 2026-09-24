@@ -14,7 +14,7 @@ Object.defineProperty(globalThis, 'localStorage', {
 const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' })
 try {
 const { setSession } = await server.ssrLoadModule('/src/lib/session.ts')
-const { ApiError, resumeFailedRun } = await server.ssrLoadModule('/src/lib/api.ts')
+const { ApiError, cloneRun, resumeFailedRun } = await server.ssrLoadModule('/src/lib/api.ts')
 
 setSession({
   token: 'session-token',
@@ -36,6 +36,8 @@ const parentRun = {
   planChecksum: 'a'.repeat(64),
   familyId: 'run-parent-1',
   versionNumber: 1,
+  versionMajor: 1,
+  versionMinor: 0,
   parentRun: '',
   origin: 'initial',
   executionMode: 'serial',
@@ -52,6 +54,52 @@ const parentRun = {
   created: '2026-09-24T00:00:00.000Z',
   updated: '2026-09-24T00:01:00.000Z',
 }
+
+const rerunCalls = []
+globalThis.fetch = async (input, init = {}) => {
+  const url = new URL(String(input))
+  rerunCalls.push({ url, init })
+  if (url.pathname.endsWith('/aw_dispatch_runs/records') && init.method === 'POST') {
+    const body = JSON.parse(String(init.body))
+    return Response.json({
+      ...parentRun,
+      id: 'run-rerun-1',
+      title: body.title,
+      familyId: parentRun.familyId,
+      versionNumber: 2,
+      versionMajor: 1,
+      versionMinor: 1,
+      parentRun: body.parentRun,
+      origin: body.origin,
+      planText: body.planText,
+      status: body.status,
+    })
+  }
+  throw new Error(`Unexpected rerun request: ${init.method || 'GET'} ${url.pathname}`)
+}
+
+const rerun = await cloneRun(parentRun, 'queued')
+const rerunCreateCall = rerunCalls.find(({ url, init }) => url.pathname.endsWith('/aw_dispatch_runs/records') && init.method === 'POST')
+assert.ok(rerunCreateCall)
+const rerunBody = JSON.parse(String(rerunCreateCall.init.body))
+assert.equal(rerunBody.planText, parentRun.planText, 'reruns must keep the exact workflow content')
+assert.equal(rerunBody.title, `${parentRun.title} · 重跑`, 'rerun labels belong in the Run title, not @run metadata')
+assert.equal(rerun.versionMajor, 1)
+assert.equal(rerun.versionMinor, 1)
+
+const viewSource = await (await import('node:fs/promises')).readFile(new URL('../src/pages/RunDetailPage.tsx', import.meta.url), 'utf8')
+const selectorStart = viewSource.indexOf('aria-label="选择 Run 版本"')
+assert.notEqual(selectorStart, -1, 'Run versions should be an accessible local selector')
+const selectorEnd = viewSource.indexOf('</Panel>', selectorStart)
+const selectorSource = viewSource.slice(selectorStart, selectorEnd)
+assert.match(selectorSource, /aria-pressed=/u)
+assert.match(selectorSource, /selectVersion\(version\.id\)/u)
+assert.doesNotMatch(selectorSource, /<Link|navigate\(/u, 'switching versions must keep the current route')
+assert.match(viewSource, /setTaskPageSelection\(/u, 'Task pagination should stay in component state')
+assert.doesNotMatch(viewSource, /setSearchParams\(/u, 'Run detail view-only controls must not push URL history')
+const librarySource = await (await import('node:fs/promises')).readFile(new URL('../src/pages/LibraryPage.tsx', import.meta.url), 'utf8')
+assert.equal((librarySource.match(/setSearchParams\(params, \{ replace: true \}\)/gu) || []).length, 2,
+  'library Tab and folder selections should replace the current history entry')
 const task = {
   id: 'task-source-1', owner: 'owner-1', run: parentRun.id, runIndex: 0,
   runPlanChecksum: parentRun.planChecksum, inheritedFrom: '', executorKind: 'browser',

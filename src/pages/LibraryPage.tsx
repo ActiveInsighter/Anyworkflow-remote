@@ -144,7 +144,7 @@ export function LibraryPage() {
     else params.set('tab', next)
     params.delete('folder')
     setQuery('')
-    setSearchParams(params)
+    setSearchParams(params, { replace: true })
   }
 
   function openFolder(folder: string) {
@@ -152,7 +152,7 @@ export function LibraryPage() {
     if (folder) params.set('folder', folder)
     else params.delete('folder')
     setQuery('')
-    setSearchParams(params)
+    setSearchParams(params, { replace: true })
   }
 
   async function reload() {

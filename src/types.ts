@@ -26,7 +26,12 @@ export interface DispatchRunRecord {
   planText: string
   planChecksum: string
   familyId: string
+  /** Monotonic family order retained for stable persistence and legacy clients. */
   versionNumber: number
+  /** Semantic Run version: major increments when execution content changes. */
+  versionMajor: number
+  /** Semantic Run version: minor increments for a content-identical rerun. */
+  versionMinor: number
   parentRun: string
   origin: DispatchRunOrigin
   executionMode: DispatchExecutionMode
