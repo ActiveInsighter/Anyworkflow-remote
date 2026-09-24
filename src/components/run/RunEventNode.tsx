@@ -94,7 +94,7 @@ export function EventNode({ event, deepLinked, activeRun }: { event: DispatchEve
             </div>
           ) : fallbackProgress.acts.length ? (
             <div className="mb-3 overflow-hidden rounded-md border border-border bg-card">
-              {fallbackProgress.acts.map((act) => <FallbackActNode key={act.id} act={act} />)}
+              {fallbackProgress.acts.map((act) => <FallbackActNode key={act.id} act={act} event={event} />)}
             </div>
           ) : null}
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">

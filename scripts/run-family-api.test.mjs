@@ -14,7 +14,7 @@ Object.defineProperty(globalThis, 'localStorage', {
 const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' })
 try {
 const { setSession } = await server.ssrLoadModule('/src/lib/session.ts')
-const { ApiError, cloneRun, getHistoryMessageForAct, resumeFailedRun } = await server.ssrLoadModule('/src/lib/api.ts')
+const { ApiError, cloneRun, createRun, getHistoryMessageForAct, resumeFailedRun, updateRunDraft } = await server.ssrLoadModule('/src/lib/api.ts')
 
 setSession({
   token: 'session-token',
@@ -56,6 +56,12 @@ await assert.rejects(
   getHistoryMessageForAct('act-1', -1),
   (error) => error instanceof ApiError && error.code === 'HISTORY_MESSAGE_INDEX_INVALID',
 )
+globalThis.fetch = async (input) => {
+  const url = new URL(String(input))
+  assert.equal(url.searchParams.get('filter'), 'act="act-1"', 'unknown message counts query the first record only after click')
+  return Response.json({ page: 1, perPage: 1, totalItems: 1, totalPages: 1, items: [savedMessage] })
+}
+assert.equal((await getHistoryMessageForAct('act-1', null))?.id, savedMessage.id)
 
 const planText = `@run=Resume fixture
 @task Search {
@@ -89,6 +95,104 @@ const parentRun = {
   created: '2026-09-24T00:00:00.000Z',
   updated: '2026-09-24T00:01:00.000Z',
 }
+
+const createPlan = `@run=Resume fixture
+@task Search {
+  @event Web {
+    { search for an existing result }
+  }
+}`
+const recentCreatedRun = {
+  ...parentRun,
+  id: 'run-save-confirmed',
+  planText: createPlan,
+  planChecksum: 'd'.repeat(64),
+  title: 'Resume fixture',
+  status: 'draft',
+  scheduledAt: '',
+  created: new Date().toISOString(),
+  updated: new Date().toISOString(),
+}
+const createRecoveryCalls = []
+globalThis.fetch = async (input, init = {}) => {
+  const url = new URL(String(input))
+  createRecoveryCalls.push({ url, init })
+  if (url.pathname.endsWith('/aw_dispatch_runs/records') && init.method === 'POST') {
+    return Response.json({ message: 'Something went wrong while processing your request.' }, { status: 500 })
+  }
+  if (url.pathname.endsWith('/aw_dispatch_runs/records') && init.method === 'GET') {
+    return Response.json({ page: 1, perPage: 100, totalItems: 1, totalPages: 1, items: [recentCreatedRun] })
+  }
+  throw new Error(`Unexpected create recovery request: ${init.method || 'GET'} ${url.pathname}`)
+}
+const recoveredCreate = await createRun(createPlan, 'draft')
+assert.equal(recoveredCreate.id, recentCreatedRun.id, 'a server error after commit should be confirmed from the owned Run list')
+const ambiguousCreateCall = createRecoveryCalls.find(({ url, init }) => url.pathname.endsWith('/aw_dispatch_runs/records') && init.method === 'POST')
+assert.equal(Object.hasOwn(JSON.parse(String(ambiguousCreateCall.init.body)), 'scheduledAt'), false,
+  'immediate Runs should omit the optional date field instead of sending an empty date')
+
+const draftBeforeSave = { ...parentRun, id: 'run-draft-save', status: 'draft', scheduledAt: '' }
+const draftAfterSave = { ...draftBeforeSave, planText: createPlan, title: 'Resume fixture', executionMode: 'serial', maxConcurrency: 1 }
+let draftReadCount = 0
+globalThis.fetch = async (input, init = {}) => {
+  const url = new URL(String(input))
+  if (url.pathname.endsWith('/aw_dispatch_runs/records/run-draft-save') && init.method === 'GET') {
+    draftReadCount += 1
+    return Response.json(draftReadCount === 1 ? draftBeforeSave : draftAfterSave)
+  }
+  if (url.pathname.endsWith('/aw_dispatch_runs/records/run-draft-save') && init.method === 'PATCH') {
+    return Response.json({ message: 'Something went wrong while processing your request.' }, { status: 500 })
+  }
+  throw new Error(`Unexpected draft recovery request: ${init.method || 'GET'} ${url.pathname}`)
+}
+const recoveredDraft = await updateRunDraft(draftBeforeSave.id, createPlan, { scheduledAt: '' })
+assert.equal(recoveredDraft.planText, createPlan, 'a draft PATCH committed before a server error should be confirmed by re-reading it')
+
+const fallbackDispatchEvent = {
+  id: 'event-fallback-2', owner: 'owner-1', task: 'dispatch-task-1', eventIndex: 2,
+  queueTextOverride: '', status: 'terminal', attempt: 1, leaseId: '', leaseUntil: '', workerId: '', tabId: 0,
+  localRunId: 'plugin-local-run', localAttempt: 1, queueChecksum: null, inheritedFrom: '', resumeSpec: null,
+  progress: null, lastHeartbeatAt: '', lastError: '', lastSeq: 0, terminalResult: 'succeeded',
+  created: parentRun.created, updated: parentRun.updated,
+}
+const historyBackfillCalls = []
+globalThis.fetch = async (input, init = {}) => {
+  const url = new URL(String(input))
+  historyBackfillCalls.push({ url, init })
+  if (url.pathname.endsWith('/aw_events/records') && init.method === 'GET') {
+    assert.match(url.searchParams.get('filter') || '', /task\.taskId="plugin-local-run"/u)
+    if (/eventIndex/u.test(url.searchParams.get('filter') || '')) {
+      assert.match(url.searchParams.get('filter') || '', /eventIndex = 2/u,
+        'first try the direct dispatch-to-history Event mapping')
+      return Response.json({ page: 1, perPage: 100, totalItems: 0, totalPages: 0, items: [] })
+    }
+    return Response.json({ page: 1, perPage: 100, totalItems: 1, totalPages: 1, items: [{
+      id: 'history-event-0', owner: 'owner-1', task: 'history-task-1', eventIndex: 0,
+      attempt: 1, status: 'succeeded', title: 'Web', startedAt: '', endedAt: '', durationMs: 1,
+      details: null, checksum: '', isPlaceholder: false, actCount: 1, messageCount: 1,
+      created: parentRun.created, updated: parentRun.updated,
+    }] })
+  }
+  if (url.pathname.endsWith('/aw_acts/records') && init.method === 'GET') {
+    assert.match(url.searchParams.get('filter') || '', /event="history-event-0"/u)
+    return Response.json({ page: 1, perPage: 100, totalItems: 1, totalPages: 1, items: [{
+      id: 'history-act-0', owner: 'owner-1', event: 'history-event-0', actIndex: 0, attempt: 1,
+      status: 'succeeded', title: 'Act 1', startedAt: '', endedAt: '', durationMs: 1, details: null,
+      checksum: '', isPlaceholder: false, startNodeIndex: 0, endNodeIndex: 0, messageCount: 1,
+      created: parentRun.created, updated: parentRun.updated,
+    }] })
+  }
+  if (url.pathname.endsWith('/aw_messages/records') && init.method === 'GET') {
+    assert.match(url.searchParams.get('filter') || '', /act="history-act-0" && nodeIndex=0/u)
+    return Response.json({ page: 1, perPage: 1, totalItems: 1, totalPages: 1, items: [savedMessage] })
+  }
+  throw new Error(`Unexpected history recovery request: ${init.method || 'GET'} ${url.pathname}`)
+}
+const { getHistoryMessageForDispatchEvent } = await server.ssrLoadModule('/src/lib/api.ts')
+const recoveredHistoryMessage = await getHistoryMessageForDispatchEvent(fallbackDispatchEvent, 0, 0)
+assert.equal(recoveredHistoryMessage?.id, savedMessage.id,
+  'fallback Acts should resolve their messages through the single local history Event')
+assert.equal(historyBackfillCalls.length, 4, 'the fallback query should resolve one Event, one Act, and one Message after an exact-index miss')
 
 const rerunCalls = []
 globalThis.fetch = async (input, init = {}) => {
@@ -138,8 +242,10 @@ assert.equal((librarySource.match(/setSearchParams\(params, \{ replace: true \}\
 const actNodeSource = await (await import('node:fs/promises')).readFile(new URL('../src/components/run/RunActNode.tsx', import.meta.url), 'utf8')
 const messageNodeSource = await (await import('node:fs/promises')).readFile(new URL('../src/components/run/RunMessageNode.tsx', import.meta.url), 'utf8')
 assert.match(actNodeSource, /<HistoryMessageNode/u, 'each persisted Act should expose Message child nodes')
+assert.match(actNodeSource, /HistoryMessageNode[\s\S]*dispatchEvent=/u,
+  'fallback Acts should expose lazy Message queries for their planned message nodes')
 assert.doesNotMatch(actNodeSource, /listAllHistoryMessagesForAct/u, 'opening an Act must not fetch message bodies')
-assert.match(messageNodeSource, /aria-label=\{`查看消息/u, 'message content stays behind an explicit, accessible action')
+assert.match(messageNodeSource, /aria-label=\{`查看\$\{messageTitle\}/u, 'message content stays behind an explicit, accessible action')
 assert.match(messageNodeSource, /enabled: open/u, 'message records are fetched only while the detail dialog is open')
 assert.match(messageNodeSource, /message\.userMarkdown/u)
 assert.match(messageNodeSource, /message\.assistantMarkdown/u)

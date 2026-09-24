@@ -16,5 +16,18 @@ assert.deepEqual(
   selectHistoryEventsForDispatchEvent(historyEvents, { eventIndex: 9 }),
   [],
 )
+assert.deepEqual(
+  selectHistoryEventsForDispatchEvent([{ id: 'plugin-history-event', eventIndex: 0 }], { eventIndex: 2 }),
+  [{ id: 'plugin-history-event', eventIndex: 0 }],
+  'a single local history event can map to a dispatch Event with a different index',
+)
+assert.deepEqual(
+  selectHistoryEventsForDispatchEvent([
+    { id: 'plugin-history-event-1', eventIndex: 0 },
+    { id: 'plugin-history-event-2', eventIndex: 0 },
+  ], { eventIndex: 2 }),
+  [],
+  'ambiguous local events must not be attached to the wrong dispatch Event',
+)
 
 console.log('history selection assertions passed')

@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/dialog'
 import { invalidateAsyncDataCache } from '@/hooks/useAsyncData'
 import { useNow } from '@/hooks/useNow'
-import { createRun, getRun, toErrorMessage, updateRunDraft } from '@/lib/api'
+import { ApiError, createRun, getRun, toErrorMessage, updateRunDraft } from '@/lib/api'
 import { clearEditorDraft, draftScopeFor, readEditorDraft, writeEditorDraft, type EditorDraft } from '@/lib/draft'
 import { formatDateTime } from '@/lib/format'
 import { getWorkflowTemplate, updateWorkflowTemplate } from '@/lib/library'
@@ -33,6 +33,14 @@ import {
 } from '@/lib/schedule'
 import { useSession } from '@/lib/session'
 import { toast } from 'sonner'
+
+function editorSaveErrorMessage(error: unknown): string {
+  if (error instanceof ApiError && error.status >= 500 &&
+      /something went wrong while processing your request/iu.test(error.message)) {
+    return `服务端处理失败（HTTP ${error.status}），本次保存结果未能确认；请先刷新 Run 列表确认结果，再决定是否重试。`
+  }
+  return toErrorMessage(error)
+}
 
 export function RunEditorPage() {
   const { runId } = useParams()
@@ -246,7 +254,7 @@ export function RunEditorPage() {
       toast.success(publish ? '工作流已提交执行' : '草稿已保存')
       navigate(publish ? `/runs/${saved.id}` : `/runs/${saved.id}/edit`, { replace: true })
     } catch (cause) {
-      const message = toErrorMessage(cause)
+      const message = editorSaveErrorMessage(cause)
       setError(message)
       toast.error('保存失败', { description: message })
     } finally {

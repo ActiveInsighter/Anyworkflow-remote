@@ -5,9 +5,10 @@ import { InlineError, LoadingState, StatusBadge } from '@/components/app/ui'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useAsyncData } from '@/hooks/useAsyncData'
-import { getHistoryMessageForAct, toErrorMessage } from '@/lib/api'
+import { getHistoryMessageForAct, getHistoryMessageForDispatchEvent, toErrorMessage } from '@/lib/api'
 import { formatDateTime, historyStatusMeta } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import type { DispatchEventRecord } from '@/types'
 
 interface MessageBlockProps {
   icon: LucideIcon
@@ -40,22 +41,31 @@ export function HistoryMessageNode({
   actId,
   actTitle,
   nodeIndex,
+  dispatchEvent,
+  actIndex,
 }: {
-  actId: string
+  actId?: string
   actTitle: string
-  nodeIndex: number
+  nodeIndex: number | null
+  dispatchEvent?: DispatchEventRecord
+  actIndex?: number
 }) {
   const [open, setOpen] = useState(false)
   const [queryResolved, setQueryResolved] = useState(false)
+  const messageTitle = nodeIndex === null ? '消息记录' : `消息 ${nodeIndex + 1}`
   const messageState = useAsyncData(
     async (signal) => {
       try {
-        return await getHistoryMessageForAct(actId, nodeIndex, signal)
+        if (actId) return await getHistoryMessageForAct(actId, nodeIndex, signal)
+        if (dispatchEvent && Number.isSafeInteger(actIndex)) {
+          return await getHistoryMessageForDispatchEvent(dispatchEvent, actIndex as number, nodeIndex, signal)
+        }
+        return null
       } finally {
         if (!signal.aborted) setQueryResolved(true)
       }
     },
-    [actId, nodeIndex],
+    [actId, dispatchEvent?.id, dispatchEvent?.localRunId, dispatchEvent?.eventIndex, actIndex, nodeIndex],
     { enabled: open, errorMessage: toErrorMessage },
   )
   const message = messageState.data
@@ -79,7 +89,7 @@ export function HistoryMessageNode({
           <MessageSquareText className="size-3.5" />
         </span>
         <span className="min-w-0">
-          <span className="block text-xs font-medium">消息 {nodeIndex + 1}</span>
+          <span className="block text-xs font-medium">{messageTitle}</span>
           <span className="block truncate text-[10px] text-muted-foreground">用户消息与 AI 回复</span>
         </span>
       </div>
@@ -89,7 +99,7 @@ export function HistoryMessageNode({
         size="sm"
         variant="outline"
         className="min-h-10 sm:min-h-9"
-        aria-label={`查看消息 ${nodeIndex + 1}`}
+        aria-label={`查看${messageTitle}`}
         aria-haspopup="dialog"
         onClick={openMessage}
       >
@@ -99,7 +109,7 @@ export function HistoryMessageNode({
       <Dialog open={open} onOpenChange={changeOpen}>
         <DialogContent className="max-w-2xl gap-4 p-4 sm:p-6">
           <DialogHeader>
-            <DialogTitle className="text-base">消息 {nodeIndex + 1}</DialogTitle>
+            <DialogTitle className="text-base">{messageTitle}</DialogTitle>
             <DialogDescription className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <span className="min-w-0 truncate">{actTitle}</span>
               {status ? <StatusBadge tone={status.tone}>{status.label}</StatusBadge> : null}
