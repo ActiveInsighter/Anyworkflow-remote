@@ -1,3 +1,4 @@
+import { RunVersionPicker } from '@/components/run/RunVersionPicker'
 import {
   BookmarkPlus,
   BookmarkX,
@@ -358,49 +359,8 @@ export function RunDetailPage() {
         {run.lastError ? <div className="mt-3"><InlineError>{run.lastError}</InlineError></div> : null}
       </section>
 
-      {versions.length > 1 ? (
-        <Panel className="mt-2 overflow-hidden px-3 py-3 sm:px-4">
-          <div className="mb-2.5 flex items-start justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2 text-xs font-semibold"><GitBranch className="size-3.5 text-primary" />Run 版本</div>
-              <p className="mt-1 text-[10px] leading-4 text-muted-foreground">编辑或复制创建新大版本，完整重跑递增小版本</p>
-            </div>
-            <span className="shrink-0 rounded-full bg-muted px-2 py-1 text-[10px] tabular-nums text-muted-foreground">{versions.length} 个版本</span>
-          </div>
-          <div aria-label="选择 Run 版本" role="group" className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1">
-            {versions.map((version) => {
-              const selected = version.id === run.id
-              const versionStatus = runStatusMeta(version.status)
-              const originLabel = version.origin === 'resume' ? '检查点恢复'
-                : version.origin === 'rerun' ? '重跑'
-                  : version.origin === 'edited_rerun' ? '编辑副本' : '初始版本'
-              return (
-                <button
-                  key={version.id}
-                  type="button"
-                  aria-pressed={selected}
-                  aria-label={`v${version.versionMajor}.${version.versionMinor}，${version.title || '未命名 Run'}，${versionStatus.label}`}
-                  onClick={() => selectVersion(version.id)}
-                  className={'w-[min(70vw,13rem)] shrink-0 snap-start rounded-xl border p-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ' +
-                    (selected ? 'border-primary/50 bg-primary/[0.06] shadow-sm' : 'border-border bg-card hover:border-primary/30 hover:bg-muted/50')}
-                >
-                  <span className="flex items-center justify-between gap-2">
-                    <span className="font-semibold tabular-nums text-xs">v{version.versionMajor}.{version.versionMinor}</span>
-                    <span className="truncate text-[10px] text-muted-foreground">{originLabel}</span>
-                  </span>
-                  <span className="mt-1.5 block truncate text-xs font-medium">{version.title || '未命名 Run'}</span>
-                  <span className={'mt-2 inline-flex rounded-full px-2 py-0.5 text-[10px] ' +
-                    (versionStatus.tone === 'success' ? 'bg-success-soft text-success' :
-                      versionStatus.tone === 'danger' ? 'bg-danger-soft text-danger' :
-                        versionStatus.tone === 'info' ? 'bg-info-soft text-info' : 'bg-muted text-muted-foreground')}>
-                    {versionStatus.label}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        </Panel>
-      ) : null}
+      {versionsState.error ? <ErrorBanner>{versionsState.error}</ErrorBanner> : null}
+      <RunVersionPicker versions={versions} currentId={run.id} onSelect={selectVersion} />
 
       {scheduleLive ? (
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-info/25 bg-info-soft px-3 py-2.5">

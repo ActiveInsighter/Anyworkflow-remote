@@ -41,8 +41,8 @@ export function applyPlanMeta(source: string, meta: PlanMeta): string {
   return trimmedBody ? `${header}\n\n${trimmedBody}\n` : `${header}\n\n`
 }
 
-export function createStarterPlan(): string {
-  return `@run=新工作流
+export function createStarterPlan(title = ''): string {
+  return `@run=${title}
 @mode=serial
 
 @task Task {

@@ -194,13 +194,14 @@ export async function login(identity: string, password: string, baseUrlValue: st
   return session
 }
 
-export type RunListFilter = 'all' | 'draft' | 'active' | 'done'
+export type RunListFilter = 'all' | 'draft' | 'active' | 'done' | 'failed' | 'canceled'
 
 function runFilterExpression(ownerId: string, filter: RunListFilter): string {
   const owner = `owner="${quoteFilter(ownerId)}"`
   if (filter === 'draft') return `${owner} && status="draft"`
   if (filter === 'active') return `${owner} && (status="queued" || status="running")`
-  if (filter === 'done') return `${owner} && (status="succeeded" || status="failed" || status="canceled")`
+  if (filter === 'done') return `${owner} && status="succeeded"`
+  if (filter === 'failed' || filter === 'canceled') return `${owner} && status="${filter}"`
   return owner
 }
 
@@ -208,6 +209,8 @@ export async function listRuns(
   page = 1,
   perPage = 30,
   filter: RunListFilter = 'all',
+  search = '',
+  signal?: AbortSignal,
 ): Promise<PocketBaseListResponse<DispatchRunRecord>> {
   const session = requireSession()
   return listOwnedCollection<DispatchRunRecord>(
@@ -216,9 +219,10 @@ export async function listRuns(
       page,
       perPage,
       sort: '-updated',
-      filter: runFilterExpression(session.record.id, filter),
+      filter: runFilterExpression(session.record.id, filter) + (search.trim() ? ` && (title~"${quoteFilter(search.trim())}" || id="${quoteFilter(search.trim())}")` : ''),
     },
     normalizeRun,
+    signal,
   )
 }
 

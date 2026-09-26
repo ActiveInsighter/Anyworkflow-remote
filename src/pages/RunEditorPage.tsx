@@ -33,6 +33,7 @@ import {
 } from '@/lib/schedule'
 import { useSession } from '@/lib/session'
 import { toast } from 'sonner'
+import { reserveDefaultRunTitle } from '@/lib/run-name'
 import type { DispatchRunRecord } from '@/types'
 
 function editorSaveErrorMessage(error: unknown): string {
@@ -56,18 +57,20 @@ function RunEditorForm() {
   const templateId = searchParams.get('templateId') || ''
   const templateMode = searchParams.get('mode') === 'edit' ? 'edit' : templateId ? 'use' : ''
   const session = useSession()
+  const starterName = useRef<Promise<string> | null>(null)
   const editorRef = useRef<AnyWorkflowEditorHandle | null>(null)
   const scope = draftScopeFor(session?.record.id, runId, templateId)
 
+  const [starterReady, setStarterReady] = useState(Boolean(runId || templateId))
   const [loadedRun, setLoadedRun] = useState<DispatchRunRecord | null>(null)
-  const [source, setSource] = useState(createStarterPlan)
+  const [source, setSource] = useState(() => createStarterPlan())
   const [templateTitle, setTemplateTitle] = useState('')
   const [scheduleMode, setScheduleMode] = useState<ScheduleMode>('now')
   const [scheduledAt, setScheduledAt] = useState('')
   const [delayAmount, setDelayAmount] = useState('1')
   const [delayUnit, setDelayUnit] = useState<DelayUnit>('hour')
   const [scheduleOpen, setScheduleOpen] = useState(false)
-  const [loading, setLoading] = useState(Boolean(runId || templateId))
+  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [dirty, setDirty] = useState(false)
@@ -152,8 +155,25 @@ function RunEditorForm() {
 
   useEffect(() => {
     if (runId || templateId) return
+    let active = true
+    setLoading(true)
     const draft = readEditorDraft(scope)
-    if (draft && draft.source.trim() !== sourceRef.current.trim()) setRestorable(draft)
+    if (draft) {
+      // A reserved local draft can be restored even when the backend is offline.
+      setRestorable(draft)
+      setSource(createStarterPlan(draft.title || parsePlanMeta(draft.source).title))
+      setStarterReady(true)
+      setLoading(false)
+      return
+    }
+    starterName.current ??= reserveDefaultRunTitle()
+    void starterName.current.then(title => {
+      if (!active) return
+      setSource(createStarterPlan(title))
+      setStarterReady(true)
+    }).catch(cause => active && setError(toErrorMessage(cause)))
+      .finally(() => active && setLoading(false))
+    return () => { active = false }
   }, [runId, scope, templateId])
 
   useEffect(() => {
@@ -279,6 +299,7 @@ function RunEditorForm() {
     return <AppPage><EmptyState title="未连接" action={<Button asChild variant="secondary"><Link to="/settings">设置连接</Link></Button>} /></AppPage>
   }
   if (loading) return <AppPage><LoadingState /></AppPage>
+  if (!starterReady) return <AppPage><InlineError>{error || '无法生成默认名称'}</InlineError><Button className="mt-3" variant="outline" onClick={() => window.location.reload()}>重试</Button></AppPage>
   if (runId && !loadedRun) return <AppPage><InlineError>{error || '无法加载 Run'}</InlineError><Button asChild variant="outline" className="mt-3"><Link to={`/runs/${runId}`}>返回 Run</Link></Button></AppPage>
   const editingCompleted = Boolean(loadedRun && loadedRun.status !== 'draft')
 
