@@ -185,3 +185,43 @@ npm run deploy
 支持自动 Skill discovery 的 Agent 可以直接发现 `.agents/skills/*/SKILL.md`；其他 Agent 按 `AGENTS.md` 中的路由规则读取即可。
 
 公开 Skill 的来源和版本哈希记录在根目录 `skills-lock.json`。其中 `tailwind-theme-builder` 的上游元数据标注为 `claude-code-only`，在本项目中作为 Tailwind/shadcn 参考规则保留。
+
+## 消息同步回归验证
+
+Run 详情中的消息来自 `aw_messages` 的分页记录，不使用计划消息数生成占位项。
+展开的执行记录每 5 秒刷新，终态 Run 也会继续接收延迟同步的历史；隐藏标签页暂停定时请求。
+消息列表仅获取元数据，点击后按记录 ID 查询正文，详情打开期间同步最新回复。
+
+`npm run preflight` 包含消息分页、稀疏序号、记录归属与详情查询回归测试。
+浏览器回归使用隔离的模拟 PocketBase 接口，不访问生产数据：
+
+```bash
+# 先启动 npm run dev；Playwright 与 Chromium 需可用
+node scripts/history-messages.browser.mjs
+# Playwright 不在项目依赖中时，可用 PLAYWRIGHT_MODULE 指定其 index.mjs 绝对路径
+```
+
+可设置 `TEST_BASE_URL` 验证预览部署，设置 `SCREENSHOT_DIR` 保存截图。
+浏览器用例覆盖终态延迟入库、0→1→2 条消息、详情更新、分页、失败重试、键盘焦点和响应式布局。
+
+## 编辑已结束的 Run
+
+已结束的 Run 可直接进入编辑器。进入和修改只读取数据并缓存本地草稿；保存时创建
+`edited_rerun` 草稿，运行时创建 `edited_rerun` 排队记录。原 Run 保持不变。
+保存后继续编辑该草稿使用原记录，发布时不额外创建版本。完整重跑继续使用 `rerun`。
+版本号由 PocketBase 分配，需配套部署 cloudservice 的操作语义版本规则。
+
+```bash
+# 与消息浏览器回归使用相同的 Playwright 配置
+node scripts/run-edit.browser.mjs
+```
+
+## 首页搜索、默认名称与版本选择
+
+- 首页按名称或完整 Run ID 在服务端搜索；搜索词和状态保存在 URL，切换条件会回到第一页。
+- 状态分为全部、草稿、进行中、已完成、失败和取消；已完成只包含成功记录。
+- 新建编辑器使用本地日期生成 `工作流 YYYY-MM-DD #001`。序号以已有同日名称和本浏览器的预留序号为基础递增；自定义名称保持不变。
+- 默认名称按账号与后端地址隔离；同浏览器支持 Web Locks 时跨标签页串行预留。跨设备同时创建不提供数据库级唯一性保证，预留名称不会创建 Run 记录。
+- 版本选择支持前后切换、名称/版本号搜索和跳转最新版本，不改变详情页 URL。
+
+浏览器回归（配置方式同上）：`node scripts/dashboard.browser.mjs`。

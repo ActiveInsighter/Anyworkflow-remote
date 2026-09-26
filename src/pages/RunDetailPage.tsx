@@ -1,3 +1,4 @@
+import { RunVersionPicker } from '@/components/run/RunVersionPicker'
 import {
   BookmarkPlus,
   BookmarkX,
@@ -324,9 +325,11 @@ export function RunDetailPage() {
     <AppPage className="max-w-[1280px]">
       <PageHeader
         title={run.title || '未命名 Run'}
+        className="mb-4 sm:mb-5 [&_h1]:whitespace-normal [&_h1]:break-words [&>div:empty]:hidden"
         actions={
           <>
-            {run.status === 'draft' ? <Button variant="outline" asChild><Link to={'/runs/' + run.id + '/edit'}><Pencil />编辑</Link></Button> : null}
+            {run.status === 'draft' || terminal ? <Button variant="outline" asChild><Link to={'/runs/' + run.id + '/edit'}><Pencil />编辑</Link></Button> : null}
+            {terminal ? <Button variant="secondary" onClick={() => void copy('queued')} disabled={acting || !hasPlan}><RotateCcw />完整重跑</Button> : null}
             {run.status === 'draft' ? <Button variant="secondary" onClick={() => void (schedule.pending ? publishDraft() : runImmediately())} disabled={acting}><Play />{schedule.pending ? '按计划运行' : '运行'}</Button> : null}
             {canPause ? <Button variant="outline" onClick={() => void control('pause')} disabled={acting}><Pause />暂停</Button> : null}
             {canResume ? <Button variant="secondary" onClick={() => void control('resume')} disabled={acting}><Play />继续</Button> : null}
@@ -340,62 +343,24 @@ export function RunDetailPage() {
       {tasksState.error ? <ErrorBanner>{tasksState.error}</ErrorBanner> : null}
       {actionError ? <ErrorBanner>{actionError}</ErrorBanner> : null}
 
-      <Panel className="px-3 py-2.5 sm:px-4">
-        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 text-[11px]">
-          <span className="font-semibold tabular-nums">{progressText(run.completedTasks, totalTasks, 'Tasks')} · {percent}%</span>
-          <ProgressBar className="w-20 shrink-0" value={percent} tone={status.tone} />
+      <section aria-label="运行概况" className="border-y border-border py-4">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
           <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-          <span className="inline-flex items-center gap-1 text-muted-foreground"><GitBranch className="size-3" />v{run.versionMajor}.{run.versionMinor} · {run.origin === 'resume' ? '恢复' : run.origin === 'rerun' ? '重跑' : run.origin === 'edited_rerun' ? '编辑副本' : '初始'}</span>
-          <span className="text-muted-foreground">{modeLabel(run.executionMode, run.maxConcurrency, '任务')}</span>
-          <span className="text-muted-foreground">{schedule.set ? schedule.absolute : '立即执行'}</span>
-          <span className="text-muted-foreground">更新 {formatDateTime(run.updated)}</span>
+          <span className="font-medium tabular-nums">{progressText(run.completedTasks, totalTasks, 'Tasks')}</span>
+          <span className="ml-auto text-xs tabular-nums text-muted-foreground">{percent}%</span>
         </div>
-        {run.lastError ? <div className="mt-2"><InlineError>{run.lastError}</InlineError></div> : null}
-      </Panel>
+        <ProgressBar className="mt-3 w-full" value={percent} tone={status.tone} />
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1"><GitBranch className="size-3.5" />v{run.versionMajor}.{run.versionMinor} · {run.origin === 'resume' ? '恢复' : run.origin === 'rerun' ? '重跑' : run.origin === 'edited_rerun' ? '编辑副本' : '初始'}</span>
+          <span>{modeLabel(run.executionMode, run.maxConcurrency, '任务')}</span>
+          <span>{schedule.set ? schedule.absolute : '立即执行'}</span>
+          <span>更新 {formatDateTime(run.updated)}</span>
+        </div>
+        {run.lastError ? <div className="mt-3"><InlineError>{run.lastError}</InlineError></div> : null}
+      </section>
 
-      {versions.length > 1 ? (
-        <Panel className="mt-2 overflow-hidden px-3 py-3 sm:px-4">
-          <div className="mb-2.5 flex items-start justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2 text-xs font-semibold"><GitBranch className="size-3.5 text-primary" />Run 版本</div>
-              <p className="mt-1 text-[10px] leading-4 text-muted-foreground">主版本表示内容变更，次版本表示相同内容的重跑</p>
-            </div>
-            <span className="shrink-0 rounded-full bg-muted px-2 py-1 text-[10px] tabular-nums text-muted-foreground">{versions.length} 个版本</span>
-          </div>
-          <div aria-label="选择 Run 版本" role="group" className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1">
-            {versions.map((version) => {
-              const selected = version.id === run.id
-              const versionStatus = runStatusMeta(version.status)
-              const originLabel = version.origin === 'resume' ? '检查点恢复'
-                : version.origin === 'rerun' ? '重跑'
-                  : version.origin === 'edited_rerun' ? '编辑副本' : '初始版本'
-              return (
-                <button
-                  key={version.id}
-                  type="button"
-                  aria-pressed={selected}
-                  aria-label={`v${version.versionMajor}.${version.versionMinor}，${version.title || '未命名 Run'}，${versionStatus.label}`}
-                  onClick={() => selectVersion(version.id)}
-                  className={'w-[min(70vw,13rem)] shrink-0 snap-start rounded-xl border p-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ' +
-                    (selected ? 'border-primary/50 bg-primary/[0.06] shadow-sm' : 'border-border bg-card hover:border-primary/30 hover:bg-muted/50')}
-                >
-                  <span className="flex items-center justify-between gap-2">
-                    <span className="font-semibold tabular-nums text-xs">v{version.versionMajor}.{version.versionMinor}</span>
-                    <span className="truncate text-[10px] text-muted-foreground">{originLabel}</span>
-                  </span>
-                  <span className="mt-1.5 block truncate text-xs font-medium">{version.title || '未命名 Run'}</span>
-                  <span className={'mt-2 inline-flex rounded-full px-2 py-0.5 text-[10px] ' +
-                    (versionStatus.tone === 'success' ? 'bg-success-soft text-success' :
-                      versionStatus.tone === 'danger' ? 'bg-danger-soft text-danger' :
-                        versionStatus.tone === 'info' ? 'bg-info-soft text-info' : 'bg-muted text-muted-foreground')}>
-                    {versionStatus.label}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        </Panel>
-      ) : null}
+      {versionsState.error ? <ErrorBanner>{versionsState.error}</ErrorBanner> : null}
+      <RunVersionPicker versions={versions} currentId={run.id} onSelect={selectVersion} />
 
       {scheduleLive ? (
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-info/25 bg-info-soft px-3 py-2.5">
@@ -416,16 +381,15 @@ export function RunDetailPage() {
         </div>
       ) : null}
 
-      <div className="mt-2 flex flex-wrap items-center gap-1">
-        <Button size="sm" variant="ghost" onClick={() => void toggleFavorite()} disabled={acting}>{favorite ? <BookmarkX /> : <BookmarkPlus />}{favorite ? '取消收藏' : '收藏'}</Button>
+      <div className="mt-2 grid grid-cols-4 gap-1 sm:flex sm:flex-wrap [&_button]:min-h-11 [&_button]:px-1 [&_button]:text-xs sm:[&_button]:px-3">
+        <Button size="sm" variant="ghost" onClick={() => void toggleFavorite()} disabled={acting}>{favorite ? <BookmarkX /> : <BookmarkPlus />}{favorite ? '已收藏' : '收藏'}</Button>
         <Button size="sm" variant="ghost" onClick={() => void saveTemplate()} disabled={acting || !hasPlan}><Save />存模板</Button>
         <Button size="sm" variant="ghost" onClick={() => void copy('draft')} disabled={acting || !hasPlan}><Copy />复制</Button>
-        {terminal ? <Button size="sm" variant="ghost" onClick={() => void copy('queued')} disabled={acting || !hasPlan}><RotateCcw />重跑</Button> : null}
         {run.status === 'draft' || terminal ? <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setConfirmDeleteOpen(true)} disabled={acting}><Trash2 />删除</Button> : null}
       </div>
 
       <div className="mt-5 flex items-center justify-between gap-3">
-        <h2 className="text-[13px] font-semibold">执行结构</h2>
+        <h2 className="text-sm font-semibold">执行记录</h2>
         {tasksData ? <span className="text-[11px] tabular-nums text-muted-foreground">{tasksData.totalItems} Tasks</span> : null}
       </div>
 
@@ -439,7 +403,6 @@ export function RunDetailPage() {
               deepTaskId={deepTaskId}
               deepEventId={deepEventId}
               deepEventPage={deepEventPage}
-              activeRun={Boolean(active)}
             />
           ))}
         </Panel>

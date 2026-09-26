@@ -29,6 +29,7 @@ import type {
   WorkflowHistoryActRecord,
   WorkflowHistoryEventRecord,
   WorkflowHistoryMessageRecord,
+  WorkflowHistoryMessageSummary,
 } from '../types'
 
 export { ApiError, assertOwner, collectPages, quoteFilter, request } from './pocketbase'
@@ -193,13 +194,14 @@ export async function login(identity: string, password: string, baseUrlValue: st
   return session
 }
 
-export type RunListFilter = 'all' | 'draft' | 'active' | 'done'
+export type RunListFilter = 'all' | 'draft' | 'active' | 'done' | 'failed' | 'canceled'
 
 function runFilterExpression(ownerId: string, filter: RunListFilter): string {
   const owner = `owner="${quoteFilter(ownerId)}"`
   if (filter === 'draft') return `${owner} && status="draft"`
   if (filter === 'active') return `${owner} && (status="queued" || status="running")`
-  if (filter === 'done') return `${owner} && (status="succeeded" || status="failed" || status="canceled")`
+  if (filter === 'done') return `${owner} && status="succeeded"`
+  if (filter === 'failed' || filter === 'canceled') return `${owner} && status="${filter}"`
   return owner
 }
 
@@ -207,6 +209,8 @@ export async function listRuns(
   page = 1,
   perPage = 30,
   filter: RunListFilter = 'all',
+  search = '',
+  signal?: AbortSignal,
 ): Promise<PocketBaseListResponse<DispatchRunRecord>> {
   const session = requireSession()
   return listOwnedCollection<DispatchRunRecord>(
@@ -215,9 +219,10 @@ export async function listRuns(
       page,
       perPage,
       sort: '-updated',
-      filter: runFilterExpression(session.record.id, filter),
+      filter: runFilterExpression(session.record.id, filter) + (search.trim() ? ` && (title~"${quoteFilter(search.trim())}" || id="${quoteFilter(search.trim())}")` : ''),
     },
     normalizeRun,
+    signal,
   )
 }
 
@@ -386,6 +391,20 @@ export async function deleteRun(run: Pick<DispatchRunRecord, 'id' | 'owner' | 's
     throw new ApiError('进行中的 Run 不能删除，请先取消并等待结束', 409, 'ACTIVE_RUN_DELETE')
   }
   await request<void>(`/api/collections/${RUN_COLLECTION}/records/${encodeURIComponent(run.id)}`, { method: 'DELETE' })
+}
+
+/** Editing a terminal Run creates a new definition; the source remains immutable. */
+export async function createEditedRun(
+  sourceId: string,
+  planText: string,
+  status: 'draft' | 'queued',
+  scheduledAt = '',
+): Promise<DispatchRunRecord> {
+  const source = await getRun(sourceId)
+  if (!['succeeded', 'failed', 'canceled'].includes(source.status)) {
+    throw new ApiError('只能基于已结束的 Run 创建编辑版本', 409, 'RUN_NOT_TERMINAL')
+  }
+  return createRun(planText, status, scheduledAt, { parentRun: source.id, origin: 'edited_rerun' })
 }
 
 export async function cloneRun(source: DispatchRunRecord, status: 'draft' | 'queued'): Promise<DispatchRunRecord> {
@@ -571,10 +590,30 @@ async function historyEventsForDispatchEvent(
   return selectHistoryEventsForDispatchEvent(candidates, event)
 }
 
-export async function listHistoryActsForDispatchEvent(event: DispatchEventRecord): Promise<WorkflowHistoryActRecord[]> {
-  const historyEvents = await historyEventsForDispatchEvent(event)
-  const acts = (await Promise.all(historyEvents.map((historyEvent) => listAllHistoryActsForEvent(historyEvent.id)))).flat()
+export async function listHistoryActsForDispatchEvent(event: DispatchEventRecord, signal?: AbortSignal): Promise<WorkflowHistoryActRecord[]> {
+  const historyEvents = await historyEventsForDispatchEvent(event, signal)
+  const acts = (await Promise.all(historyEvents.map((historyEvent) => listAllHistoryActsForEvent(historyEvent.id, signal)))).flat()
   return acts.sort((left, right) => left.actIndex - right.actIndex || left.id.localeCompare(right.id))
+}
+
+/** Render only persisted records. Counts on Acts can describe the planned queue. */
+export async function listHistoryMessageSummariesForAct(actId: string, page = 1, perPage = DEFAULT_PAGE_SIZE, signal?: AbortSignal) {
+  return listOwnedCollection<WorkflowHistoryMessageSummary>(HISTORY_MESSAGE_COLLECTION, {
+    page,
+    perPage,
+    sort: '+nodeIndex,+id',
+    filter: `act="${quoteFilter(actId)}"`,
+    fields: 'id,owner,act,nodeIndex,attempt,status,sentAt,receivedAt,created,updated',
+  }, (record) => record, signal)
+}
+
+/** Record identity is independent of sparse/global queue indexes and attempts. */
+export async function getHistoryMessage(id: string, actId: string, signal?: AbortSignal): Promise<WorkflowHistoryMessageRecord> {
+  const message = assertOwner(await request<WorkflowHistoryMessageRecord>(
+    `/api/collections/${HISTORY_MESSAGE_COLLECTION}/records/${encodeURIComponent(id)}`, { signal },
+  ))
+  if (message.act !== actId) throw new ApiError('消息不属于当前 Act', 502, 'INVALID_MESSAGE_ACT')
+  return message
 }
 
 export async function listHistoryMessagesForAct(actId: string, page = 1, perPage = DEFAULT_PAGE_SIZE) {
