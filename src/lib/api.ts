@@ -29,6 +29,7 @@ import type {
   WorkflowHistoryActRecord,
   WorkflowHistoryEventRecord,
   WorkflowHistoryMessageRecord,
+  WorkflowHistoryMessageSummary,
 } from '../types'
 
 export { ApiError, assertOwner, collectPages, quoteFilter, request } from './pocketbase'
@@ -571,10 +572,30 @@ async function historyEventsForDispatchEvent(
   return selectHistoryEventsForDispatchEvent(candidates, event)
 }
 
-export async function listHistoryActsForDispatchEvent(event: DispatchEventRecord): Promise<WorkflowHistoryActRecord[]> {
-  const historyEvents = await historyEventsForDispatchEvent(event)
-  const acts = (await Promise.all(historyEvents.map((historyEvent) => listAllHistoryActsForEvent(historyEvent.id)))).flat()
+export async function listHistoryActsForDispatchEvent(event: DispatchEventRecord, signal?: AbortSignal): Promise<WorkflowHistoryActRecord[]> {
+  const historyEvents = await historyEventsForDispatchEvent(event, signal)
+  const acts = (await Promise.all(historyEvents.map((historyEvent) => listAllHistoryActsForEvent(historyEvent.id, signal)))).flat()
   return acts.sort((left, right) => left.actIndex - right.actIndex || left.id.localeCompare(right.id))
+}
+
+/** Render only persisted records. Counts on Acts can describe the planned queue. */
+export async function listHistoryMessageSummariesForAct(actId: string, page = 1, perPage = DEFAULT_PAGE_SIZE, signal?: AbortSignal) {
+  return listOwnedCollection<WorkflowHistoryMessageSummary>(HISTORY_MESSAGE_COLLECTION, {
+    page,
+    perPage,
+    sort: '+nodeIndex,+id',
+    filter: `act="${quoteFilter(actId)}"`,
+    fields: 'id,owner,act,nodeIndex,attempt,status,sentAt,receivedAt,created,updated',
+  }, (record) => record, signal)
+}
+
+/** Record identity is independent of sparse/global queue indexes and attempts. */
+export async function getHistoryMessage(id: string, actId: string, signal?: AbortSignal): Promise<WorkflowHistoryMessageRecord> {
+  const message = assertOwner(await request<WorkflowHistoryMessageRecord>(
+    `/api/collections/${HISTORY_MESSAGE_COLLECTION}/records/${encodeURIComponent(id)}`, { signal },
+  ))
+  if (message.act !== actId) throw new ApiError('消息不属于当前 Act', 502, 'INVALID_MESSAGE_ACT')
+  return message
 }
 
 export async function listHistoryMessagesForAct(actId: string, page = 1, perPage = DEFAULT_PAGE_SIZE) {

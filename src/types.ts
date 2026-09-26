@@ -197,6 +197,9 @@ export interface WorkflowHistoryMessageRecord {
   updated: string
 }
 
+export type WorkflowHistoryMessageSummary = Pick<WorkflowHistoryMessageRecord,
+  'id' | 'owner' | 'act' | 'nodeIndex' | 'attempt' | 'status' | 'sentAt' | 'receivedAt' | 'created' | 'updated'>
+
 export interface PocketBaseListResponse<T> {
   page: number
   perPage: number

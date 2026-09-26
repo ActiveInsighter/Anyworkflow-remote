@@ -14,13 +14,11 @@ export function TaskNode({
   deepTaskId,
   deepEventId,
   deepEventPage,
-  activeRun,
 }: {
   task: DispatchTaskRecord
   deepTaskId: string
   deepEventId: string
   deepEventPage: number
-  activeRun: boolean
 }) {
   const deepLinked = task.id === deepTaskId
   const [open, setOpen] = useState(deepLinked)
@@ -37,7 +35,7 @@ export function TaskNode({
     [task.id, eventPage],
     {
       enabled: open,
-      pollMs: open && activeRun ? 8_000 : undefined,
+      pollMs: open ? 5_000 : undefined,
       staleMs: 8_000,
       cacheKey: open ? 'events:' + task.id + ':' + eventPage : undefined,
       errorMessage: toErrorMessage,
@@ -51,7 +49,7 @@ export function TaskNode({
     <div id={'task-' + task.id} className="border-b border-border last:border-b-0">
       <button
         type="button"
-        className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left outline-none transition-colors hover:bg-muted/35 focus-visible:bg-muted/45 sm:px-4"
+        className="flex min-h-16 w-full flex-wrap items-center gap-2.5 px-3 py-3 text-left outline-none transition-colors hover:bg-muted/35 focus-visible:bg-muted/45 sm:px-4"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
       >
@@ -62,7 +60,7 @@ export function TaskNode({
         <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{task.title || 'Task ' + (task.runIndex + 1)}</span>
         {task.executorKind === 'codex' ? <span className="shrink-0 rounded bg-info/10 px-1.5 py-0.5 text-[10px] font-medium text-info">Codex</span> : null}
         <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-        <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
+        <span className="ml-6 w-full text-xs tabular-nums sm:ml-0 sm:w-auto text-muted-foreground">
           {progressText(task.completedEvents, task.totalEvents, 'Events')} · {percent}%
         </span>
       </button>
@@ -73,9 +71,9 @@ export function TaskNode({
           {eventsState.loading && !eventsState.data ? <div className="p-3 sm:p-4"><LoadingState label="加载 Event…" /></div> : null}
           {eventsState.error ? <div className="px-3 pt-3 sm:px-4"><InlineError>{eventsState.error}</InlineError></div> : null}
           {eventsState.data?.items.length ? (
-            <div className="ms-3 border-s border-border sm:ms-7">
+            <div className="min-w-0 sm:ms-5 sm:border-s sm:border-border">
               {eventsState.data.items.map((event) => (
-                <EventNode key={event.id} event={event} deepLinked={event.id === deepEventId} activeRun={activeRun} />
+                <EventNode key={event.id} event={event} deepLinked={event.id === deepEventId} />
               ))}
             </div>
           ) : null}

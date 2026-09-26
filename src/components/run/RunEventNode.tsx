@@ -34,7 +34,7 @@ function historyActsProgress(acts: readonly WorkflowHistoryActRecord[], event: D
   return { completed, total, percent: progressPercent(completed, total) }
 }
 
-export function EventNode({ event, deepLinked, activeRun }: { event: DispatchEventRecord; deepLinked: boolean; activeRun: boolean }) {
+export function EventNode({ event, deepLinked }: { event: DispatchEventRecord; deepLinked: boolean }) {
   const [open, setOpen] = useState(deepLinked)
   const [contentOpen, setContentOpen] = useState(false)
 
@@ -45,13 +45,13 @@ export function EventNode({ event, deepLinked, activeRun }: { event: DispatchEve
   const status = eventStatusMeta(event.status, event.terminalResult)
   const fallbackProgress = deriveEventProgress(event.queueTextOverride, event.progress, event.terminalResult)
   const historyActsState = useAsyncData(
-    async () => listHistoryActsForDispatchEvent(event),
+    (signal) => listHistoryActsForDispatchEvent(event, signal),
     [event.id, event.localRunId, event.attempt],
     {
       enabled: open && Boolean(event.localRunId),
-      pollMs: open && activeRun ? 8_000 : undefined,
+      pollMs: open ? 5_000 : undefined,
       staleMs: 8_000,
-      cacheKey: open && event.localRunId ? 'history-acts:' + event.id + ':' + event.localRunId : undefined,
+      cacheKey: open && event.localRunId ? 'history-acts:' + event.id + ':' + event.localRunId + ':' + event.attempt : undefined,
       errorMessage: toErrorMessage,
     },
   )
@@ -67,37 +67,33 @@ export function EventNode({ event, deepLinked, activeRun }: { event: DispatchEve
     <div id={'event-' + event.id} className="border-b border-border last:border-b-0">
       <button
         type="button"
-        className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left outline-none transition-colors hover:bg-muted/35 focus-visible:bg-muted/45 sm:px-4"
+        className="flex min-h-14 w-full flex-wrap items-center gap-2 px-3 py-3 text-left outline-none transition-colors hover:bg-muted/35 focus-visible:bg-muted/45 sm:px-4"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
       >
         {open ? <ChevronDown className="size-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="size-4 shrink-0 text-muted-foreground" />}
-        <span className="grid size-7 shrink-0 place-items-center rounded-md bg-muted text-[10px] font-semibold tabular-nums text-muted-foreground">
+        <span className="grid size-7 shrink-0 place-items-center rounded-md bg-muted text-xs font-semibold tabular-nums text-muted-foreground">
           {event.eventIndex + 1}
         </span>
-        <span className="min-w-0 flex-1 truncate text-[12px] font-medium">{eventTitle(event)}</span>
+        <span className="min-w-0 flex-1 truncate text-sm font-medium">{eventTitle(event)}</span>
         <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-        <span className="max-w-[42%] shrink-0 truncate text-[10px] tabular-nums text-muted-foreground">{progressLabel}</span>
+        <span className="ml-6 w-full text-xs sm:ml-0 sm:w-auto tabular-nums text-muted-foreground">{progressLabel}</span>
       </button>
 
       {open ? (
-        <div className="border-t border-border bg-muted/10 px-3 py-2.5 sm:px-4">
-          <div className="mb-2 flex items-center justify-between gap-3 px-1 text-[10px] tabular-nums text-muted-foreground">
-            <span>Acts</span>
-            <span>{progressLabel}</span>
-          </div>
+        <div className="border-t border-border px-0 py-3 sm:px-3">
           {historyActsState.loading && !historyActsState.data ? <LoadingState label="加载 Act…" /> : null}
           {historyActsState.error ? <div className="mb-3"><InlineError>历史 Act 暂不可用，当前显示执行定义：{historyActsState.error}</InlineError></div> : null}
           {hasHistory && historyActsState.data ? (
-            <div className="mb-3 overflow-hidden rounded-md border border-border bg-card">
+            <div className="mb-3 min-w-0 bg-card">
               {historyActsState.data.map((act) => <HistoryActNode key={act.id} act={act} />)}
             </div>
           ) : fallbackProgress.acts.length ? (
-            <div className="mb-3 overflow-hidden rounded-md border border-border bg-card">
-              {fallbackProgress.acts.map((act) => <FallbackActNode key={act.id} act={act} event={event} />)}
+            <div className="mb-3 min-w-0 bg-card">
+              {fallbackProgress.acts.map((act) => <FallbackActNode key={act.id} act={act} />)}
             </div>
           ) : null}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 text-[11px] text-muted-foreground">
             {event.attempt > 0 ? <span>尝试 {event.attempt}</span> : null}
             <span>{formatDateTime(event.updated)}</span>
             {event.workerId ? <span className="hidden sm:inline">Worker {event.workerId}</span> : null}

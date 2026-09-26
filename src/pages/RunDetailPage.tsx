@@ -324,6 +324,7 @@ export function RunDetailPage() {
     <AppPage className="max-w-[1280px]">
       <PageHeader
         title={run.title || '未命名 Run'}
+        className="mb-4 sm:mb-5 [&_h1]:whitespace-normal [&_h1]:break-words [&>div:empty]:hidden"
         actions={
           <>
             {run.status === 'draft' ? <Button variant="outline" asChild><Link to={'/runs/' + run.id + '/edit'}><Pencil />编辑</Link></Button> : null}
@@ -340,18 +341,21 @@ export function RunDetailPage() {
       {tasksState.error ? <ErrorBanner>{tasksState.error}</ErrorBanner> : null}
       {actionError ? <ErrorBanner>{actionError}</ErrorBanner> : null}
 
-      <Panel className="px-3 py-2.5 sm:px-4">
-        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 text-[11px]">
-          <span className="font-semibold tabular-nums">{progressText(run.completedTasks, totalTasks, 'Tasks')} · {percent}%</span>
-          <ProgressBar className="w-20 shrink-0" value={percent} tone={status.tone} />
+      <section aria-label="运行概况" className="border-y border-border py-4">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
           <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-          <span className="inline-flex items-center gap-1 text-muted-foreground"><GitBranch className="size-3" />v{run.versionMajor}.{run.versionMinor} · {run.origin === 'resume' ? '恢复' : run.origin === 'rerun' ? '重跑' : run.origin === 'edited_rerun' ? '编辑副本' : '初始'}</span>
-          <span className="text-muted-foreground">{modeLabel(run.executionMode, run.maxConcurrency, '任务')}</span>
-          <span className="text-muted-foreground">{schedule.set ? schedule.absolute : '立即执行'}</span>
-          <span className="text-muted-foreground">更新 {formatDateTime(run.updated)}</span>
+          <span className="font-medium tabular-nums">{progressText(run.completedTasks, totalTasks, 'Tasks')}</span>
+          <span className="ml-auto text-xs tabular-nums text-muted-foreground">{percent}%</span>
         </div>
-        {run.lastError ? <div className="mt-2"><InlineError>{run.lastError}</InlineError></div> : null}
-      </Panel>
+        <ProgressBar className="mt-3 w-full" value={percent} tone={status.tone} />
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1"><GitBranch className="size-3.5" />v{run.versionMajor}.{run.versionMinor} · {run.origin === 'resume' ? '恢复' : run.origin === 'rerun' ? '重跑' : run.origin === 'edited_rerun' ? '编辑副本' : '初始'}</span>
+          <span>{modeLabel(run.executionMode, run.maxConcurrency, '任务')}</span>
+          <span>{schedule.set ? schedule.absolute : '立即执行'}</span>
+          <span>更新 {formatDateTime(run.updated)}</span>
+        </div>
+        {run.lastError ? <div className="mt-3"><InlineError>{run.lastError}</InlineError></div> : null}
+      </section>
 
       {versions.length > 1 ? (
         <Panel className="mt-2 overflow-hidden px-3 py-3 sm:px-4">
@@ -416,7 +420,7 @@ export function RunDetailPage() {
         </div>
       ) : null}
 
-      <div className="mt-2 flex flex-wrap items-center gap-1">
+      <div className="mt-2 flex flex-wrap items-center gap-1 [&_button]:min-h-11">
         <Button size="sm" variant="ghost" onClick={() => void toggleFavorite()} disabled={acting}>{favorite ? <BookmarkX /> : <BookmarkPlus />}{favorite ? '取消收藏' : '收藏'}</Button>
         <Button size="sm" variant="ghost" onClick={() => void saveTemplate()} disabled={acting || !hasPlan}><Save />存模板</Button>
         <Button size="sm" variant="ghost" onClick={() => void copy('draft')} disabled={acting || !hasPlan}><Copy />复制</Button>
@@ -425,7 +429,7 @@ export function RunDetailPage() {
       </div>
 
       <div className="mt-5 flex items-center justify-between gap-3">
-        <h2 className="text-[13px] font-semibold">执行结构</h2>
+        <h2 className="text-sm font-semibold">执行记录</h2>
         {tasksData ? <span className="text-[11px] tabular-nums text-muted-foreground">{tasksData.totalItems} Tasks</span> : null}
       </div>
 
@@ -439,7 +443,6 @@ export function RunDetailPage() {
               deepTaskId={deepTaskId}
               deepEventId={deepEventId}
               deepEventPage={deepEventPage}
-              activeRun={Boolean(active)}
             />
           ))}
         </Panel>

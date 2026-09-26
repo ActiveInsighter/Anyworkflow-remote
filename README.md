@@ -185,3 +185,21 @@ npm run deploy
 支持自动 Skill discovery 的 Agent 可以直接发现 `.agents/skills/*/SKILL.md`；其他 Agent 按 `AGENTS.md` 中的路由规则读取即可。
 
 公开 Skill 的来源和版本哈希记录在根目录 `skills-lock.json`。其中 `tailwind-theme-builder` 的上游元数据标注为 `claude-code-only`，在本项目中作为 Tailwind/shadcn 参考规则保留。
+
+## 消息同步回归验证
+
+Run 详情中的消息来自 `aw_messages` 的分页记录，不使用计划消息数生成占位项。
+展开的执行记录每 5 秒刷新，终态 Run 也会继续接收延迟同步的历史；隐藏标签页暂停定时请求。
+消息列表仅获取元数据，点击后按记录 ID 查询正文，详情打开期间同步最新回复。
+
+`npm run preflight` 包含消息分页、稀疏序号、记录归属与详情查询回归测试。
+浏览器回归使用隔离的模拟 PocketBase 接口，不访问生产数据：
+
+```bash
+# 先启动 npm run dev；Playwright 与 Chromium 需可用
+node scripts/history-messages.browser.mjs
+# Playwright 不在项目依赖中时，可用 PLAYWRIGHT_MODULE 指定其 index.mjs 绝对路径
+```
+
+可设置 `TEST_BASE_URL` 验证预览部署，设置 `SCREENSHOT_DIR` 保存截图。
+浏览器用例覆盖终态延迟入库、0→1→2 条消息、详情更新、分页、失败重试、键盘焦点和响应式布局。
