@@ -389,6 +389,20 @@ export async function deleteRun(run: Pick<DispatchRunRecord, 'id' | 'owner' | 's
   await request<void>(`/api/collections/${RUN_COLLECTION}/records/${encodeURIComponent(run.id)}`, { method: 'DELETE' })
 }
 
+/** Editing a terminal Run creates a new definition; the source remains immutable. */
+export async function createEditedRun(
+  sourceId: string,
+  planText: string,
+  status: 'draft' | 'queued',
+  scheduledAt = '',
+): Promise<DispatchRunRecord> {
+  const source = await getRun(sourceId)
+  if (!['succeeded', 'failed', 'canceled'].includes(source.status)) {
+    throw new ApiError('只能基于已结束的 Run 创建编辑版本', 409, 'RUN_NOT_TERMINAL')
+  }
+  return createRun(planText, status, scheduledAt, { parentRun: source.id, origin: 'edited_rerun' })
+}
+
 export async function cloneRun(source: DispatchRunRecord, status: 'draft' | 'queued'): Promise<DispatchRunRecord> {
   const session = requireSession()
   if (source.owner !== session.record.id) {

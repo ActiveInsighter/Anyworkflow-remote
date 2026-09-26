@@ -37,12 +37,13 @@ function MessageBlock({ icon: Icon, label, content, emptyLabel, emphasized = fal
   )
 }
 
-export function HistoryMessageNode({ summary, actTitle }: {
+export function HistoryMessageNode({ summary, actTitle, messageNumber }: {
   summary: WorkflowHistoryMessageSummary
   actTitle: string
+  messageNumber: number
 }) {
   const [open, setOpen] = useState(false)
-  const messageTitle = `消息 ${summary.nodeIndex + 1}`
+  const messageTitle = `消息 ${messageNumber}`
   const messageState = useAsyncData(
     (signal) => getHistoryMessage(summary.id, summary.act, signal),
     [summary.id, summary.act],
@@ -56,17 +57,16 @@ export function HistoryMessageNode({ summary, actTitle }: {
     <li className="min-w-0">
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
-          <button type="button" aria-label={`查看${messageTitle}`} className="group flex min-h-16 w-full items-center gap-3 rounded-md px-2 py-3 text-left transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            <span className="grid size-8 shrink-0 place-items-center rounded-full bg-accent text-accent-foreground">
+          <button type="button" aria-label={`查看${messageTitle}`} className="group flex min-h-16 w-full items-center gap-2 rounded-md px-1 py-3 text-left transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <span className="grid size-7 shrink-0 place-items-center rounded-full bg-accent text-accent-foreground">
               <Bot className="size-4" />
             </span>
             <span className="min-w-0 flex-1">
               <span className="block text-sm font-medium">{messageTitle}</span>
               <span className="mt-1 block truncate text-xs text-muted-foreground">
-                {received ? '已收到回复' : '查看对话'}{summary.receivedAt || summary.sentAt ? ` · ${formatDateTime(summary.receivedAt || summary.sentAt)}` : ''}
+                {received ? '已回复' : status.label}{summary.receivedAt || summary.sentAt ? ` · ${formatDateTime(summary.receivedAt || summary.sentAt)}` : ''}
               </span>
             </span>
-            <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
             <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
           </button>
         </DialogTrigger>

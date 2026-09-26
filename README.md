@@ -203,3 +203,15 @@ node scripts/history-messages.browser.mjs
 
 可设置 `TEST_BASE_URL` 验证预览部署，设置 `SCREENSHOT_DIR` 保存截图。
 浏览器用例覆盖终态延迟入库、0→1→2 条消息、详情更新、分页、失败重试、键盘焦点和响应式布局。
+
+## 编辑已结束的 Run
+
+已结束的 Run 可直接进入编辑器。进入和修改只读取数据并缓存本地草稿；保存时创建
+`edited_rerun` 草稿，运行时创建 `edited_rerun` 排队记录。原 Run 保持不变。
+保存后继续编辑该草稿使用原记录，发布时不额外创建版本。完整重跑继续使用 `rerun`。
+版本号由 PocketBase 分配，需配套部署 cloudservice 的操作语义版本规则。
+
+```bash
+# 与消息浏览器回归使用相同的 Playwright 配置
+node scripts/run-edit.browser.mjs
+```

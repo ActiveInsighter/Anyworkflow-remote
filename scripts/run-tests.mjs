@@ -8,6 +8,7 @@ const testFiles = [
   'session-storage.test.mjs',
   'run-family-api.test.mjs',
   'history-messages.test.mjs',
+  'run-edit.test.mjs',
 ]
 
 for (const file of testFiles) {

@@ -58,30 +58,30 @@ export function EventNode({ event, deepLinked }: { event: DispatchEventRecord; d
   const hasHistory = Boolean(historyActsState.data?.length)
   const historyProgress = hasHistory && historyActsState.data ? historyActsProgress(historyActsState.data, event) : null
   const progressLabel = historyProgress
-    ? `${historyProgress.completed} / ${historyProgress.total} Acts · ${historyProgress.percent}%`
+    ? `${historyProgress.completed} / ${historyProgress.total} Acts`
     : fallbackProgress.totalActs
-      ? `${fallbackProgress.completedActs} / ${fallbackProgress.totalActs} Acts · ${fallbackProgress.percent}%`
+      ? `${fallbackProgress.completedActs} / ${fallbackProgress.totalActs} Acts`
       : eventProgressLabel(event.status, event.progress)
 
   return (
     <div id={'event-' + event.id} className="border-b border-border last:border-b-0">
       <button
         type="button"
-        className="flex min-h-14 w-full flex-wrap items-center gap-2 px-3 py-3 text-left outline-none transition-colors hover:bg-muted/35 focus-visible:bg-muted/45 sm:px-4"
+        className="flex min-h-14 w-full items-center gap-2 px-2 py-3 text-left outline-none transition-colors hover:bg-muted/35 focus-visible:bg-muted/45 sm:px-4"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
       >
         {open ? <ChevronDown className="size-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="size-4 shrink-0 text-muted-foreground" />}
-        <span className="grid size-7 shrink-0 place-items-center rounded-md bg-muted text-xs font-semibold tabular-nums text-muted-foreground">
-          {event.eventIndex + 1}
+        <span className="min-w-0 flex-1">
+          <span className="block text-[11px] font-medium text-muted-foreground">Event {event.eventIndex + 1}</span>
+          <span className="mt-0.5 block truncate text-sm font-medium">{eventTitle(event)}</span>
+          <span className="mt-1 block text-xs tabular-nums text-muted-foreground">{progressLabel}</span>
         </span>
-        <span className="min-w-0 flex-1 truncate text-sm font-medium">{eventTitle(event)}</span>
         <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-        <span className="ml-6 w-full text-xs sm:ml-0 sm:w-auto tabular-nums text-muted-foreground">{progressLabel}</span>
       </button>
 
       {open ? (
-        <div className="border-t border-border px-0 py-3 sm:px-3">
+        <div className="ms-3 min-w-0 border-s border-border ps-2 sm:ms-5 sm:ps-3">
           {historyActsState.loading && !historyActsState.data ? <LoadingState label="加载 Act…" /> : null}
           {historyActsState.error ? <div className="mb-3"><InlineError>历史 Act 暂不可用，当前显示执行定义：{historyActsState.error}</InlineError></div> : null}
           {hasHistory && historyActsState.data ? (
@@ -93,7 +93,7 @@ export function EventNode({ event, deepLinked }: { event: DispatchEventRecord; d
               {fallbackProgress.acts.map((act) => <FallbackActNode key={act.id} act={act} />)}
             </div>
           ) : null}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 text-[11px] text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-2 py-2 text-[11px] text-muted-foreground">
             {event.attempt > 0 ? <span>尝试 {event.attempt}</span> : null}
             <span>{formatDateTime(event.updated)}</span>
             {event.workerId ? <span className="hidden sm:inline">Worker {event.workerId}</span> : null}

@@ -44,17 +44,17 @@ try {
   event.localRunId = 'local-1'
   await page.getByText('0 条消息', { exact: true }).waitFor({ timeout: 15000 })
   rows = [makeMessage(17)]
-  await page.getByRole('button', { name: '查看消息 18', exact: true }).waitFor({ timeout: 12000 })
+  await page.getByRole('button', { name: '查看消息 1', exact: true }).waitFor({ timeout: 12000 })
   assert.equal(await page.getByRole('button', { name: /^查看消息/ }).count(), 1)
   assert.equal(detailRequests, 0, 'no message bodies before opening')
-  await page.getByRole('button', { name: '查看消息 18', exact: true }).click()
+  await page.getByRole('button', { name: '查看消息 1', exact: true }).click()
   await page.getByText('请归纳计算机网络的重点。', { exact: true }).waitFor()
   rows[0] = { ...rows[0], assistantMarkdown: '已完成：网络分层、可靠传输和拥塞控制。', status: 'succeeded', receivedAt: base.updated }
   await page.getByText('已完成：网络分层、可靠传输和拥塞控制。', { exact: true }).waitFor({ timeout: 12000 })
   await page.keyboard.press('Escape')
-  assert.equal(await page.getByRole('button', { name: '查看消息 18', exact: true }).evaluate(el => el === document.activeElement), true)
+  assert.equal(await page.getByRole('button', { name: '查看消息 1', exact: true }).evaluate(el => el === document.activeElement), true)
   rows.push(makeMessage(23))
-  await page.getByRole('button', { name: '查看消息 24', exact: true }).waitFor({ timeout: 12000 })
+  await page.getByRole('button', { name: '查看消息 2', exact: true }).waitFor({ timeout: 12000 })
   assert.equal(await page.getByRole('button', { name: /^查看消息/ }).count(), 2)
   for (const width of [320, 390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 })
@@ -70,7 +70,7 @@ try {
   rows = Array.from({ length: 21 }, (_, index) => makeMessage(index + 17))
   await page.getByRole('button', { name: '刷新分析与归纳的消息' }).click()
   await page.getByRole('button', { name: '下一页', exact: true }).click()
-  await page.getByRole('button', { name: '查看消息 38', exact: true }).waitFor()
+  await page.getByRole('button', { name: '查看消息 21', exact: true }).waitFor()
   assert.equal(await page.getByRole('button', { name: /^查看消息/ }).count(), 1)
   assert.deepEqual(errors, [])
   console.log('PASS: late history after completion, 0→1→2 messages, sparse IDs, live details, focus, pagination, error recovery, 320/390/768/1440px, dark mode')

@@ -1,6 +1,6 @@
 import { CalendarClock, CircleCheck, History, Play, Save } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
 import { AnyWorkflowEditor, type AnyWorkflowEditorHandle } from '@/components/editor/AnyWorkflowEditor'
 import { validateAnyWorkflowSource } from '@/components/editor/anyworkflow-dsl'
 import { AppPage, EmptyState, Field, InlineError, LoadingState, Panel, TextInput } from '@/components/app/ui'
@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/dialog'
 import { invalidateAsyncDataCache } from '@/hooks/useAsyncData'
 import { useNow } from '@/hooks/useNow'
-import { ApiError, createRun, getRun, toErrorMessage, updateRunDraft } from '@/lib/api'
+import { ApiError, createEditedRun, createRun, getRun, toErrorMessage, updateRunDraft } from '@/lib/api'
 import { clearEditorDraft, draftScopeFor, readEditorDraft, writeEditorDraft, type EditorDraft } from '@/lib/draft'
 import { formatDateTime } from '@/lib/format'
 import { getWorkflowTemplate, updateWorkflowTemplate } from '@/lib/library'
@@ -33,6 +33,7 @@ import {
 } from '@/lib/schedule'
 import { useSession } from '@/lib/session'
 import { toast } from 'sonner'
+import type { DispatchRunRecord } from '@/types'
 
 function editorSaveErrorMessage(error: unknown): string {
   if (error instanceof ApiError && error.status >= 500 &&
@@ -43,6 +44,12 @@ function editorSaveErrorMessage(error: unknown): string {
 }
 
 export function RunEditorPage() {
+  const location = useLocation()
+  // Remount on editor scope changes so local drafts and async loads cannot leak across Runs.
+  return <RunEditorForm key={location.pathname + location.search} />
+}
+
+function RunEditorForm() {
   const { runId } = useParams()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -52,6 +59,7 @@ export function RunEditorPage() {
   const editorRef = useRef<AnyWorkflowEditorHandle | null>(null)
   const scope = draftScopeFor(session?.record.id, runId, templateId)
 
+  const [loadedRun, setLoadedRun] = useState<DispatchRunRecord | null>(null)
   const [source, setSource] = useState(createStarterPlan)
   const [templateTitle, setTemplateTitle] = useState('')
   const [scheduleMode, setScheduleMode] = useState<ScheduleMode>('now')
@@ -126,13 +134,15 @@ export function RunEditorPage() {
     void getRun(runId)
       .then((run) => {
         if (!active) return
-        if (run.status !== 'draft') throw new Error('只有草稿 Run 可以编辑')
+        if (!['draft', 'succeeded', 'failed', 'canceled'].includes(run.status)) throw new Error('进行中的 Run 不能编辑，请等待执行结束')
+        setLoadedRun(run)
+        const initialSchedule = run.status === 'draft' ? run.scheduledAt : ''
         setSource(run.planText)
-        setScheduledAt(run.scheduledAt)
-        setScheduleMode(run.scheduledAt ? 'at' : 'now')
+        setScheduledAt(initialSchedule)
+        setScheduleMode(initialSchedule ? 'at' : 'now')
         setDirty(false)
         const draft = readEditorDraft(scope)
-        if (draft && draft.source.trim() !== run.planText.trim()) setRestorable(draft)
+        if (draft && (draft.source !== run.planText || draft.scheduledAt !== initialSchedule)) setRestorable(draft)
         else if (draft) clearEditorDraft(scope)
       })
       .catch((cause) => active && setError(toErrorMessage(cause)))
@@ -214,7 +224,7 @@ export function RunEditorPage() {
   }
 
   async function persist(publish: boolean) {
-    if (!session || saving) return
+    if (!session || saving || loading || (runId && !loadedRun)) return
     if (errorCount > 0) {
       setError(`DSL 有 ${errorCount} 个错误`)
       editorRef.current?.focus()
@@ -243,13 +253,16 @@ export function RunEditorPage() {
       }
 
       const saved = runId
-        ? await updateRunDraft(runId, planText, { publish, scheduledAt: schedule })
+        ? loadedRun?.status === 'draft'
+          ? await updateRunDraft(runId, planText, { publish, scheduledAt: schedule })
+          : await createEditedRun(runId, planText, publish ? 'queued' : 'draft', schedule)
         : await createRun(planText, publish ? 'queued' : 'draft', schedule)
 
       dirtyRef.current = false
       clearEditorDraft(scope)
       setDirty(false)
       invalidateAsyncDataCache('runs:')
+      invalidateAsyncDataCache(`run-family:${saved.familyId}`)
       invalidateAsyncDataCache(`run:${saved.id}`)
       toast.success(publish ? '工作流已提交执行' : '草稿已保存')
       navigate(publish ? `/runs/${saved.id}` : `/runs/${saved.id}/edit`, { replace: true })
@@ -266,6 +279,8 @@ export function RunEditorPage() {
     return <AppPage><EmptyState title="未连接" action={<Button asChild variant="secondary"><Link to="/settings">设置连接</Link></Button>} /></AppPage>
   }
   if (loading) return <AppPage><LoadingState /></AppPage>
+  if (runId && !loadedRun) return <AppPage><InlineError>{error || '无法加载 Run'}</InlineError><Button asChild variant="outline" className="mt-3"><Link to={`/runs/${runId}`}>返回 Run</Link></Button></AppPage>
+  const editingCompleted = Boolean(loadedRun && loadedRun.status !== 'draft')
 
   const pageTitle = templateMode === 'edit' ? templateTitle || '编辑模板' : meta.title || (runId ? '未命名 Run' : '新建 Run')
   const scheduleSummary = describeSchedule(scheduleEditable ? scheduledAt : '', new Date(now))
@@ -284,11 +299,15 @@ export function RunEditorPage() {
         <h1 className="min-w-0 truncate text-[21px] font-semibold tracking-[-0.03em] sm:text-[24px]">{pageTitle}</h1>
         {dirty ? (
           <Badge variant="warning" className="shrink-0 rounded-md">本地草稿</Badge>
+        ) : editingCompleted ? (
+          <Badge variant="secondary" className="shrink-0 rounded-md">未保存</Badge>
         ) : runId || templateMode === 'edit' ? (
           <Badge variant="secondary" className="shrink-0 rounded-md"><CircleCheck className="me-1 size-3" />已保存</Badge>
         ) : null}
         {errorCount > 0 ? <Badge variant="destructive" className="shrink-0 rounded-md">{errorCount} 错误</Badge> : null}
       </div>
+
+      {editingCompleted ? <p className="mb-2 text-xs text-muted-foreground">基于 v{loadedRun?.versionMajor}.{loadedRun?.versionMinor} 编辑，保存或运行时创建新大版本。</p> : null}
 
       {error ? <div className="mb-2 shrink-0"><InlineError>{error}</InlineError></div> : null}
 

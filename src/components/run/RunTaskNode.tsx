@@ -6,7 +6,7 @@ import { EventNode } from '@/components/run/RunEventNode'
 import { RUN_DETAIL_PAGE_SIZE } from '@/components/run/run-detail-constants'
 import { useAsyncData } from '@/hooks/useAsyncData'
 import { listEventsForTask, toErrorMessage } from '@/lib/api'
-import { progressPercent, progressText, runStatusMeta } from '@/lib/format'
+import { progressText, runStatusMeta } from '@/lib/format'
 import type { DispatchTaskRecord } from '@/types'
 
 export function TaskNode({
@@ -43,35 +43,32 @@ export function TaskNode({
   )
 
   const status = runStatusMeta(task.status, task.requestedAction)
-  const percent = progressPercent(task.completedEvents, task.totalEvents)
 
   return (
     <div id={'task-' + task.id} className="border-b border-border last:border-b-0">
       <button
         type="button"
-        className="flex min-h-16 w-full flex-wrap items-center gap-2.5 px-3 py-3 text-left outline-none transition-colors hover:bg-muted/35 focus-visible:bg-muted/45 sm:px-4"
+        className="flex min-h-16 w-full items-center gap-2 px-3 py-3 text-left outline-none transition-colors hover:bg-muted/35 focus-visible:bg-muted/45 sm:px-4"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
       >
         {open ? <ChevronDown className="size-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="size-4 shrink-0 text-muted-foreground" />}
-        <span className="hidden size-7 shrink-0 place-items-center rounded-md bg-muted text-[10px] font-semibold tabular-nums text-muted-foreground sm:grid">
-          {task.runIndex + 1}
+        <span className="min-w-0 flex-1">
+          <span className="block text-[11px] font-medium text-muted-foreground">Task {task.runIndex + 1}</span>
+          <span className="mt-0.5 block truncate text-sm font-semibold">{task.title || '未命名任务'}</span>
+          <span className="mt-1 block text-xs tabular-nums text-muted-foreground">{progressText(task.completedEvents, task.totalEvents, 'Events')}</span>
         </span>
-        <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{task.title || 'Task ' + (task.runIndex + 1)}</span>
         {task.executorKind === 'codex' ? <span className="shrink-0 rounded bg-info/10 px-1.5 py-0.5 text-[10px] font-medium text-info">Codex</span> : null}
         <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-        <span className="ml-6 w-full text-xs tabular-nums sm:ml-0 sm:w-auto text-muted-foreground">
-          {progressText(task.completedEvents, task.totalEvents, 'Events')} · {percent}%
-        </span>
       </button>
 
       {open ? (
-        <div className="border-t border-border bg-muted/10">
+        <div className="pb-3">
           {task.compileError ? <div className="px-3 pt-3 sm:px-4"><InlineError>{task.compileError}</InlineError></div> : null}
           {eventsState.loading && !eventsState.data ? <div className="p-3 sm:p-4"><LoadingState label="加载 Event…" /></div> : null}
           {eventsState.error ? <div className="px-3 pt-3 sm:px-4"><InlineError>{eventsState.error}</InlineError></div> : null}
           {eventsState.data?.items.length ? (
-            <div className="min-w-0 sm:ms-5 sm:border-s sm:border-border">
+            <div className="ms-4 min-w-0 border-s border-border ps-2 sm:ms-6 sm:ps-3">
               {eventsState.data.items.map((event) => (
                 <EventNode key={event.id} event={event} deepLinked={event.id === deepEventId} />
               ))}
