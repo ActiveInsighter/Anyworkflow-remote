@@ -226,8 +226,8 @@ export function DashboardPage() {
           </TabsList>
         </Tabs>
         <div className="flex items-center justify-between text-xs text-muted-foreground" role="status">
-          <span>{query ? `搜索“${query}”` : '运行记录'}</span>
-          <span>{state.refreshing ? '更新中…' : state.data ? `${state.data.totalItems} 条` : '加载中…'}</span>
+          <span className="min-w-0 flex-1 truncate pe-3" title={query || undefined}>{query ? `搜索“${query}”` : '运行记录'}</span>
+          <span className="shrink-0">{state.refreshing ? '更新中…' : state.data ? `${state.data.totalItems} 条` : '加载中…'}</span>
         </div>
       </div>
 
