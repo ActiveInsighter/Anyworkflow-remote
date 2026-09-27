@@ -25,7 +25,13 @@ import {
   StatusBadge,
 } from '@/components/app/ui'
 import { ConfirmDeleteDialog } from '@/components/app/confirm-delete-dialog'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -56,7 +62,6 @@ export function DashboardPage() {
   const page = readPage(searchParams.get('page'))
   const query = searchParams.get('q')?.trim() || ''
   const [searchInput, setSearchInput] = useState(query)
-  const [actionTarget, setActionTarget] = useState<DispatchRunRecord | null>(null)
 
   useEffect(() => setSearchInput(query), [query])
   useEffect(() => {
@@ -164,7 +169,7 @@ export function DashboardPage() {
     <AppPage>
       <PageHeader
         title="工作流"
-        className="flex-row items-center justify-between gap-2 [&>div:last-child]:w-auto"
+        className="mb-4 flex-row items-center justify-between gap-2 sm:mb-5 [&>div:last-child]:w-auto"
         actions={
           <>
             <Button
@@ -189,22 +194,22 @@ export function DashboardPage() {
       {state.error ? <ErrorBanner>{state.error}</ErrorBanner> : null}
       {actionError ? <ErrorBanner>{actionError}</ErrorBanner> : null}
 
-      <div className="mb-4 space-y-3">
+      <div className="mb-3 space-y-2.5 sm:mb-4">
         <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-3.5 size-4 text-muted-foreground" />
+          <Search className="pointer-events-none absolute left-3 top-3 size-4 text-muted-foreground" />
           <Input
             aria-label="搜索工作流"
             type="search"
             placeholder="搜索名称或 Run ID"
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
-            className="h-11 bg-card ps-10 pe-10 text-base sm:text-sm [&::-webkit-search-cancel-button]:appearance-none"
+            className="h-10 bg-card ps-10 pe-10 text-base sm:text-sm [&::-webkit-search-cancel-button]:appearance-none"
           />
           {searchInput ? (
             <Button
               size="icon"
               variant="ghost"
-              className="absolute right-0 top-0 size-11"
+              className="absolute right-0 top-0 size-10"
               aria-label="清除搜索"
               onClick={() => setSearchInput('')}
             >
@@ -215,7 +220,7 @@ export function DashboardPage() {
         <Tabs value={filter} onValueChange={(value) => updateQuery({ filter: readFilter(value) })}>
           <TabsList
             aria-label="运行状态"
-            className="grid h-auto w-full grid-cols-6 gap-0 sm:gap-1 [&_button]:h-10 [&_button]:px-1"
+            className="grid h-auto w-full grid-cols-6 gap-0 sm:gap-1 [&_button]:h-9 [&_button]:px-1 [&_button]:text-[13px]"
           >
             <TabsTrigger value="all">全部</TabsTrigger>
             <TabsTrigger value="draft">草稿</TabsTrigger>
@@ -225,7 +230,7 @@ export function DashboardPage() {
             <TabsTrigger value="canceled">取消</TabsTrigger>
           </TabsList>
         </Tabs>
-        <div className="flex items-center justify-between text-xs text-muted-foreground" role="status">
+        <div className="flex items-center justify-between px-0.5 text-xs text-muted-foreground" role="status">
           <span className="min-w-0 flex-1 truncate pe-3" title={query || undefined}>{query ? `搜索“${query}”` : '运行记录'}</span>
           <span className="shrink-0">{state.refreshing ? '更新中…' : state.data ? `${state.data.totalItems} 条` : '加载中…'}</span>
         </div>
@@ -240,12 +245,12 @@ export function DashboardPage() {
             const percent = progressPercent(run.completedTasks, run.totalTasks)
             const terminal = ['succeeded', 'failed', 'canceled'].includes(run.status)
             return (
-              <article key={run.id} className="border-b border-border px-3 py-4 last:border-b-0 sm:px-5">
+              <article key={run.id} className="border-b border-border px-3 py-3.5 last:border-b-0 sm:px-5 sm:py-4">
                 <div className="flex min-w-0 items-start gap-2">
                   <div className="min-w-0 flex-1">
                     <Link
                       to={'/runs/' + run.id}
-                      className="block break-words text-sm font-semibold leading-6 outline-none hover:underline focus-visible:underline"
+                      className="block break-words text-sm font-semibold leading-5 outline-none hover:underline focus-visible:underline"
                     >
                       {run.title || '未命名 Run'}
                     </Link>
@@ -257,17 +262,57 @@ export function DashboardPage() {
                       <span>{progressText(run.completedTasks, run.totalTasks, 'Tasks')}</span>
                     </div>
                   </div>
-                  <div className="flex shrink-0 items-center gap-1">
+                  <div className="flex shrink-0 self-stretch flex-col items-end justify-between gap-1">
                     <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="size-11"
-                      aria-label={`操作 ${run.title || '未命名 Run'}`}
-                      onClick={() => setActionTarget(run)}
-                    >
-                      <MoreHorizontal />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="-me-1 size-8"
+                          aria-label={`操作 ${run.title || '未命名 Run'}`}
+                        >
+                          <MoreHorizontal />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" sideOffset={5} className="w-44">
+                        {['draft', 'succeeded', 'failed', 'canceled'].includes(run.status) ? (
+                          <DropdownMenuItem onSelect={() => navigate(`/runs/${run.id}/edit`)}>
+                            <Pencil />
+                            编辑
+                          </DropdownMenuItem>
+                        ) : null}
+                        <DropdownMenuItem
+                          disabled={Boolean(actingId)}
+                          onSelect={() => void copyRun(run, 'draft')}
+                        >
+                          <Copy />
+                          复制为草稿
+                        </DropdownMenuItem>
+                        {['succeeded', 'failed', 'canceled'].includes(run.status) ? (
+                          <DropdownMenuItem
+                            disabled={Boolean(actingId)}
+                            onSelect={() => void copyRun(run, 'queued')}
+                          >
+                            <RotateCcw />
+                            完整重跑
+                          </DropdownMenuItem>
+                        ) : null}
+                        {['draft', 'succeeded', 'failed', 'canceled'].includes(run.status) ? (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              variant="destructive"
+                              disabled={Boolean(actingId)}
+                              onSelect={() => setDeleteTarget(run)}
+                            >
+                              <Trash2 />
+                              删除
+                            </DropdownMenuItem>
+                          </>
+                        ) : null}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
                 {!terminal && run.status !== 'draft' ? (
@@ -333,68 +378,6 @@ export function DashboardPage() {
           </div>
         </div>
       ) : null}
-
-      <Dialog
-        open={Boolean(actionTarget)}
-        onOpenChange={(open) => {
-          if (!open) setActionTarget(null)
-        }}
-      >
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>工作流操作</DialogTitle>
-            <DialogDescription className="break-words">{actionTarget?.title}</DialogDescription>
-          </DialogHeader>
-          {actionTarget ? (
-            <div className="grid gap-2 [&_button]:min-h-11 [&_button]:justify-start">
-              {['draft', 'succeeded', 'failed', 'canceled'].includes(actionTarget.status) ? (
-                <Button variant="outline" onClick={() => navigate(`/runs/${actionTarget.id}/edit`)}>
-                  <Pencil />
-                  编辑
-                </Button>
-              ) : null}
-              <Button
-                variant="outline"
-                disabled={Boolean(actingId)}
-                onClick={() => {
-                  setActionTarget(null)
-                  void copyRun(actionTarget, 'draft')
-                }}
-              >
-                <Copy />
-                复制为草稿
-              </Button>
-              {['succeeded', 'failed', 'canceled'].includes(actionTarget.status) ? (
-                <Button
-                  variant="outline"
-                  disabled={Boolean(actingId)}
-                  onClick={() => {
-                    setActionTarget(null)
-                    void copyRun(actionTarget, 'queued')
-                  }}
-                >
-                  <RotateCcw />
-                  完整重跑
-                </Button>
-              ) : null}
-              {['draft', 'succeeded', 'failed', 'canceled'].includes(actionTarget.status) ? (
-                <Button
-                  variant="ghost"
-                  className="text-destructive"
-                  disabled={Boolean(actingId)}
-                  onClick={() => {
-                    setDeleteTarget(actionTarget)
-                    setActionTarget(null)
-                  }}
-                >
-                  <Trash2 />
-                  删除
-                </Button>
-              ) : null}
-            </div>
-          ) : null}
-        </DialogContent>
-      </Dialog>
 
       <ConfirmDeleteDialog
         open={Boolean(deleteTarget)}
