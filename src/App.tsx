@@ -6,6 +6,7 @@ import { AppPage, EmptyState, LoadingState } from '@/components/app/ui'
 import { Button } from '@/components/ui/button'
 import { useSession } from '@/lib/session'
 
+const PdfToMdPage = lazy(() => import('@/pages/PdfToMdPage').then(({ PdfToMdPage: page }) => ({ default: page })))
 const DashboardPage = lazy(() => import('@/pages/DashboardPage').then(({ DashboardPage: page }) => ({ default: page })))
 const EventDetailPage = lazy(() => import('@/pages/EventDetailPage').then(({ EventDetailPage: page }) => ({ default: page })))
 const LibraryPage = lazy(() => import('@/pages/LibraryPage').then(({ LibraryPage: page }) => ({ default: page })))
@@ -65,6 +66,7 @@ const router = createBrowserRouter([
           { path: 'runs/:runId', element: <PageRoute><RunDetailPage /></PageRoute> },
           { path: 'tasks/:taskId', element: <PageRoute><TaskDetailPage /></PageRoute> },
           { path: 'events/:eventId', element: <PageRoute><EventDetailPage /></PageRoute> },
+          { path: 'pdf-to-md', element: <PageRoute><PdfToMdPage /></PageRoute> },
           { path: 'library', element: <PageRoute><LibraryPage /></PageRoute> },
           { path: 'templates/:templateId', element: <PageRoute><TemplateDetailPage /></PageRoute> },
         ],

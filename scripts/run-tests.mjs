@@ -1,4 +1,5 @@
 const testFiles = [
+  'pdf-api.test.mjs',
   'event-structure.test.mjs',
   'codex-dsl.test.mjs',
   'workflow-dsl.test.mjs',
