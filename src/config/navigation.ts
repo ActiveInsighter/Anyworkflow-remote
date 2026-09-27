@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
-import { BookMarked, House, Settings } from 'lucide-react'
+import { BookMarked, FileText, House, Settings } from 'lucide-react'
 
 export interface AppNavItem {
   id: string
@@ -23,6 +23,13 @@ export const appNavigation: AppNavItem[] = [
     to: '/library',
     icon: BookMarked,
     match: (pathname) => pathname === '/library' || pathname.startsWith('/templates/'),
+  },
+  {
+    id: 'pdf-to-md',
+    label: 'PDF to MD',
+    to: '/pdf-to-md',
+    icon: FileText,
+    match: (pathname) => pathname === '/pdf-to-md',
   },
   {
     id: 'settings',

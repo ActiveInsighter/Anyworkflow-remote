@@ -225,3 +225,18 @@ node scripts/run-edit.browser.mjs
 - 版本选择支持前后切换、名称/版本号搜索和跳转最新版本，不改变详情页 URL。
 
 浏览器回归（配置方式同上）：`node scripts/dashboard.browser.mjs`。
+
+## PDF to MD
+
+侧边栏的 `PDF to MD` 页面支持公开 PDF / Google Drive 地址、任务名称、
+ZIP 和合并 Markdown 文件名、页码范围、提示词及转换器所有高级参数。
+任务历史每 5 秒刷新，支持分页、GitHub 运行详情和受保护 ZIP 下载。
+源 PDF 不上传 PocketBase；文件库只保留最终 ZIP。
+
+后端需先部署 cloudservice 中的 `aw_pdf_to_md_jobs` migration、验证 hook，
+以及 n8n PDF 调度工作流和 AnyWorkflow-workers 的独立 `pdf` 镜像。
+任务最迟在下一次每分钟调度时提交，GitHub 仍使用共享 Gemini 队列。
+
+验证：`npm run preflight`，以及
+`PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node scripts/pdf.browser.mjs`。
+浏览器用例使用隔离模拟接口，检查四种宽度、任务参数、状态和自定义 ZIP 下载。
