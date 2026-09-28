@@ -18,6 +18,7 @@ import {
   type PdfConversionOptions,
   type PdfJob,
 } from '@/lib/file-conversion'
+import { ApiError } from '@/lib/pocketbase'
 
 const numberFields = [
   ['images_per_request', '每次请求页数', 1, 20], ['concurrency', '并发请求数', 1, 16],
@@ -25,6 +26,41 @@ const numberFields = [
   ['verification_passes', '额外审校次数', 0, 3], ['rpm_per_key', '每 Key 每分钟请求数', 1, 1000],
   ['rpd_per_key', '每 Key 每日请求上限', 1, 100000],
 ] as const
+type NumericOptionKey = typeof numberFields[number][0]
+type NumericDraft = Record<NumericOptionKey, string>
+
+function numberDrafts(options: PdfConversionOptions): NumericDraft {
+  return Object.fromEntries(numberFields.map(([key]) => [key, String(options[key])])) as NumericDraft
+}
+
+function parseNumberDraft(key: NumericOptionKey, raw: string): { value: number } | { error: string } {
+  const field = numberFields.find(([fieldKey]) => fieldKey === key)
+  if (!field) return { error: '转换配置字段无效，请刷新重试' }
+  const [, label, minimum, maximum] = field
+  const value = Number(raw.trim())
+  if (!raw.trim() || !Number.isSafeInteger(value) || value < minimum || value > maximum) {
+    return { error: `${label}需填写 ${minimum}–${maximum} 的整数` }
+  }
+  return { value }
+}
+
+function readDraftOptions(options: PdfConversionOptions, drafts: NumericDraft): { value: PdfConversionOptions } | { error: string } {
+  const next = { ...options }
+  for (const [key] of numberFields) {
+    const parsed = parseNumberDraft(key, drafts[key])
+    if ('error' in parsed) return parsed
+    next[key] = parsed.value
+  }
+  return { value: next }
+}
+
+function configErrorMessage(cause: unknown): string {
+  if (cause instanceof ApiError && cause.status === 404) {
+    return '后端转换配置表尚未部署，请先应用 migration 1790514100_file_conversion_configs。'
+  }
+  return cause instanceof Error ? cause.message : '配置加载失败，请刷新重试'
+}
+
 const choiceFields = [
   ['thinking_level', '思考深度', ['high', 'medium', 'low', 'minimal']],
   ['image_format', '图像格式', ['png', 'jpeg']],
@@ -44,6 +80,7 @@ export function PdfToMdPage() {
   const [notice, setNotice] = useState('')
   const [config, setConfig] = useState<FileConversionConfig | null>(null)
   const [draftOptions, setDraftOptions] = useState<PdfConversionOptions>(DEFAULT_PDF_TO_MD_OPTIONS)
+  const [draftNumberText, setDraftNumberText] = useState<NumericDraft>(() => numberDrafts(DEFAULT_PDF_TO_MD_OPTIONS))
   const [configLoading, setConfigLoading] = useState(true)
   const [configSaving, setConfigSaving] = useState(false)
   const [configError, setConfigError] = useState('')
@@ -57,9 +94,10 @@ export function PdfToMdPage() {
       if (!active) return
       setConfig(saved)
       setDraftOptions(saved.options)
+      setDraftNumberText(numberDrafts(saved.options))
       setConfigError('')
     }).catch((cause) => {
-      if (active) setConfigError(cause instanceof Error ? cause.message : '配置加载失败，请刷新重试')
+      if (active) setConfigError(configErrorMessage(cause))
     }).finally(() => {
       if (active) setConfigLoading(false)
     })
@@ -70,13 +108,30 @@ export function PdfToMdPage() {
     setDraftOptions((current) => ({ ...current, [key]: value }))
   }
 
-  async function persistConfig(): Promise<FileConversionConfig> {
+  function updateNumberDraft(key: NumericOptionKey, value: string) {
+    setDraftNumberText((current) => ({ ...current, [key]: value }))
+    setError('')
+  }
+
+  function commitNumberDraft(key: NumericOptionKey, raw: string) {
+    const parsed = parseNumberDraft(key, raw)
+    if ('error' in parsed) {
+      setError(parsed.error)
+      return
+    }
+    setDraftOptions((current) => ({ ...current, [key]: parsed.value }))
+    setDraftNumberText((current) => ({ ...current, [key]: String(parsed.value) }))
+    setError('')
+  }
+
+  async function persistConfig(options: PdfConversionOptions = draftOptions): Promise<FileConversionConfig> {
     if (!config) throw Error('转换配置尚未加载，请稍候')
     setConfigSaving(true)
     try {
-      const saved = await savePdfConversionConfig(config, draftOptions)
+      const saved = await savePdfConversionConfig(config, options)
       setConfig(saved)
       setDraftOptions(saved.options)
+      setDraftNumberText(numberDrafts(saved.options))
       setNotice(`配置已保存（版本 ${saved.revision}）。`)
       return saved
     } finally {
@@ -88,6 +143,9 @@ export function PdfToMdPage() {
     event.preventDefault()
     if (busy.current || configLoading) return
     if (!config) { setError(configError || '转换配置尚未加载，请刷新重试'); return }
+    const parsedOptions = readDraftOptions(draftOptions, draftNumberText)
+    if ('error' in parsedOptions) { setError(parsedOptions.error); return }
+    const submittedOptions = parsedOptions.value
     const form = new FormData(event.currentTarget)
     const text = (key: string) => String(form.get(key) || '').trim()
     if (draftOptions.end_page !== undefined && draftOptions.start_page !== undefined && draftOptions.end_page < draftOptions.start_page) {
@@ -95,12 +153,12 @@ export function PdfToMdPage() {
       return
     }
     const inputBase = { title: text('title'), sourceUrl: text('sourceUrl'), outputName: text('outputName'), prompt: text('prompt'), configId: config.id }
-    const payload = JSON.stringify({ ...inputBase, options: draftOptions })
+    const payload = JSON.stringify({ ...inputBase, options: submittedOptions })
     if (submission.current?.payload !== payload) submission.current = { id: crypto.randomUUID().replaceAll('-', '').slice(0, 15), payload }
     busy.current = true
     setSubmitting(true); setError(''); setNotice('')
     try {
-      const savedConfig = sameOptions(config.options, draftOptions) ? config : await persistConfig()
+      const savedConfig = sameOptions(config.options, submittedOptions) ? config : await persistConfig(submittedOptions)
       await createPdfJob(submission.current.id, { ...inputBase, configId: savedConfig.id })
       submission.current = null
       setNotice('配置已保存，任务已提交，状态会自动更新。')
@@ -112,7 +170,9 @@ export function PdfToMdPage() {
 
   async function saveAdvancedOptions() {
     setError('')
-    try { await persistConfig() } catch (cause) { setError(cause instanceof Error ? cause.message : '配置保存失败，请重试') }
+    const parsedOptions = readDraftOptions(draftOptions, draftNumberText)
+    if ('error' in parsedOptions) { setError(parsedOptions.error); return }
+    try { await persistConfig(parsedOptions.value) } catch (cause) { setError(cause instanceof Error ? cause.message : '配置保存失败，请重试') }
   }
 
   async function download(job: PdfJob) {
@@ -152,7 +212,7 @@ export function PdfToMdPage() {
               <summary className="cursor-pointer py-1 text-sm font-medium focus-visible:outline-ring">高级参数（自动保存）</summary>
               <div className="mt-4 grid min-w-0 grid-cols-2 gap-4">
                 <div className="col-span-2 space-y-2"><Label htmlFor="pdf-model">Gemini 模型</Label><Input id="pdf-model" name="model" required value={draftOptions.model} maxLength={107} onChange={(event) => updateOption('model', event.target.value)} /></div>
-                {numberFields.map(([key, label, min, max]) => <div key={key} className="min-w-0 space-y-2"><Label htmlFor={`pdf-${key}`}>{label}</Label><Input id={`pdf-${key}`} name={key} type="number" required min={min} max={max} step={1} value={draftOptions[key]} onChange={(event) => updateOption(key, Number(event.target.value))} /></div>)}
+                {numberFields.map(([key, label]) => <div key={key} className="min-w-0 space-y-2"><Label htmlFor={`pdf-${key}`}>{label}</Label><Input id={`pdf-${key}`} name={key} type="text" inputMode="numeric" pattern="[0-9]*" required value={draftNumberText[key]} onChange={(event) => updateNumberDraft(key, event.target.value)} onBlur={(event) => commitNumberDraft(key, event.currentTarget.value)} aria-invalid={Boolean(error && 'error' in parseNumberDraft(key, draftNumberText[key]))} /></div>)}
                 {choiceFields.map(([key, label, values]) => <div key={key} className="min-w-0 space-y-2"><Label htmlFor={`pdf-${key}`}>{label}</Label><Select id={`pdf-${key}`} name={key} value={draftOptions[key]} onChange={(event) => updateOption(key, event.target.value)} containerClassName="w-full">{values.map((value) => <option key={value} value={value}>{value}</option>)}</Select></div>)}
               </div>
               <Button type="button" variant="outline" className="mt-4 min-h-10" onClick={() => void saveAdvancedOptions()} disabled={configSaving || !config}><Save />{configSaving ? '保存中…' : '保存配置'}</Button>
