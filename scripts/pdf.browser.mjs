@@ -5,13 +5,16 @@ const context = await browser.newContext({ viewport: { width: 1440, height: 1000
 const page = await context.newPage()
 const errors = []
 page.on('pageerror', e => errors.push(e.message))
-let created, config, mode = 'empty', postCount = 0, tokenCalls = 0, configPatchCount = 0
+let created, config, mode = 'empty', postCount = 0, tokenCalls = 0, configPatchCount = 0, configListCalls = 0
 await context.addInitScript(() => localStorage.setItem('anyworkflow.auth.session.v1', JSON.stringify({ token: 'fixture-token', record: { id: 'owner-1' }, baseUrl: 'https://pb.example.invalid' })))
 await context.route('https://pb.example.invalid/**', async route => {
  const req = route.request(), url = new URL(req.url())
  if (url.pathname === '/api/files/token') { tokenCalls++; return route.fulfill({ json: { token: 'short-lived' } }) }
  if (url.pathname.startsWith('/api/files/')) { assert.equal(url.searchParams.get('token'), 'short-lived'); return route.fulfill({ body: Buffer.from([80,75,3,4]), contentType: 'application/zip' }) }
  if (url.pathname.includes('/aw_file_conversion_configs/records')) {
+   if (req.method() === 'GET' && process.env.CONFIG_LOAD_FAILURE && configListCalls++ < 2) {
+     return route.fulfill({ status: 503, json: { message: 'fixture config load failed' } })
+   }
    if (req.method() === 'PATCH') {
      configPatchCount++
      config = { ...config, ...req.postDataJSON(), revision: config.revision + 1 }
@@ -21,7 +24,9 @@ await context.route('https://pb.example.invalid/**', async route => {
    return route.fulfill({ json: { items: [config], totalItems: 1, totalPages: 1, page: 1, perPage: 20 } })
  }
  if (req.method() === 'POST' && url.pathname.includes('/aw_pdf_to_md_jobs/records')) {
-   postCount++; created = { ...req.postDataJSON(), file: '', githubRunId: '123', status: 'queued', options: config.options, created: new Date().toISOString(), updated: new Date().toISOString() }
+   postCount++
+   const body = req.postDataJSON()
+   created = { ...body, file: '', githubRunId: '123', status: 'queued', options: { ...config.options, ...(body.startPage !== undefined ? { start_page: body.startPage } : {}), ...(body.endPage !== undefined ? { end_page: body.endPage } : {}) }, created: new Date().toISOString(), updated: new Date().toISOString() }
    mode = 'created'; return route.fulfill({ json: created })
  }
  const items = mode === 'empty' ? [] : [{ ...created, ...(mode === 'done' ? { status: 'succeeded', file: 'result.zip', fileSize: 100 } : {}) }]
@@ -30,12 +35,8 @@ await context.route('https://pb.example.invalid/**', async route => {
 try {
  await page.goto((process.env.TEST_BASE_URL || 'http://127.0.0.1:5173') + '/file-converter')
  await page.getByText('暂无转换记录', { exact: true }).waitFor()
- await page.getByText(/配置已加载/u).waitFor()
- await page.getByLabel('任务名称', { exact: true }).fill('数学讲义')
- await page.getByLabel('PDF 源文件地址').fill('https://example.com/book.pdf')
- await page.getByLabel('产物文件名').fill('数学笔记')
- await page.getByLabel('起始页（可选）').fill('1')
- await page.getByLabel('结束页（可选）').fill('1')
+ if (process.env.CONFIG_LOAD_FAILURE) await page.getByText(/fixture config load failed/u).waitFor()
+ else await page.getByText(/配置已加载/u).waitFor()
  await page.getByText(/高级参数/u).click()
  const imagesPerRequest = page.getByLabel('每次请求页数', { exact: true })
  await imagesPerRequest.fill('')
@@ -49,6 +50,11 @@ try {
  await page.getByRole('button', { name: '保存配置', exact: true }).click()
  await page.getByText(/配置已保存/u).waitFor()
  assert.equal(configPatchCount, 1)
+ await page.getByLabel('任务名称', { exact: true }).fill('数学讲义')
+ await page.getByLabel('PDF 源文件地址').fill('https://example.com/book.pdf')
+ await page.getByLabel('产物文件名').fill('数学笔记')
+ await page.getByLabel('起始页（可选）').fill('1')
+ await page.getByLabel('结束页（可选）').fill('1')
  for (const width of [320,390,760,1440]) {
    await page.setViewportSize({ width, height: 1000 })
    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `overflow ${width}`)
