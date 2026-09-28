@@ -12,7 +12,7 @@ await context.route('https://pb.example.invalid/**', async route => {
  if (url.pathname === '/api/files/token') { tokenCalls++; return route.fulfill({ json: { token: 'short-lived' } }) }
  if (url.pathname.startsWith('/api/files/')) { assert.equal(url.searchParams.get('token'), 'short-lived'); return route.fulfill({ body: Buffer.from([80,75,3,4]), contentType: 'application/zip' }) }
  if (url.pathname.includes('/aw_file_conversion_configs/records')) {
-   if (req.method() === 'GET' && process.env.CONFIG_LOAD_FAILURE && configListCalls++ < 2) {
+   if (req.method() === 'GET' && process.env.CONFIG_LOAD_FAILURE && configListCalls++ < 1) {
      return route.fulfill({ status: 503, json: { message: 'fixture config load failed' } })
    }
    if (req.method() === 'PATCH') {
