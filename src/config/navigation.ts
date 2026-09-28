@@ -25,11 +25,11 @@ export const appNavigation: AppNavItem[] = [
     match: (pathname) => pathname === '/library' || pathname.startsWith('/templates/'),
   },
   {
-    id: 'pdf-to-md',
-    label: 'PDF to MD',
-    to: '/pdf-to-md',
+    id: 'file-converter',
+    label: '文件转换',
+    to: '/file-converter',
     icon: FileText,
-    match: (pathname) => pathname === '/pdf-to-md',
+    match: (pathname) => pathname === '/file-converter' || pathname === '/pdf-to-md',
   },
   {
     id: 'settings',

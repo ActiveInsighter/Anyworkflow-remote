@@ -21,7 +21,7 @@ export function breadcrumbsFor(pathname: string): BreadcrumbItem[] {
     ]
   }
 
-  if (parts[0] === 'pdf-to-md') return [{ label: 'PDF to MD' }]
+  if (parts[0] === 'file-converter' || parts[0] === 'pdf-to-md') return [{ label: '文件转换' }]
   if (parts[0] === 'library') return [{ label: '资料库' }]
   if (parts[0] === 'templates') {
     const templateId = parts[1] || ''
