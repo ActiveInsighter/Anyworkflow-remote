@@ -22,7 +22,7 @@ import {
 import { ApiError } from '@/lib/pocketbase'
 
 const numberFields = [
-  ['images_per_request', '每次请求页数', 1, 20], ['concurrency', '并发请求数', 1, 16],
+  ['images_per_request', '每次请求页数', 1, 20], ['concurrency', '并发请求数', 1, 100],
   ['dpi', '图像 DPI', 72, 300], ['jpeg_quality', 'JPEG 质量', 50, 100],
   ['verification_passes', '额外审校次数', 0, 3], ['rpm_per_key', '每 Key 每分钟请求数', 1, 1000],
   ['rpd_per_key', '每 Key 每日请求上限', 1, 100000],
@@ -68,10 +68,6 @@ const choiceFields = [
   ['media_resolution', '视觉分辨率', ['ultra_high', 'high', 'medium', 'low', 'unspecified']],
 ] as const
 const dateLabel = (value: string) => value ? new Date(value).toLocaleString() : '—'
-
-function sameOptions(left: PdfConversionOptions, right: PdfConversionOptions): boolean {
-  return JSON.stringify(left) === JSON.stringify(right)
-}
 
 export function PdfToMdPage() {
   const [page, setPage] = useState(1)
@@ -151,9 +147,6 @@ export function PdfToMdPage() {
     event.preventDefault()
     if (busy.current || configLoading) return
     if (!config) { setError(configError || '转换配置尚未加载，请刷新重试'); return }
-    const parsedOptions = readDraftOptions(draftOptions, draftNumberText)
-    if ('error' in parsedOptions) { setError(parsedOptions.error); return }
-    const submittedOptions = parsedOptions.value
     const form = new FormData(event.currentTarget)
     const text = (key: string) => String(form.get(key) || '').trim()
     if (draftPageRange.end_page !== undefined && draftPageRange.start_page !== undefined && draftPageRange.end_page < draftPageRange.start_page) {
@@ -166,15 +159,14 @@ export function PdfToMdPage() {
       ...(draftPageRange.start_page !== undefined ? { startPage: draftPageRange.start_page } : {}),
       ...(draftPageRange.end_page !== undefined ? { endPage: draftPageRange.end_page } : {}),
     }
-    const payload = JSON.stringify({ ...jobInput, options: submittedOptions })
+    const payload = JSON.stringify({ ...jobInput, configRevision: config.revision })
     if (submission.current?.payload !== payload) submission.current = { id: crypto.randomUUID().replaceAll('-', '').slice(0, 15), payload }
     busy.current = true
     setSubmitting(true); setError(''); setNotice('')
     try {
-      const savedConfig = sameOptions(config.options, submittedOptions) ? config : await persistConfig(submittedOptions)
-      await createPdfJob(submission.current.id, { ...jobInput, configId: savedConfig.id })
+      await createPdfJob(submission.current.id, jobInput)
       submission.current = null
-      setNotice('配置已保存，任务已提交，状态会自动更新。')
+      setNotice('任务已提交，状态会自动更新。')
       if (page !== 1) setPage(1)
       else await jobs.reload()
     } catch (cause) { setError(cause instanceof Error ? cause.message : '提交失败，请重试') }
@@ -228,13 +220,14 @@ export function PdfToMdPage() {
             <summary className="cursor-pointer py-1 text-sm font-medium focus-visible:outline-ring">高级参数（独立保存）</summary>
             <div className="mt-4 grid min-w-0 grid-cols-2 gap-4">
               <div className="col-span-2 space-y-2"><Label htmlFor="pdf-model">Gemini 模型</Label><Input id="pdf-model" name="model" required value={draftOptions.model} maxLength={107} onChange={(event) => updateOption('model', event.target.value)} /></div>
-              {numberFields.map(([key, label]) => <div key={key} className="min-w-0 space-y-2"><Label htmlFor={`pdf-${key}`}>{label}</Label><Input id={`pdf-${key}`} name={key} type="text" inputMode="numeric" pattern="[0-9]*" required value={draftNumberText[key]} onChange={(event) => updateNumberDraft(key, event.target.value)} onBlur={(event) => commitNumberDraft(key, event.currentTarget.value)} aria-invalid={Boolean(error && 'error' in parseNumberDraft(key, draftNumberText[key]))} /></div>)}
+              {numberFields.map(([key, label, minimum, maximum]) => <div key={key} className="min-w-0 space-y-2"><Label htmlFor={`pdf-${key}`}>{label}</Label><Input id={`pdf-${key}`} name={key} type="text" inputMode="numeric" pattern="[0-9]*" required value={draftNumberText[key]} onChange={(event) => updateNumberDraft(key, event.target.value)} onBlur={(event) => commitNumberDraft(key, event.currentTarget.value)} aria-describedby={key === 'concurrency' ? 'pdf-concurrency-help' : undefined} aria-invalid={Boolean(error && 'error' in parseNumberDraft(key, draftNumberText[key]))} />{key === 'concurrency' && <p id="pdf-concurrency-help" className="text-xs text-muted-foreground">允许 {minimum}–{maximum} 个并发请求</p>}</div>)}
               {choiceFields.map(([key, label, values]) => <div key={key} className="min-w-0 space-y-2"><Label htmlFor={`pdf-${key}`}>{label}</Label><Select id={`pdf-${key}`} name={key} value={draftOptions[key]} onChange={(event) => updateOption(key, event.target.value)} containerClassName="w-full">{values.map((value) => <option key={value} value={value}>{value}</option>)}</Select></div>)}
             </div>
           </details>
           <Button type="button" variant="outline" className="mt-4 min-h-10" onClick={() => void saveAdvancedOptions()} disabled={configLoading || configSaving}><Save />{configSaving ? '保存中…' : '保存配置'}</Button>
         </fieldset>
         <Button form="pdf-create-form" type="submit" className="mt-4 min-h-11 w-full" disabled={submitting || configLoading || configSaving || !config || Boolean(configError)}>{submitting ? <LoaderCircle className="animate-spin" /> : <Play />}{submitting ? '提交中…' : '开始转换'}</Button>
+        <p className="mt-2 text-xs text-muted-foreground">任务使用已保存的配置；修改高级参数后请先单独保存。</p>
         {notice && <p role="status" className="mt-3 text-sm text-success">{notice}</p>}
         {error && <p role="alert" className="mt-3 break-words text-sm text-danger">{error}</p>}
       </section>

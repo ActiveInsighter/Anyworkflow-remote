@@ -12,7 +12,7 @@ await context.route('https://pb.example.invalid/**', async route => {
  if (url.pathname === '/api/files/token') { tokenCalls++; return route.fulfill({ json: { token: 'short-lived' } }) }
  if (url.pathname.startsWith('/api/files/')) { assert.equal(url.searchParams.get('token'), 'short-lived'); return route.fulfill({ body: Buffer.from([80,75,3,4]), contentType: 'application/zip' }) }
  if (url.pathname.includes('/aw_file_conversion_configs/records')) {
-   if (req.method() === 'GET' && process.env.CONFIG_LOAD_FAILURE && configListCalls++ < 1) {
+   if (req.method() === 'GET' && process.env.CONFIG_LOAD_FAILURE && configListCalls++ < Number(process.env.CONFIG_FAILURE_COUNT || 1)) {
      return route.fulfill({ status: 503, json: { message: 'fixture config load failed' } })
    }
    if (req.method() === 'PATCH') {
@@ -37,19 +37,24 @@ try {
  await page.getByText('暂无转换记录', { exact: true }).waitFor()
  if (process.env.CONFIG_LOAD_FAILURE) await page.getByText(/fixture config load failed/u).waitFor()
  else await page.getByText(/配置已加载/u).waitFor()
- await page.getByText(/高级参数/u).click()
+ await page.getByText('高级参数（独立保存）', { exact: true }).click()
  const imagesPerRequest = page.getByLabel('每次请求页数', { exact: true })
  await imagesPerRequest.fill('')
  await imagesPerRequest.pressSequentially('1')
  assert.equal(await imagesPerRequest.inputValue(), '1')
  const concurrency = page.getByLabel('并发请求数', { exact: true })
+ await concurrency.fill('600')
+ await page.getByRole('button', { name: '保存配置', exact: true }).click()
+ await page.getByRole('alert').getByText(/并发请求数需填写 1–100 的整数/u).waitFor()
+ assert.equal(configPatchCount, 0)
  await concurrency.fill('')
- await concurrency.pressSequentially('10')
- assert.equal(await concurrency.inputValue(), '10')
+ await concurrency.pressSequentially('60')
+ assert.equal(await concurrency.inputValue(), '60')
  assert.equal(await page.getByRole('button', { name: '保存配置', exact: true }).isDisabled(), false)
  await page.getByRole('button', { name: '保存配置', exact: true }).click()
  await page.getByText(/配置已保存/u).waitFor()
  assert.equal(configPatchCount, 1)
+ await concurrency.fill('80')
  await page.getByLabel('任务名称', { exact: true }).fill('数学讲义')
  await page.getByLabel('PDF 源文件地址').fill('https://example.com/book.pdf')
  await page.getByLabel('产物文件名').fill('数学笔记')
@@ -65,7 +70,7 @@ try {
  assert.equal(postCount, 1)
 assert.equal(created.outputName, '数学笔记')
  assert.equal(created.configId, 'config-1')
- assert.equal(created.options.concurrency, 10)
+ assert.equal(created.options.concurrency, 60)
  assert.equal(created.options.start_page, 1)
  assert.equal(configPatchCount, 1)
  mode = 'done'
