@@ -66,6 +66,7 @@ const router = createBrowserRouter([
           { path: 'runs/:runId', element: <PageRoute><RunDetailPage /></PageRoute> },
           { path: 'tasks/:taskId', element: <PageRoute><TaskDetailPage /></PageRoute> },
           { path: 'events/:eventId', element: <PageRoute><EventDetailPage /></PageRoute> },
+          { path: 'file-converter', element: <PageRoute><PdfToMdPage /></PageRoute> },
           { path: 'pdf-to-md', element: <PageRoute><PdfToMdPage /></PageRoute> },
           { path: 'library', element: <PageRoute><LibraryPage /></PageRoute> },
           { path: 'templates/:templateId', element: <PageRoute><TemplateDetailPage /></PageRoute> },
