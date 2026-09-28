@@ -28,10 +28,12 @@ try {
   const saved = await savePdfConversionConfig(loaded, { ...loaded.options, concurrency: 10 })
   assert.equal(saved.revision, 3)
   assert.equal(sent.body.options.concurrency, 10)
-  await createPdfJob('job1', { title: 'Book', sourceUrl: 'https://example.com/book.pdf', outputName: 'Book', prompt: '', configId: 'cfg-1' })
+  await createPdfJob('job1', { title: 'Book', sourceUrl: 'https://example.com/book.pdf', outputName: 'Book', prompt: '', configId: 'cfg-1', startPage: 3, endPage: 4 })
   assert.equal(sent.body.owner, 'owner-1')
   assert.equal(sent.body.id, 'job1')
   assert.equal(sent.body.configId, 'cfg-1')
+  assert.equal(sent.body.startPage, 3)
+  assert.equal(sent.body.endPage, 4)
   assert.equal('options' in sent.body, false)
   globalThis.fetch = async (input, init) => {
     const url = new URL(input)

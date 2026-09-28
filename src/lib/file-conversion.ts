@@ -27,8 +27,6 @@ const PDF_NUMERIC_LIMITS: Record<string, readonly [number, number]> = {
   verification_passes: [0, 3],
   rpm_per_key: [1, 1000],
   rpd_per_key: [1, 100000],
-  start_page: [1, 100000],
-  end_page: [1, 100000],
 }
 
 const PDF_CHOICE_VALUES: Record<string, readonly string[]> = {
@@ -49,9 +47,14 @@ export type PdfConversionOptions = {
   media_resolution: 'ultra_high' | 'high' | 'medium' | 'low' | 'unspecified'
   rpm_per_key: number
   rpd_per_key: number
+}
+
+export type PdfPageRange = {
   start_page?: number
   end_page?: number
 }
+
+export type PdfJobOptions = PdfConversionOptions & PdfPageRange
 
 export interface FileConversionConfig {
   id: string
@@ -70,6 +73,8 @@ export interface PdfJobInput {
   outputName: string
   prompt: string
   configId: string
+  startPage?: number
+  endPage?: number
 }
 
 export interface PdfJob extends PdfJobInput {
@@ -77,7 +82,7 @@ export interface PdfJob extends PdfJobInput {
   owner: string
   conversionType: string
   configRevision: number
-  options: PdfConversionOptions
+  options: PdfJobOptions
   status: string
   file: string
   fileSize: number
@@ -104,15 +109,9 @@ function normalizeOptions(raw: unknown): PdfConversionOptions {
   const options = raw as Record<string, unknown>
   const result = { ...DEFAULT_PDF_TO_MD_OPTIONS } as PdfConversionOptions
   for (const [key, value] of Object.entries(options)) {
-    if (!(key in DEFAULT_PDF_TO_MD_OPTIONS) && key !== 'start_page' && key !== 'end_page') {
+    if (key === 'start_page' || key === 'end_page') continue
+    if (!(key in DEFAULT_PDF_TO_MD_OPTIONS)) {
       throw new ApiError('转换配置包含未知参数', 502, 'INVALID_CONFIG_RESPONSE')
-    }
-    if (key === 'start_page' || key === 'end_page') {
-      if (value !== undefined && value !== null && value !== '') {
-        if (!Number.isSafeInteger(value)) throw new ApiError('转换配置页码无效', 502, 'INVALID_CONFIG_RESPONSE')
-        result[key] = value as number
-      }
-      continue
     }
     if (key === 'model') {
       if (typeof value !== 'string' || !value.trim()) throw new ApiError('转换配置模型无效', 502, 'INVALID_CONFIG_RESPONSE')
@@ -134,9 +133,6 @@ function normalizeOptions(raw: unknown): PdfConversionOptions {
   }
   if (!/^gemini-[a-zA-Z0-9._-]{1,100}$/u.test(result.model)) {
     throw new ApiError('转换配置模型格式无效', 502, 'INVALID_CONFIG_RESPONSE')
-  }
-  if (result.start_page !== undefined && result.end_page !== undefined && result.end_page < result.start_page) {
-    throw new ApiError('转换配置页码范围无效', 502, 'INVALID_CONFIG_RESPONSE')
   }
   return result
 }
@@ -212,6 +208,8 @@ export async function createPdfJob(id: string, input: PdfJobInput) {
         && String(saved.outputName || '').trim() === input.outputName.trim()
         && String(saved.prompt || '').trim() === input.prompt.trim()
         && String(saved.configId || '') === input.configId
+        && (saved.startPage ?? undefined) === (input.startPage ?? undefined)
+        && (saved.endPage ?? undefined) === (input.endPage ?? undefined)
       ) return saved
     } catch { /* Report the original actionable create error. */ }
     throw error

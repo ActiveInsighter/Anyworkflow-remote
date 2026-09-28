@@ -15,6 +15,7 @@ import {
   pdfStatusLabels,
   savePdfConversionConfig,
   type FileConversionConfig,
+  type PdfPageRange,
   type PdfConversionOptions,
   type PdfJob,
 } from '@/lib/file-conversion'
@@ -80,6 +81,7 @@ export function PdfToMdPage() {
   const [notice, setNotice] = useState('')
   const [config, setConfig] = useState<FileConversionConfig | null>(null)
   const [draftOptions, setDraftOptions] = useState<PdfConversionOptions>(DEFAULT_PDF_TO_MD_OPTIONS)
+  const [draftPageRange, setDraftPageRange] = useState<PdfPageRange>({})
   const [draftNumberText, setDraftNumberText] = useState<NumericDraft>(() => numberDrafts(DEFAULT_PDF_TO_MD_OPTIONS))
   const [configLoading, setConfigLoading] = useState(true)
   const [configSaving, setConfigSaving] = useState(false)
@@ -108,6 +110,10 @@ export function PdfToMdPage() {
     setDraftOptions((current) => ({ ...current, [key]: value }))
   }
 
+  function updatePageRange(key: keyof PdfPageRange, value: number | undefined) {
+    setDraftPageRange((current) => ({ ...current, [key]: value }))
+  }
+
   function updateNumberDraft(key: NumericOptionKey, value: string) {
     setDraftNumberText((current) => ({ ...current, [key]: value }))
     setError('')
@@ -125,13 +131,15 @@ export function PdfToMdPage() {
   }
 
   async function persistConfig(options: PdfConversionOptions = draftOptions): Promise<FileConversionConfig> {
-    if (!config) throw Error('转换配置尚未加载，请稍候')
     setConfigSaving(true)
     try {
-      const saved = await savePdfConversionConfig(config, options)
+      const target = config || await getPdfConversionConfig()
+      setConfig(target)
+      const saved = await savePdfConversionConfig(target, options)
       setConfig(saved)
       setDraftOptions(saved.options)
       setDraftNumberText(numberDrafts(saved.options))
+      setConfigError('')
       setNotice(`配置已保存（版本 ${saved.revision}）。`)
       return saved
     } finally {
@@ -148,18 +156,23 @@ export function PdfToMdPage() {
     const submittedOptions = parsedOptions.value
     const form = new FormData(event.currentTarget)
     const text = (key: string) => String(form.get(key) || '').trim()
-    if (draftOptions.end_page !== undefined && draftOptions.start_page !== undefined && draftOptions.end_page < draftOptions.start_page) {
+    if (draftPageRange.end_page !== undefined && draftPageRange.start_page !== undefined && draftPageRange.end_page < draftPageRange.start_page) {
       setError('结束页不能小于起始页')
       return
     }
     const inputBase = { title: text('title'), sourceUrl: text('sourceUrl'), outputName: text('outputName'), prompt: text('prompt'), configId: config.id }
-    const payload = JSON.stringify({ ...inputBase, options: submittedOptions })
+    const jobInput = {
+      ...inputBase,
+      ...(draftPageRange.start_page !== undefined ? { startPage: draftPageRange.start_page } : {}),
+      ...(draftPageRange.end_page !== undefined ? { endPage: draftPageRange.end_page } : {}),
+    }
+    const payload = JSON.stringify({ ...jobInput, options: submittedOptions })
     if (submission.current?.payload !== payload) submission.current = { id: crypto.randomUUID().replaceAll('-', '').slice(0, 15), payload }
     busy.current = true
     setSubmitting(true); setError(''); setNotice('')
     try {
       const savedConfig = sameOptions(config.options, submittedOptions) ? config : await persistConfig(submittedOptions)
-      await createPdfJob(submission.current.id, { ...inputBase, configId: savedConfig.id })
+      await createPdfJob(submission.current.id, { ...jobInput, configId: savedConfig.id })
       submission.current = null
       setNotice('配置已保存，任务已提交，状态会自动更新。')
       if (page !== 1) setPage(1)
@@ -190,7 +203,7 @@ export function PdfToMdPage() {
     finally { setDownloading('') }
   }
 
-  return <AppPage>
+    return <AppPage>
     <PageHeader title="文件转换" description="使用保存的参数处理文件；当前支持 PDF → Markdown，下载 ZIP 产物。" />
     <div className="grid min-w-0 gap-8 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
       <section className="min-w-0" aria-labelledby="pdf-create-title">
@@ -198,28 +211,30 @@ export function PdfToMdPage() {
         <p className="mb-4 text-xs text-muted-foreground" role="status">
           {configLoading ? '正在加载转换配置…' : configError ? configError : `配置已加载 · 版本 ${config?.revision ?? '—'}`}
         </p>
-        <form onSubmit={submit}>
-          <fieldset disabled={submitting || configLoading || configSaving} className="min-w-0 space-y-4">
+        <form id="pdf-create-form" onSubmit={submit}>
+          <fieldset disabled={submitting || configLoading} className="min-w-0 space-y-4">
             <div className="space-y-2"><Label htmlFor="pdf-title">任务名称</Label><Input id="pdf-title" name="title" required maxLength={200} placeholder="例如：数学讲义" /></div>
             <div className="space-y-2"><Label htmlFor="pdf-source">PDF 源文件地址</Label><Input id="pdf-source" name="sourceUrl" type="url" required maxLength={4096} placeholder="https://…" aria-describedby="pdf-source-help" /><p id="pdf-source-help" className="text-xs text-muted-foreground">支持公开 PDF 直链或 Google Drive 分享链接。源 PDF 不存入文件库。</p></div>
             <div className="space-y-2"><Label htmlFor="pdf-output">产物文件名</Label><Input id="pdf-output" name="outputName" required maxLength={120} placeholder="例如：数学讲义-第一章" aria-describedby="pdf-name-help" /><p id="pdf-name-help" className="text-xs text-muted-foreground">自动添加 .zip；包内合并文档使用同名 .md。</p></div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2"><Label htmlFor="pdf-start">起始页（可选）</Label><Input id="pdf-start" name="start_page" type="number" min={1} max={100000} step={1} placeholder="1" value={draftOptions.start_page ?? ''} onChange={(event) => updateOption('start_page', event.target.value ? Number(event.target.value) : undefined)} /></div>
-              <div className="space-y-2"><Label htmlFor="pdf-end">结束页（可选）</Label><Input id="pdf-end" name="end_page" type="number" min={1} max={100000} step={1} placeholder="末页" value={draftOptions.end_page ?? ''} onChange={(event) => updateOption('end_page', event.target.value ? Number(event.target.value) : undefined)} /></div>
+              <div className="space-y-2"><Label htmlFor="pdf-start">起始页（可选）</Label><Input id="pdf-start" name="start_page" type="number" min={1} max={100000} step={1} placeholder="1" value={draftPageRange.start_page ?? ''} onChange={(event) => updatePageRange('start_page', event.target.value ? Number(event.target.value) : undefined)} /></div>
+              <div className="space-y-2"><Label htmlFor="pdf-end">结束页（可选）</Label><Input id="pdf-end" name="end_page" type="number" min={1} max={100000} step={1} placeholder="末页" value={draftPageRange.end_page ?? ''} onChange={(event) => updatePageRange('end_page', event.target.value ? Number(event.target.value) : undefined)} /></div>
             </div>
             <div className="space-y-2"><Label htmlFor="pdf-prompt">转换要求（可选）</Label><textarea id="pdf-prompt" name="prompt" maxLength={12000} rows={3} className="w-full resize-y rounded-md border border-input bg-transparent p-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" placeholder="留空使用默认提示词" /></div>
-            <details className="border-y border-border py-3">
-              <summary className="cursor-pointer py-1 text-sm font-medium focus-visible:outline-ring">高级参数（自动保存）</summary>
-              <div className="mt-4 grid min-w-0 grid-cols-2 gap-4">
-                <div className="col-span-2 space-y-2"><Label htmlFor="pdf-model">Gemini 模型</Label><Input id="pdf-model" name="model" required value={draftOptions.model} maxLength={107} onChange={(event) => updateOption('model', event.target.value)} /></div>
-                {numberFields.map(([key, label]) => <div key={key} className="min-w-0 space-y-2"><Label htmlFor={`pdf-${key}`}>{label}</Label><Input id={`pdf-${key}`} name={key} type="text" inputMode="numeric" pattern="[0-9]*" required value={draftNumberText[key]} onChange={(event) => updateNumberDraft(key, event.target.value)} onBlur={(event) => commitNumberDraft(key, event.currentTarget.value)} aria-invalid={Boolean(error && 'error' in parseNumberDraft(key, draftNumberText[key]))} /></div>)}
-                {choiceFields.map(([key, label, values]) => <div key={key} className="min-w-0 space-y-2"><Label htmlFor={`pdf-${key}`}>{label}</Label><Select id={`pdf-${key}`} name={key} value={draftOptions[key]} onChange={(event) => updateOption(key, event.target.value)} containerClassName="w-full">{values.map((value) => <option key={value} value={value}>{value}</option>)}</Select></div>)}
-              </div>
-              <Button type="button" variant="outline" className="mt-4 min-h-10" onClick={() => void saveAdvancedOptions()} disabled={configSaving || !config}><Save />{configSaving ? '保存中…' : '保存配置'}</Button>
-            </details>
-            <Button type="submit" className="min-h-11 w-full" disabled={submitting || configLoading || Boolean(configError)}>{submitting ? <LoaderCircle className="animate-spin" /> : <Play />}{submitting ? '提交中…' : '开始转换'}</Button>
           </fieldset>
         </form>
+        <fieldset disabled={configLoading || configSaving} className="mt-4 min-w-0">
+          <details className="border-y border-border py-3">
+            <summary className="cursor-pointer py-1 text-sm font-medium focus-visible:outline-ring">高级参数（独立保存）</summary>
+            <div className="mt-4 grid min-w-0 grid-cols-2 gap-4">
+              <div className="col-span-2 space-y-2"><Label htmlFor="pdf-model">Gemini 模型</Label><Input id="pdf-model" name="model" required value={draftOptions.model} maxLength={107} onChange={(event) => updateOption('model', event.target.value)} /></div>
+              {numberFields.map(([key, label]) => <div key={key} className="min-w-0 space-y-2"><Label htmlFor={`pdf-${key}`}>{label}</Label><Input id={`pdf-${key}`} name={key} type="text" inputMode="numeric" pattern="[0-9]*" required value={draftNumberText[key]} onChange={(event) => updateNumberDraft(key, event.target.value)} onBlur={(event) => commitNumberDraft(key, event.currentTarget.value)} aria-invalid={Boolean(error && 'error' in parseNumberDraft(key, draftNumberText[key]))} /></div>)}
+              {choiceFields.map(([key, label, values]) => <div key={key} className="min-w-0 space-y-2"><Label htmlFor={`pdf-${key}`}>{label}</Label><Select id={`pdf-${key}`} name={key} value={draftOptions[key]} onChange={(event) => updateOption(key, event.target.value)} containerClassName="w-full">{values.map((value) => <option key={value} value={value}>{value}</option>)}</Select></div>)}
+            </div>
+          </details>
+          <Button type="button" variant="outline" className="mt-4 min-h-10" onClick={() => void saveAdvancedOptions()} disabled={configLoading || configSaving}><Save />{configSaving ? '保存中…' : '保存配置'}</Button>
+        </fieldset>
+        <Button form="pdf-create-form" type="submit" className="mt-4 min-h-11 w-full" disabled={submitting || configLoading || configSaving || !config || Boolean(configError)}>{submitting ? <LoaderCircle className="animate-spin" /> : <Play />}{submitting ? '提交中…' : '开始转换'}</Button>
         {notice && <p role="status" className="mt-3 text-sm text-success">{notice}</p>}
         {error && <p role="alert" className="mt-3 break-words text-sm text-danger">{error}</p>}
       </section>
