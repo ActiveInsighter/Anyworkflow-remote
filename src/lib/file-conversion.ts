@@ -21,7 +21,7 @@ export const DEFAULT_PDF_TO_MD_OPTIONS = {
 
 const PDF_NUMERIC_LIMITS: Record<string, readonly [number, number]> = {
   images_per_request: [1, 20],
-  concurrency: [1, 16],
+  concurrency: [1, 100],
   dpi: [72, 300],
   jpeg_quality: [50, 100],
   verification_passes: [0, 3],
