@@ -11,6 +11,7 @@ import {
   DEFAULT_PDF_TO_MD_OPTIONS,
   getPdfConversionConfig,
   listPdfJobs,
+  MAX_SYSTEM_PROMPT_CHARS,
   pdfDownloadUrl,
   pdfStatusLabels,
   savePdfConversionConfig,
@@ -77,6 +78,7 @@ export function PdfToMdPage() {
   const [notice, setNotice] = useState('')
   const [config, setConfig] = useState<FileConversionConfig | null>(null)
   const [draftOptions, setDraftOptions] = useState<PdfConversionOptions>(DEFAULT_PDF_TO_MD_OPTIONS)
+  const [draftSystemPrompt, setDraftSystemPrompt] = useState('')
   const [draftPageRange, setDraftPageRange] = useState<PdfPageRange>({})
   const [draftNumberText, setDraftNumberText] = useState<NumericDraft>(() => numberDrafts(DEFAULT_PDF_TO_MD_OPTIONS))
   const [configLoading, setConfigLoading] = useState(true)
@@ -92,6 +94,7 @@ export function PdfToMdPage() {
       if (!active) return
       setConfig(saved)
       setDraftOptions(saved.options)
+      setDraftSystemPrompt(saved.systemPrompt)
       setDraftNumberText(numberDrafts(saved.options))
       setConfigError('')
     }).catch((cause) => {
@@ -126,14 +129,17 @@ export function PdfToMdPage() {
     setError('')
   }
 
-  async function persistConfig(options: PdfConversionOptions = draftOptions): Promise<FileConversionConfig> {
+  async function persistConfig(options: PdfConversionOptions = draftOptions, systemPrompt: string = draftSystemPrompt): Promise<FileConversionConfig> {
     setConfigSaving(true)
     try {
       const target = config || await getPdfConversionConfig()
       setConfig(target)
-      const saved = await savePdfConversionConfig(target, options)
+      const saved = await savePdfConversionConfig(target, options, systemPrompt)
       setConfig(saved)
       setDraftOptions(saved.options)
+      // An emptied box comes back as the stored default, so the form always shows
+      // the prompt that will actually be sent.
+      setDraftSystemPrompt(saved.systemPrompt)
       setDraftNumberText(numberDrafts(saved.options))
       setConfigError('')
       setNotice(`配置已保存（版本 ${saved.revision}）。`)
@@ -173,11 +179,11 @@ export function PdfToMdPage() {
     finally { busy.current = false; setSubmitting(false) }
   }
 
-  async function saveAdvancedOptions() {
+  async function saveConfig() {
     setError('')
     const parsedOptions = readDraftOptions(draftOptions, draftNumberText)
     if ('error' in parsedOptions) { setError(parsedOptions.error); return }
-    try { await persistConfig(parsedOptions.value) } catch (cause) { setError(cause instanceof Error ? cause.message : '配置保存失败，请重试') }
+    try { await persistConfig(parsedOptions.value, draftSystemPrompt) } catch (cause) { setError(cause instanceof Error ? cause.message : '配置保存失败，请重试') }
   }
 
   async function download(job: PdfJob) {
@@ -212,19 +218,24 @@ export function PdfToMdPage() {
               <div className="space-y-2"><Label htmlFor="pdf-start">起始页（可选）</Label><Input id="pdf-start" name="start_page" type="number" min={1} max={100000} step={1} placeholder="1" value={draftPageRange.start_page ?? ''} onChange={(event) => updatePageRange('start_page', event.target.value ? Number(event.target.value) : undefined)} /></div>
               <div className="space-y-2"><Label htmlFor="pdf-end">结束页（可选）</Label><Input id="pdf-end" name="end_page" type="number" min={1} max={100000} step={1} placeholder="末页" value={draftPageRange.end_page ?? ''} onChange={(event) => updatePageRange('end_page', event.target.value ? Number(event.target.value) : undefined)} /></div>
             </div>
-            <div className="space-y-2"><Label htmlFor="pdf-prompt">转换要求（可选）</Label><textarea id="pdf-prompt" name="prompt" maxLength={12000} rows={3} className="w-full resize-y rounded-md border border-input bg-transparent p-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" placeholder="留空使用默认提示词" /></div>
+            <div className="space-y-2"><Label htmlFor="pdf-prompt">转换要求（可选，本次任务专有）</Label><textarea id="pdf-prompt" name="prompt" maxLength={12000} rows={3} className="w-full resize-y rounded-md border border-input bg-transparent p-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" placeholder="会追加在系统提示词之后；留空则只发送系统提示词" aria-describedby="pdf-prompt-help" /><p id="pdf-prompt-help" className="text-xs text-muted-foreground">只对本次转换生效，与已保存的系统提示词按顺序拼接后一起发送。</p></div>
           </fieldset>
         </form>
         <fieldset disabled={configLoading || configSaving} className="mt-4 min-w-0">
           <details className="border-y border-border py-3">
-            <summary className="cursor-pointer py-1 text-sm font-medium focus-visible:outline-ring">高级参数（独立保存）</summary>
+            <summary className="cursor-pointer py-1 text-sm font-medium focus-visible:outline-ring">转换配置：系统提示词与高级参数（独立保存）</summary>
+            <div className="mt-4 space-y-2">
+              <Label htmlFor="pdf-system-prompt">系统提示词（所有任务共用）</Label>
+              <textarea id="pdf-system-prompt" name="systemPrompt" maxLength={MAX_SYSTEM_PROMPT_CHARS} rows={10} value={draftSystemPrompt} onChange={(event) => { setDraftSystemPrompt(event.target.value); setError('') }} className="w-full resize-y rounded-md border border-input bg-transparent p-3 font-mono text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-describedby="pdf-system-prompt-help" />
+              <p id="pdf-system-prompt-help" className="text-xs text-muted-foreground">每次转换都会先发送这段提示词，再发送新建任务时填写的「转换要求」，两者按顺序拼接、互不覆盖。保存时留空会恢复内置默认提示词。当前 {draftSystemPrompt.length} / {MAX_SYSTEM_PROMPT_CHARS} 字符。</p>
+            </div>
             <div className="mt-4 grid min-w-0 grid-cols-2 gap-4">
               <div className="col-span-2 space-y-2"><Label htmlFor="pdf-model">Gemini 模型</Label><Input id="pdf-model" name="model" required value={draftOptions.model} maxLength={107} onChange={(event) => updateOption('model', event.target.value)} /></div>
               {numberFields.map(([key, label, minimum, maximum]) => <div key={key} className="min-w-0 space-y-2"><Label htmlFor={`pdf-${key}`}>{label}</Label><Input id={`pdf-${key}`} name={key} type="text" inputMode="numeric" pattern="[0-9]*" required value={draftNumberText[key]} onChange={(event) => updateNumberDraft(key, event.target.value)} onBlur={(event) => commitNumberDraft(key, event.currentTarget.value)} aria-describedby={key === 'concurrency' ? 'pdf-concurrency-help' : undefined} aria-invalid={Boolean(error && 'error' in parseNumberDraft(key, draftNumberText[key]))} />{key === 'concurrency' && <p id="pdf-concurrency-help" className="text-xs text-muted-foreground">允许 {minimum}–{maximum} 个并发请求</p>}</div>)}
               {choiceFields.map(([key, label, values]) => <div key={key} className="min-w-0 space-y-2"><Label htmlFor={`pdf-${key}`}>{label}</Label><Select id={`pdf-${key}`} name={key} value={draftOptions[key]} onChange={(event) => updateOption(key, event.target.value)} containerClassName="w-full">{values.map((value) => <option key={value} value={value}>{value}</option>)}</Select></div>)}
             </div>
           </details>
-          <Button type="button" variant="outline" className="mt-4 min-h-10" onClick={() => void saveAdvancedOptions()} disabled={configLoading || configSaving}><Save />{configSaving ? '保存中…' : '保存配置'}</Button>
+          <Button type="button" variant="outline" className="mt-4 min-h-10" onClick={() => void saveConfig()} disabled={configLoading || configSaving}><Save />{configSaving ? '保存中…' : '保存配置'}</Button>
         </fieldset>
         <Button form="pdf-create-form" type="submit" className="mt-4 min-h-11 w-full" disabled={submitting || configLoading || configSaving || !config || Boolean(configError)}>{submitting ? <LoaderCircle className="animate-spin" /> : <Play />}{submitting ? '提交中…' : '开始转换'}</Button>
         <p className="mt-2 text-xs text-muted-foreground">任务使用已保存的配置；修改高级参数后请先单独保存。</p>
@@ -242,7 +253,7 @@ export function PdfToMdPage() {
             <p className="mt-1 break-all text-xs text-muted-foreground">{job.outputName}.zip{job.fileSize > 0 ? ` · ${(job.fileSize / 1024).toFixed(1)} KB` : ''}</p>
             <p className="mt-2 text-xs text-muted-foreground">提交于 {dateLabel(job.created)}</p>
             {job.error && <p className="mt-2 break-words text-xs text-danger">{job.error}</p>}
-            <details className="mt-2 text-xs text-muted-foreground"><summary className="cursor-pointer py-1 focus-visible:outline-ring">查看参数</summary><div className="mt-2 space-y-2 break-all"><p>{job.sourceUrl}</p>{job.prompt && <p>{job.prompt}</p>}<dl className="grid grid-cols-2 gap-2">{Object.entries(job.options || {}).map(([key, value]) => <div key={key}><dt>{key}</dt><dd className="text-foreground">{value}</dd></div>)}</dl>{job.finishedAt && <p>结束于 {dateLabel(job.finishedAt)}</p>}</div></details>
+            <details className="mt-2 text-xs text-muted-foreground"><summary className="cursor-pointer py-1 focus-visible:outline-ring">查看参数</summary><div className="mt-2 space-y-2 break-all"><p>{job.sourceUrl}</p>{job.prompt && <p>本次要求：{job.prompt}</p>}{job.systemPrompt && <p className="whitespace-pre-wrap">系统提示词：{job.systemPrompt}</p>}<dl className="grid grid-cols-2 gap-2">{Object.entries(job.options || {}).map(([key, value]) => <div key={key}><dt>{key}</dt><dd className="text-foreground">{value}</dd></div>)}</dl>{job.finishedAt && <p>结束于 {dateLabel(job.finishedAt)}</p>}</div></details>
             <div className="mt-3 flex flex-wrap gap-2">
               {job.file && <Button size="sm" className="min-h-10" disabled={Boolean(downloading)} onClick={() => void download(job)}>{downloading === job.id ? <LoaderCircle className="animate-spin" /> : <Download />}{downloading === job.id ? '下载中…' : '下载 ZIP'}</Button>}
               {/^[0-9]+$/.test(job.githubRunId) && <Button size="sm" variant="outline" className="min-h-10" asChild><a href={`https://github.com/ActiveInsighter/file-converter-ai/actions/runs/${job.githubRunId}`} target="_blank" rel="noreferrer"><ExternalLink />运行详情</a></Button>}
