@@ -11,7 +11,10 @@ export const MAX_SYSTEM_PROMPT_CHARS = 12000
 export const DEFAULT_PDF_TO_MD_OPTIONS = {
   images_per_request: 1,
   concurrency: 5,
+  provider: 'gemini',
   model: 'gemini-3.5-flash-lite',
+  reasoning_effort: '',
+  max_output_tokens: 0,
   thinking_level: 'high',
   dpi: 240,
   image_format: 'png',
@@ -30,9 +33,12 @@ const PDF_NUMERIC_LIMITS: Record<string, readonly [number, number]> = {
   verification_passes: [0, 3],
   rpm_per_key: [1, 1000],
   rpd_per_key: [1, 100000],
+  max_output_tokens: [0, 200000],
 }
 
 const PDF_CHOICE_VALUES: Record<string, readonly string[]> = {
+  provider: ['gemini', 'modelflare'],
+  reasoning_effort: ['', 'minimal', 'low', 'medium', 'high', 'xhigh'],
   thinking_level: ['high', 'medium', 'low', 'minimal'],
   image_format: ['png', 'jpeg'],
   media_resolution: ['ultra_high', 'high', 'medium', 'low', 'unspecified'],
@@ -41,7 +47,10 @@ const PDF_CHOICE_VALUES: Record<string, readonly string[]> = {
 export type PdfConversionOptions = {
   images_per_request: number
   concurrency: number
+  provider: 'gemini' | 'modelflare'
   model: string
+  reasoning_effort: '' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh'
+  max_output_tokens: number
   thinking_level: 'high' | 'medium' | 'low' | 'minimal'
   dpi: number
   image_format: 'png' | 'jpeg'
@@ -137,7 +146,10 @@ function normalizeOptions(raw: unknown): PdfConversionOptions {
       throw new ApiError('转换配置数值格式无效', 502, 'INVALID_CONFIG_RESPONSE')
     }
   }
-  if (!/^gemini-[a-zA-Z0-9._-]{1,100}$/u.test(result.model)) {
+  if (result.provider === 'gemini' && !/^gemini-[a-zA-Z0-9._-]{1,100}$/u.test(result.model)) {
+    throw new ApiError('转换配置模型格式无效', 502, 'INVALID_CONFIG_RESPONSE')
+  }
+  if (result.provider === 'modelflare' && (!/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,100}$/u.test(result.model) || result.model.startsWith('gemini-'))) {
     throw new ApiError('转换配置模型格式无效', 502, 'INVALID_CONFIG_RESPONSE')
   }
   return result
