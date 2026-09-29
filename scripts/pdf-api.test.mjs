@@ -4,7 +4,7 @@ const server = await createServer({ server: { middlewareMode: true }, appType: '
 const originalFetch = globalThis.fetch
 try {
   const { setSession } = await server.ssrLoadModule('/src/lib/session.ts')
-  const { createPdfJob, getPdfConversionConfig, listPdfJobs, pdfDownloadUrl, savePdfConversionConfig } = await server.ssrLoadModule('/src/lib/file-conversion.ts')
+  const { cancelPdfJob, createPdfJob, getPdfConversionConfig, listPdfJobs, pdfDownloadUrl, rerunPdfJob, savePdfConversionConfig } = await server.ssrLoadModule('/src/lib/file-conversion.ts')
   setSession({ token: 'test', record: { id: 'owner-1' }, baseUrl: 'https://pb.example.invalid' })
   let sent
   const config = {
@@ -44,6 +44,14 @@ try {
   assert.equal(sent.body.startPage, 3)
   assert.equal(sent.body.endPage, 4)
   assert.equal('options' in sent.body, false)
+  await createPdfJob('job2', { title: '讲义', sourceUrl: 'https://example.com/book.pdf', outputName: '  ', prompt: '', configId: 'cfg-1' })
+  assert.equal(sent.body.outputName, '')
+  await cancelPdfJob({ id: 'job1', owner: 'owner-1', status: 'running' })
+  assert.equal(sent.url.pathname.endsWith('/aw_pdf_to_md_jobs/records/job1'), true)
+  assert.deepEqual(sent.body, { cancelRequested: true })
+  await rerunPdfJob('rerun1', { id: 'job1', owner: 'owner-1', status: 'failed' })
+  assert.deepEqual(sent.body, { id: 'rerun1', owner: 'owner-1', rerunOf: 'job1' })
+  await assert.rejects(() => rerunPdfJob('rerun2', { id: 'job1', owner: 'owner-1', status: 'running' }), /结束/u)
   globalThis.fetch = async (input, init) => {
     const url = new URL(input)
     if (url.pathname.endsWith('/aw_pdf_to_md_jobs/records') && init?.method === 'POST') {

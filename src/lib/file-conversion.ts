@@ -106,6 +106,8 @@ export interface PdfJob extends PdfJobInput {
   created: string
   updated: string
   finishedAt: string
+  cancelRequested: boolean
+  rerunOf: string
 }
 
 export const pdfStatusLabels: Record<string, string> = {
@@ -225,7 +227,8 @@ export function listPdfJobs(page: number, signal?: AbortSignal) {
 
 export async function createPdfJob(id: string, input: PdfJobInput) {
   if (!input.configId.trim()) throw new ApiError('转换配置尚未加载', 400, 'CONFIG_REQUIRED')
-  const data = { ...input, id, owner: requireSession().record.id, status: 'queued' }
+  const outputName = input.outputName.trim()
+  const data = { ...input, outputName, id, owner: requireSession().record.id, status: 'queued' }
   try {
     return assertOwner(await request<PdfJob>(`/api/collections/${FILE_CONVERSION_JOB_COLLECTION}/records`, { method: 'POST', data }))
   } catch (error) {
@@ -235,13 +238,39 @@ export async function createPdfJob(id: string, input: PdfJobInput) {
       if (
         String(saved.sourceUrl || '').trim() === input.sourceUrl.trim()
         && String(saved.title || '').trim() === input.title.trim()
-        && String(saved.outputName || '').trim() === input.outputName.trim()
+        && String(saved.outputName || '').trim() === (outputName ? outputName.replace(/\.(zip|md)$/iu, '') : input.title.trim())
         && String(saved.prompt || '').trim() === input.prompt.trim()
         && String(saved.configId || '') === input.configId
         && (saved.startPage ?? undefined) === (input.startPage ?? undefined)
         && (saved.endPage ?? undefined) === (input.endPage ?? undefined)
       ) return saved
     } catch { /* Report the original actionable create error. */ }
+    throw error
+  }
+}
+
+const activePdfStatuses = new Set(['queued', 'dispatching', 'pending', 'running', 'uploading'])
+const terminalPdfStatuses = new Set(['succeeded', 'partial', 'failed', 'canceled'])
+
+export async function cancelPdfJob(job: Pick<PdfJob, 'id' | 'owner' | 'status'>): Promise<PdfJob> {
+  assertOwner(job)
+  if (!activePdfStatuses.has(job.status)) throw new ApiError('任务已经结束', 409, 'JOB_TERMINAL')
+  return assertOwner(await request<PdfJob>(`/api/collections/${FILE_CONVERSION_JOB_COLLECTION}/records/${encodeURIComponent(job.id)}`, {
+    method: 'PATCH', data: { cancelRequested: true },
+  }))
+}
+
+export async function rerunPdfJob(id: string, job: Pick<PdfJob, 'id' | 'owner' | 'status'>): Promise<PdfJob> {
+  assertOwner(job)
+  if (!terminalPdfStatuses.has(job.status)) throw new ApiError('只能重跑已结束的任务', 409, 'JOB_ACTIVE')
+  const data = { id, owner: requireSession().record.id, rerunOf: job.id }
+  try {
+    return assertOwner(await request<PdfJob>(`/api/collections/${FILE_CONVERSION_JOB_COLLECTION}/records`, { method: 'POST', data }))
+  } catch (error) {
+    try {
+      const saved = assertOwner(await request<PdfJob>(`/api/collections/${FILE_CONVERSION_JOB_COLLECTION}/records/${encodeURIComponent(id)}`))
+      if (saved.rerunOf === job.id) return saved
+    } catch { /* Preserve the original create error. */ }
     throw error
   }
 }

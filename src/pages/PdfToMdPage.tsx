@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { Download, ExternalLink, FileText, LoaderCircle, Play, RefreshCw, Save } from 'lucide-react'
+import { CircleStop, Download, ExternalLink, FileText, LoaderCircle, Play, RefreshCw, RotateCcw, Save } from 'lucide-react'
 import { AppPage, PageHeader } from '@/components/app/ui'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,12 +8,14 @@ import { Select } from '@/components/ui/select'
 import { useAsyncData } from '@/hooks/useAsyncData'
 import {
   createPdfJob,
+  cancelPdfJob,
   DEFAULT_PDF_TO_MD_OPTIONS,
   getPdfConversionConfig,
   listPdfJobs,
   MAX_SYSTEM_PROMPT_CHARS,
   pdfDownloadUrl,
   pdfStatusLabels,
+  rerunPdfJob,
   savePdfConversionConfig,
   type FileConversionConfig,
   type PdfPageRange,
@@ -75,6 +77,7 @@ export function PdfToMdPage() {
   const [page, setPage] = useState(1)
   const [submitting, setSubmitting] = useState(false)
   const [downloading, setDownloading] = useState('')
+  const [acting, setActing] = useState('')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [config, setConfig] = useState<FileConversionConfig | null>(null)
@@ -86,6 +89,7 @@ export function PdfToMdPage() {
   const [configSaving, setConfigSaving] = useState(false)
   const [configError, setConfigError] = useState('')
   const submission = useRef<{ id: string; payload: string } | null>(null)
+  const rerunSubmission = useRef<{ parentId: string; id: string } | null>(null)
   const busy = useRef(false)
   const jobs = useAsyncData((signal) => listPdfJobs(page, signal), [page], { pollMs: 5000 })
 
@@ -156,6 +160,10 @@ export function PdfToMdPage() {
     if (!config) { setError(configError || '转换配置尚未加载，请刷新重试'); return }
     const form = new FormData(event.currentTarget)
     const text = (key: string) => String(form.get(key) || '').trim()
+    if (!text('outputName') && text('title').length > 120) {
+      setError('任务名称超过 120 个字符，请填写较短的产物文件名')
+      return
+    }
     if (draftPageRange.end_page !== undefined && draftPageRange.start_page !== undefined && draftPageRange.end_page < draftPageRange.start_page) {
       setError('结束页不能小于起始页')
       return
@@ -202,6 +210,29 @@ export function PdfToMdPage() {
     finally { setDownloading('') }
   }
 
+  async function cancel(job: PdfJob) {
+    setActing(`${job.id}:cancel`); setError(''); setNotice('')
+    try {
+      await cancelPdfJob(job)
+      setNotice(`已请求结束「${job.title}」，状态会自动更新。`)
+      await jobs.reload()
+    } catch (cause) { setError(cause instanceof Error ? cause.message : '结束任务失败，请重试') }
+    finally { setActing('') }
+  }
+
+  async function rerun(job: PdfJob) {
+    if (rerunSubmission.current?.parentId !== job.id) rerunSubmission.current = { parentId: job.id, id: crypto.randomUUID().replaceAll('-', '').slice(0, 15) }
+    setActing(`${job.id}:rerun`); setError(''); setNotice('')
+    try {
+      await rerunPdfJob(rerunSubmission.current.id, job)
+      rerunSubmission.current = null
+      setNotice(`已重跑「${job.title}」，沿用原任务的转换参数。`)
+      if (page !== 1) setPage(1)
+      else await jobs.reload()
+    } catch (cause) { setError(cause instanceof Error ? cause.message : '重跑失败，请重试') }
+    finally { setActing('') }
+  }
+
     return <AppPage>
     <PageHeader title="文件转换" description="使用保存的参数处理文件；当前支持 PDF → Markdown，下载 ZIP 产物。" />
     <div className="grid min-w-0 gap-8 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
@@ -214,7 +245,7 @@ export function PdfToMdPage() {
           <fieldset disabled={submitting || configLoading} className="min-w-0 space-y-4">
             <div className="space-y-2"><Label htmlFor="pdf-title">任务名称</Label><Input id="pdf-title" name="title" required maxLength={200} placeholder="例如：数学讲义" /></div>
             <div className="space-y-2"><Label htmlFor="pdf-source">PDF 源文件地址</Label><Input id="pdf-source" name="sourceUrl" type="url" required maxLength={4096} placeholder="https://…" aria-describedby="pdf-source-help" /><p id="pdf-source-help" className="text-xs text-muted-foreground">支持公开 PDF 直链或 Google Drive 分享链接。源 PDF 不存入文件库。</p></div>
-            <div className="space-y-2"><Label htmlFor="pdf-output">产物文件名</Label><Input id="pdf-output" name="outputName" required maxLength={120} placeholder="例如：数学讲义-第一章" aria-describedby="pdf-name-help" /><p id="pdf-name-help" className="text-xs text-muted-foreground">自动添加 .zip；包内合并文档使用同名 .md。</p></div>
+            <div className="space-y-2"><Label htmlFor="pdf-output">产物文件名（可选）</Label><Input id="pdf-output" name="outputName" maxLength={120} placeholder="留空时使用任务名称" aria-describedby="pdf-name-help" /><p id="pdf-name-help" className="text-xs text-muted-foreground">留空时与任务名称相同；自动添加 .zip，包内文档使用同名 .md。</p></div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2"><Label htmlFor="pdf-start">起始页（可选）</Label><Input id="pdf-start" name="start_page" type="number" min={1} max={100000} step={1} placeholder="1" value={draftPageRange.start_page ?? ''} onChange={(event) => updatePageRange('start_page', event.target.value ? Number(event.target.value) : undefined)} /></div>
               <div className="space-y-2"><Label htmlFor="pdf-end">结束页（可选）</Label><Input id="pdf-end" name="end_page" type="number" min={1} max={100000} step={1} placeholder="末页" value={draftPageRange.end_page ?? ''} onChange={(event) => updatePageRange('end_page', event.target.value ? Number(event.target.value) : undefined)} /></div>
@@ -251,12 +282,14 @@ export function PdfToMdPage() {
         {jobs.data?.items.length === 0 && <div className="border-y border-dashed border-border py-12 text-center text-muted-foreground"><FileText className="mx-auto mb-3 size-6" /><p className="text-sm">暂无转换记录</p></div>}
         <div className="divide-y divide-border">
           {jobs.data?.items.map((job) => <article key={job.id} className="min-w-0 py-4">
-            <div className="flex flex-wrap items-start justify-between gap-2"><h3 className="min-w-0 break-all text-sm font-semibold">{job.title}</h3><span className={`shrink-0 rounded bg-muted px-2 py-1 text-xs ${job.status === 'succeeded' ? 'text-success' : job.status === 'failed' ? 'text-danger' : 'text-muted-foreground'}`}>{pdfStatusLabels[job.status] || job.status}</span></div>
+            <div className="flex flex-wrap items-start justify-between gap-2"><h3 className="min-w-0 break-all text-sm font-semibold">{job.title}</h3><span className={`shrink-0 rounded bg-muted px-2 py-1 text-xs ${job.status === 'succeeded' ? 'text-success' : job.status === 'failed' ? 'text-danger' : 'text-muted-foreground'}`}>{job.cancelRequested && ['queued', 'dispatching', 'pending', 'running', 'uploading'].includes(job.status) ? '结束中' : pdfStatusLabels[job.status] || job.status}</span></div>
             <p className="mt-1 break-all text-xs text-muted-foreground">{job.outputName}.zip{job.fileSize > 0 ? ` · ${(job.fileSize / 1024).toFixed(1)} KB` : ''}</p>
             <p className="mt-2 text-xs text-muted-foreground">提交于 {dateLabel(job.created)}</p>
             {job.error && <p className="mt-2 break-words text-xs text-danger">{job.error}</p>}
             <details className="mt-2 text-xs text-muted-foreground"><summary className="cursor-pointer py-1 focus-visible:outline-ring">查看参数</summary><div className="mt-2 space-y-2 break-all"><p>{job.sourceUrl}</p>{job.prompt && <p>本次要求：{job.prompt}</p>}{job.systemPrompt && <p className="whitespace-pre-wrap">系统提示词：{job.systemPrompt}</p>}<dl className="grid grid-cols-2 gap-2">{Object.entries(job.options || {}).map(([key, value]) => <div key={key}><dt>{key}</dt><dd className="text-foreground">{value}</dd></div>)}</dl>{job.finishedAt && <p>结束于 {dateLabel(job.finishedAt)}</p>}</div></details>
             <div className="mt-3 flex flex-wrap gap-2">
+              {['queued', 'dispatching', 'pending', 'running', 'uploading'].includes(job.status) && <Button size="sm" variant="outline" className="min-h-10" disabled={Boolean(acting) || job.cancelRequested} onClick={() => void cancel(job)}>{acting === `${job.id}:cancel` ? <LoaderCircle className="animate-spin" /> : <CircleStop />}{job.cancelRequested || acting === `${job.id}:cancel` ? '结束中…' : '结束任务'}</Button>}
+              {['succeeded', 'partial', 'failed', 'canceled'].includes(job.status) && <Button size="sm" variant="outline" className="min-h-10" disabled={Boolean(acting)} onClick={() => void rerun(job)}>{acting === `${job.id}:rerun` ? <LoaderCircle className="animate-spin" /> : <RotateCcw />}{acting === `${job.id}:rerun` ? '重跑中…' : '重跑'}</Button>}
               {job.file && <Button size="sm" className="min-h-10" disabled={Boolean(downloading)} onClick={() => void download(job)}>{downloading === job.id ? <LoaderCircle className="animate-spin" /> : <Download />}{downloading === job.id ? '下载中…' : '下载 ZIP'}</Button>}
               {/^[0-9]+$/.test(job.githubRunId) && <Button size="sm" variant="outline" className="min-h-10" asChild><a href={`https://github.com/ActiveInsighter/file-converter-ai/actions/runs/${job.githubRunId}`} target="_blank" rel="noreferrer"><ExternalLink />运行详情</a></Button>}
             </div>

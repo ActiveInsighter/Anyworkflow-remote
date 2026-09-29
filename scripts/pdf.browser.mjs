@@ -5,7 +5,7 @@ const context = await browser.newContext({ viewport: { width: 1440, height: 1000
 const page = await context.newPage()
 const errors = []
 page.on('pageerror', e => errors.push(e.message))
-let created, config, mode = 'empty', postCount = 0, tokenCalls = 0, configPatchCount = 0, configListCalls = 0
+let created, config, mode = 'empty', postCount = 0, tokenCalls = 0, configPatchCount = 0, configListCalls = 0, cancelCount = 0, rerunBody
 await context.addInitScript(() => localStorage.setItem('anyworkflow.auth.session.v1', JSON.stringify({ token: 'fixture-token', record: { id: 'owner-1' }, baseUrl: 'https://pb.example.invalid' })))
 await context.route('https://pb.example.invalid/**', async route => {
  const req = route.request(), url = new URL(req.url())
@@ -26,8 +26,18 @@ await context.route('https://pb.example.invalid/**', async route => {
  if (req.method() === 'POST' && url.pathname.includes('/aw_pdf_to_md_jobs/records')) {
    postCount++
    const body = req.postDataJSON()
-   created = { ...body, file: '', githubRunId: '123', status: 'queued', options: { ...config.options, ...(body.startPage !== undefined ? { start_page: body.startPage } : {}), ...(body.endPage !== undefined ? { end_page: body.endPage } : {}) }, created: new Date().toISOString(), updated: new Date().toISOString() }
+   if (body.rerunOf) {
+     rerunBody = body
+     created = { ...created, id: body.id, rerunOf: body.rerunOf, status: 'queued', cancelRequested: false, file: '', githubRunId: '', created: new Date().toISOString() }
+     mode = 'created'; return route.fulfill({ json: created })
+   }
+   created = { ...body, outputName: body.outputName || body.title, file: '', githubRunId: '123', status: 'queued', options: { ...config.options, ...(body.startPage !== undefined ? { start_page: body.startPage } : {}), ...(body.endPage !== undefined ? { end_page: body.endPage } : {}) }, created: new Date().toISOString(), updated: new Date().toISOString() }
    mode = 'created'; return route.fulfill({ json: created })
+ }
+ if (req.method() === 'PATCH' && url.pathname.includes('/aw_pdf_to_md_jobs/records/')) {
+   cancelCount++
+   created = { ...created, cancelRequested: true }
+   return route.fulfill({ json: created })
  }
  const items = mode === 'empty' ? [] : [{ ...created, ...(mode === 'done' ? { status: 'succeeded', file: 'result.zip', fileSize: 100 } : {}) }]
  return route.fulfill({ json: { items, totalItems: items.length, totalPages: 1, page: 1, perPage: 20 } })
@@ -37,7 +47,7 @@ try {
  await page.getByText('暂无转换记录', { exact: true }).waitFor()
  if (process.env.CONFIG_LOAD_FAILURE) await page.getByText(/fixture config load failed/u).waitFor()
  else await page.getByText(/配置已加载/u).waitFor()
- await page.getByText('高级参数（独立保存）', { exact: true }).click()
+ await page.getByText(/转换配置：系统提示词与高级参数/u).click()
  const imagesPerRequest = page.getByLabel('每次请求页数', { exact: true })
  await imagesPerRequest.fill('')
  await imagesPerRequest.pressSequentially('1')
@@ -73,13 +83,24 @@ assert.equal(created.outputName, '数学笔记')
  assert.equal(created.options.concurrency, 60)
  assert.equal(created.options.start_page, 1)
  assert.equal(configPatchCount, 1)
+ await page.getByRole('button', { name: '结束任务', exact: true }).click()
+ await page.getByText('结束中', { exact: true }).waitFor()
+ assert.equal(cancelCount, 1)
  mode = 'done'
  await page.getByRole('button', { name: '刷新', exact: true }).click()
  await page.getByText('已完成', { exact: true }).waitFor()
+ const originalId = created.id
  const event = page.waitForEvent('download')
  await page.getByRole('button', { name: '下载 ZIP', exact: true }).click()
  assert.equal((await event).suggestedFilename(), '数学笔记.zip')
  assert.equal(tokenCalls, 1)
+ await page.getByRole('button', { name: '重跑', exact: true }).click()
+ assert.equal(postCount, 2)
+ assert.equal(rerunBody.rerunOf, originalId)
+ await page.getByLabel('产物文件名（可选）').fill('')
+ await page.getByRole('button', { name: '开始转换', exact: true }).click()
+ assert.equal(postCount, 3)
+ assert.equal(created.outputName, '数学讲义')
  assert.deepEqual(errors, [])
  console.log('PDF browser: submit, options, states, protected download and 320/390/760/1440 layouts passed')
 } finally { await browser.close() }
