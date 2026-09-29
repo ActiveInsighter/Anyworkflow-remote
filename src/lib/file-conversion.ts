@@ -4,6 +4,9 @@ import { requireSession } from './session'
 export const FILE_CONVERSION_CONFIG_COLLECTION = 'aw_file_conversion_configs'
 export const FILE_CONVERSION_JOB_COLLECTION = 'aw_pdf_to_md_jobs'
 export const PDF_CONVERSION_TYPE = 'pdf_to_md'
+// Matches the PocketBase systemPrompt field. Each conversion sends the saved
+// system prompt followed by the per-task prompt, so both stay independent.
+export const MAX_SYSTEM_PROMPT_CHARS = 12000
 
 export const DEFAULT_PDF_TO_MD_OPTIONS = {
   images_per_request: 1,
@@ -61,6 +64,7 @@ export interface FileConversionConfig {
   owner: string
   conversionType: typeof PDF_CONVERSION_TYPE
   name: string
+  systemPrompt: string
   options: PdfConversionOptions
   revision: number
   created: string
@@ -82,6 +86,8 @@ export interface PdfJob extends PdfJobInput {
   owner: string
   conversionType: string
   configRevision: number
+  /** Snapshot of the config system prompt taken when the job was created. */
+  systemPrompt: string
   options: PdfJobOptions
   status: string
   file: string
@@ -137,11 +143,21 @@ function normalizeOptions(raw: unknown): PdfConversionOptions {
   return result
 }
 
+function normalizeSystemPrompt(raw: unknown): string {
+  // Older backends have no field yet: an absent value means "use the built-in
+  // prompt", which PocketBase replaces with the stored default on save.
+  if (raw === undefined || raw === null || raw === '') return ''
+  if (typeof raw !== 'string') throw new ApiError('转换配置返回格式无效', 502, 'INVALID_CONFIG_RESPONSE')
+  const text = raw.trim()
+  if (text.length > MAX_SYSTEM_PROMPT_CHARS) throw new ApiError('转换配置返回格式无效', 502, 'INVALID_CONFIG_RESPONSE')
+  return text
+}
+
 function normalizeConfig(record: FileConversionConfig): FileConversionConfig {
   if (record.conversionType !== PDF_CONVERSION_TYPE || !record.id || !record.owner || !Number.isSafeInteger(record.revision) || record.revision < 1) {
     throw new ApiError('转换配置返回格式无效', 502, 'INVALID_CONFIG_RESPONSE')
   }
-  return { ...record, options: normalizeOptions(record.options) }
+  return { ...record, systemPrompt: normalizeSystemPrompt(record.systemPrompt), options: normalizeOptions(record.options) }
 }
 
 export async function getPdfConversionConfig(signal?: AbortSignal): Promise<FileConversionConfig> {
@@ -178,12 +194,14 @@ export async function getPdfConversionConfig(signal?: AbortSignal): Promise<File
   }
 }
 
-export async function savePdfConversionConfig(config: FileConversionConfig, options: PdfConversionOptions): Promise<FileConversionConfig> {
+export async function savePdfConversionConfig(config: FileConversionConfig, options: PdfConversionOptions, systemPrompt: string): Promise<FileConversionConfig> {
   assertOwner(config)
   const normalized = normalizeOptions(options)
+  if (systemPrompt.trim().length > MAX_SYSTEM_PROMPT_CHARS) throw new ApiError(`系统提示词不能超过 ${MAX_SYSTEM_PROMPT_CHARS} 个字符`, 400, 'PROMPT_TOO_LONG')
+  const prompt = normalizeSystemPrompt(systemPrompt)
   return normalizeConfig(assertOwner(await request<FileConversionConfig>(
     `/api/collections/${FILE_CONVERSION_CONFIG_COLLECTION}/records/${encodeURIComponent(config.id)}`,
-    { method: 'PATCH', data: { options: normalized } },
+    { method: 'PATCH', data: { options: normalized, systemPrompt: prompt } },
   )))
 }
 

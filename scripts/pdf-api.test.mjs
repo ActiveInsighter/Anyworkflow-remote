@@ -9,6 +9,7 @@ try {
   let sent
   const config = {
     id: 'cfg-1', owner: 'owner-1', conversionType: 'pdf_to_md', name: '默认配置', revision: 2,
+    systemPrompt: '系统提示词-1',
     options: { concurrency: 5, model: 'gemini-3.5-flash-lite' },
   }
   globalThis.fetch = async (input, init) => {
@@ -25,10 +26,14 @@ try {
   const loaded = await getPdfConversionConfig()
   assert.equal(loaded.id, 'cfg-1')
   assert.equal(loaded.options.concurrency, 5)
-  await assert.rejects(() => savePdfConversionConfig(loaded, { ...loaded.options, concurrency: 101 }), /数值格式无效/u)
-  const saved = await savePdfConversionConfig(loaded, { ...loaded.options, concurrency: 60 })
+  assert.equal(loaded.systemPrompt, '系统提示词-1')
+  await assert.rejects(() => savePdfConversionConfig(loaded, { ...loaded.options, concurrency: 101 }, loaded.systemPrompt), /数值格式无效/u)
+  await assert.rejects(() => savePdfConversionConfig(loaded, loaded.options, 'x'.repeat(12001)), /系统提示词不能超过/u)
+  const saved = await savePdfConversionConfig(loaded, { ...loaded.options, concurrency: 60 }, '  系统提示词-2  ')
   assert.equal(saved.revision, 3)
+  assert.equal(saved.systemPrompt, '系统提示词-2')
   assert.equal(sent.body.options.concurrency, 60)
+  assert.equal(sent.body.systemPrompt, '系统提示词-2')
   await createPdfJob('job1', { title: 'Book', sourceUrl: 'https://example.com/book.pdf', outputName: 'Book', prompt: '', configId: 'cfg-1', startPage: 3, endPage: 4 })
   assert.equal(sent.body.owner, 'owner-1')
   assert.equal(sent.body.id, 'job1')
@@ -62,5 +67,9 @@ try {
   assert.equal(new URL(link).searchParams.get('download'), '1')
   globalThis.fetch = async () => Response.json({ items: [{ ...config, options: { ...config.options, dpi: 500 } }] })
   await assert.rejects(() => getPdfConversionConfig(), /格式无效/)
+  // A backend that predates the system prompt field must still load, so the page
+  // keeps working while PocketBase is being upgraded.
+  globalThis.fetch = async () => Response.json({ items: [{ ...config, systemPrompt: undefined }] })
+  assert.equal((await getPdfConversionConfig()).systemPrompt, '')
   console.log('pdf-api: ownership, create identity and protected download passed')
 } finally { globalThis.fetch = originalFetch; await server.close() }
