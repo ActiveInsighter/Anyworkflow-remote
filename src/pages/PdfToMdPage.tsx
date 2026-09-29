@@ -26,7 +26,7 @@ const numberFields = [
   ['images_per_request', '每次请求页数', 1, 20], ['concurrency', '并发请求数', 1, 100],
   ['dpi', '图像 DPI', 72, 300], ['jpeg_quality', 'JPEG 质量', 50, 100],
   ['verification_passes', '额外审校次数', 0, 3], ['rpm_per_key', '每 Key 每分钟请求数', 1, 1000],
-  ['rpd_per_key', '每 Key 每日请求上限', 1, 100000],
+  ['rpd_per_key', '每 Key 每日请求上限', 1, 100000], ['max_output_tokens', '输出 Token 上限（0 为自动）', 0, 200000],
 ] as const
 type NumericOptionKey = typeof numberFields[number][0]
 type NumericDraft = Record<NumericOptionKey, string>
@@ -65,6 +65,7 @@ function configErrorMessage(cause: unknown): string {
 
 const choiceFields = [
   ['thinking_level', '思考深度', ['high', 'medium', 'low', 'minimal']],
+  ['reasoning_effort', 'ModelFlare 推理强度', ['', 'minimal', 'low', 'medium', 'high', 'xhigh']],
   ['image_format', '图像格式', ['png', 'jpeg']],
   ['media_resolution', '视觉分辨率', ['ultra_high', 'high', 'medium', 'low', 'unspecified']],
 ] as const
@@ -230,9 +231,10 @@ export function PdfToMdPage() {
               <p id="pdf-system-prompt-help" className="text-xs text-muted-foreground">每次转换都会先发送这段提示词，再发送新建任务时填写的「转换要求」，两者按顺序拼接、互不覆盖。保存时留空会恢复内置默认提示词。当前 {draftSystemPrompt.length} / {MAX_SYSTEM_PROMPT_CHARS} 字符。</p>
             </div>
             <div className="mt-4 grid min-w-0 grid-cols-2 gap-4">
-              <div className="col-span-2 space-y-2"><Label htmlFor="pdf-model">Gemini 模型</Label><Input id="pdf-model" name="model" required value={draftOptions.model} maxLength={107} onChange={(event) => updateOption('model', event.target.value)} /></div>
+              <div className="col-span-2 space-y-2"><Label htmlFor="pdf-provider">模型接口</Label><Select id="pdf-provider" name="provider" value={draftOptions.provider} onChange={(event) => setDraftOptions((current) => ({ ...current, provider: event.target.value as PdfConversionOptions['provider'], model: event.target.value === 'gemini' ? DEFAULT_PDF_TO_MD_OPTIONS.model : '' }))} containerClassName="w-full"><option value="gemini">Gemini</option><option value="modelflare">ModelFlare</option></Select></div>
+              <div className="col-span-2 space-y-2"><Label htmlFor="pdf-model">{draftOptions.provider === 'gemini' ? 'Gemini 模型' : 'ModelFlare 视觉模型 ID'}</Label><Input id="pdf-model" name="model" required value={draftOptions.model} maxLength={107} onChange={(event) => updateOption('model', event.target.value)} /></div>
               {numberFields.map(([key, label, minimum, maximum]) => <div key={key} className="min-w-0 space-y-2"><Label htmlFor={`pdf-${key}`}>{label}</Label><Input id={`pdf-${key}`} name={key} type="text" inputMode="numeric" pattern="[0-9]*" required value={draftNumberText[key]} onChange={(event) => updateNumberDraft(key, event.target.value)} onBlur={(event) => commitNumberDraft(key, event.currentTarget.value)} aria-describedby={key === 'concurrency' ? 'pdf-concurrency-help' : undefined} aria-invalid={Boolean(error && 'error' in parseNumberDraft(key, draftNumberText[key]))} />{key === 'concurrency' && <p id="pdf-concurrency-help" className="text-xs text-muted-foreground">允许 {minimum}–{maximum} 个并发请求</p>}</div>)}
-              {choiceFields.map(([key, label, values]) => <div key={key} className="min-w-0 space-y-2"><Label htmlFor={`pdf-${key}`}>{label}</Label><Select id={`pdf-${key}`} name={key} value={draftOptions[key]} onChange={(event) => updateOption(key, event.target.value)} containerClassName="w-full">{values.map((value) => <option key={value} value={value}>{value}</option>)}</Select></div>)}
+              {choiceFields.filter(([key]) => (key === 'reasoning_effort' ? draftOptions.provider === 'modelflare' : key === 'thinking_level' ? draftOptions.provider === 'gemini' : true)).map(([key, label, values]) => <div key={key} className="min-w-0 space-y-2"><Label htmlFor={`pdf-${key}`}>{label}</Label><Select id={`pdf-${key}`} name={key} value={draftOptions[key]} onChange={(event) => updateOption(key, event.target.value)} containerClassName="w-full">{values.map((value) => <option key={value} value={value}>{value || '自动'}</option>)}</Select></div>)}
             </div>
           </details>
           <Button type="button" variant="outline" className="mt-4 min-h-10" onClick={() => void saveConfig()} disabled={configLoading || configSaving}><Save />{configSaving ? '保存中…' : '保存配置'}</Button>
