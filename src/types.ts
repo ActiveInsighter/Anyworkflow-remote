@@ -20,6 +20,9 @@ export interface AuthSession {
 }
 
 export interface DispatchRunRecord {
+  runtimeConfig?: import('./lib/runtime-config').RuntimeConfig | null
+  runtimeConfigChecksum?: string
+  runtimeDefaultRevision?: number
   id: string
   owner: string
   title: string
