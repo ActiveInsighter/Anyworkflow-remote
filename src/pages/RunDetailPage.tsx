@@ -17,6 +17,7 @@ import {
   Zap,
 } from 'lucide-react'
 import { useState } from 'react'
+import { RunRuntimeSummary } from '@/components/run/RunRuntimeSummary'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import {
   AppPage,
@@ -357,6 +358,7 @@ export function RunDetailPage() {
           <span>更新 {formatDateTime(run.updated)}</span>
         </div>
         {run.lastError ? <div className="mt-3"><InlineError>{run.lastError}</InlineError></div> : null}
+        <RunRuntimeSummary run={run} />
       </section>
 
       {versionsState.error ? <ErrorBanner>{versionsState.error}</ErrorBanner> : null}

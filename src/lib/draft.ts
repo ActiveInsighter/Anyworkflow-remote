@@ -1,9 +1,11 @@
 import type { DispatchExecutionMode } from '../types'
 import { readStorage, removeStorage, writeStorage } from './storage'
+import { normalizeRuntimeConfig, type RuntimeConfig } from './runtime-config'
 
 const PREFIX = 'anyworkflow.editor-draft.'
 
 export interface EditorDraft {
+  runtimeConfig?: RuntimeConfig | null
   source: string
   title: string
   mode: DispatchExecutionMode
@@ -20,7 +22,16 @@ export interface EditorDraft {
  */
 export type DraftScope = string
 
-export function draftScopeFor(ownerId: string | undefined, runId?: string, templateId?: string): DraftScope {
+export function draftScopeFor(baseUrl: string | undefined, ownerId: string | undefined, runId?: string, templateId?: string): DraftScope {
+  const backend = baseUrl?.trim().replace(/\/+$/u, '') || 'disconnected'
+  const owner = JSON.stringify([backend, ownerId?.trim() || 'anonymous'])
+  if (runId) return `${owner}:run:${runId}`
+  if (templateId) return `${owner}:template:${templateId}`
+  return `${owner}:new`
+}
+
+/** Legacy keys do not identify a backend. Read only for an explicitly confirmed recovery. */
+export function legacyDraftScopeFor(ownerId: string | undefined, runId?: string, templateId?: string): DraftScope {
   const owner = ownerId?.trim() || 'anonymous'
   if (runId) return `${owner}:run:${runId}`
   if (templateId) return `${owner}:template:${templateId}`
@@ -45,6 +56,7 @@ export function readEditorDraft(scope: DraftScope): EditorDraft | null {
       templateTitle: typeof parsed.templateTitle === 'string' ? parsed.templateTitle : '',
       scheduledAt: typeof parsed.scheduledAt === 'string' ? parsed.scheduledAt : '',
       savedAt: typeof parsed.savedAt === 'number' ? parsed.savedAt : 0,
+      ...(parsed.runtimeConfig !== undefined ? { runtimeConfig: parsed.runtimeConfig === null ? null : normalizeRuntimeConfig(parsed.runtimeConfig) } : {}),
     }
   } catch {
     return null

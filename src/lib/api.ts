@@ -15,6 +15,7 @@ import { parsePlanMeta } from './plan'
 import { isFutureScheduledAt, isValidScheduledAt } from './schedule'
 import { validateWorkflowSource } from './workflow-dsl'
 import { selectHistoryEventsForDispatchEvent } from './history'
+import { normalizeRuntimeConfig, type RuntimeConfig } from './runtime-config'
 import { ApiError, assertOwner, collectPages, listOwnedCollection, quoteFilter, request } from './pocketbase'
 import type {
   AuthSession,
@@ -45,6 +46,7 @@ function normalizeRun<T extends DispatchRunRecord>(run: T): T {
     : 'initial'
   return {
     ...run,
+    runtimeConfig: run.runtimeConfig == null ? null : normalizeRuntimeConfig(run.runtimeConfig),
     familyId: typeof run.familyId === 'string' && run.familyId ? run.familyId : run.id,
     versionNumber: Number.isSafeInteger(run.versionNumber) && run.versionNumber > 0 ? run.versionNumber : 1,
     versionMajor: Number.isSafeInteger(run.versionMajor) && run.versionMajor > 0 ? run.versionMajor : 1,
@@ -153,6 +155,7 @@ function savedCreateMatches(
     maxConcurrency: number
     parentRun: string
     origin: DispatchRunOrigin
+    runtimeConfig?: RuntimeConfig | null
   },
 ): boolean {
   const statusMatches = expected.status === 'draft'
@@ -161,20 +164,23 @@ function savedCreateMatches(
   return run.title === expected.title && samePlanText(run.planText, expected.planText) &&
     statusMatches && sameScheduledAt(run.scheduledAt, expected.scheduledAt) &&
     run.executionMode === expected.executionMode && run.maxConcurrency === expected.maxConcurrency &&
-    run.parentRun === expected.parentRun && run.origin === expected.origin
+    run.parentRun === expected.parentRun && run.origin === expected.origin &&
+    (expected.runtimeConfig === undefined || JSON.stringify(run.runtimeConfig) === JSON.stringify(expected.runtimeConfig))
 }
 
 function savedDraftUpdateMatches(
   run: DispatchRunRecord,
   expected: { title: string; planText: string; executionMode: string; maxConcurrency: number },
-  options: { publish?: boolean; scheduledAt?: string },
+  options: { publish?: boolean; scheduledAt?: string; runtimeConfig?: RuntimeConfig | null },
 ): boolean {
   const statusMatches = options.publish
     ? ['queued', 'running', 'succeeded', 'failed', 'canceled'].includes(run.status)
     : run.status === 'draft'
   return statusMatches && run.title === expected.title && samePlanText(run.planText, expected.planText) &&
     run.executionMode === expected.executionMode && run.maxConcurrency === expected.maxConcurrency &&
-    (options.scheduledAt === undefined || sameScheduledAt(run.scheduledAt, options.scheduledAt))
+    (options.scheduledAt === undefined || sameScheduledAt(run.scheduledAt, options.scheduledAt)) &&
+    (options.runtimeConfig === undefined || options.runtimeConfig === null ||
+      JSON.stringify(run.runtimeConfig) === JSON.stringify(normalizeRuntimeConfig(options.runtimeConfig)))
 }
 
 export async function login(identity: string, password: string, baseUrlValue: string): Promise<AuthSession> {
@@ -252,12 +258,14 @@ export async function createRun(
   status: 'draft' | 'queued',
   scheduledAt = '',
   lineage: { parentRun: string; origin: Exclude<DispatchRunOrigin, 'initial'>; title?: string } | null = null,
+  runtimeConfig?: RuntimeConfig | null,
 ): Promise<DispatchRunRecord> {
   const session = requireSession()
   const checkedPlan = checkedPlanText(planText, status === 'queued')
   const meta = parsePlanMeta(checkedPlan)
   const checkedSchedule = checkedScheduledAt(scheduledAt)
   const origin: DispatchRunOrigin = lineage?.origin ?? 'initial'
+  const checkedRuntime = runtimeConfig == null ? undefined : normalizeRuntimeConfig(runtimeConfig)
   const expected = {
     title: lineage?.title ?? meta.title,
     planText: checkedPlan,
@@ -267,6 +275,7 @@ export async function createRun(
     maxConcurrency: meta.maxConcurrency,
     parentRun: lineage?.parentRun ?? '',
     origin,
+    runtimeConfig: checkedRuntime,
   }
   const runId = newRunId()
   const data: Record<string, unknown> = {
@@ -280,6 +289,7 @@ export async function createRun(
     status: expected.status,
     requestedAction: 'none',
     commandVersion: 0,
+    ...(checkedRuntime ? { runtimeConfig: checkedRuntime } : {}),
     ...(lineage ? { parentRun: lineage.parentRun, origin: lineage.origin } : {}),
   }
   // PocketBase date fields should be omitted for an immediate Run. Sending an
@@ -323,7 +333,7 @@ export async function createRun(
 export async function updateRunDraft(
   id: string,
   planText: string,
-  options: { publish?: boolean; scheduledAt?: string } = {},
+  options: { publish?: boolean; scheduledAt?: string; runtimeConfig?: RuntimeConfig | null } = {},
 ): Promise<DispatchRunRecord> {
   const current = await getRun(id)
   if (current.status !== 'draft') {
@@ -340,6 +350,7 @@ export async function updateRunDraft(
     maxConcurrency: meta.maxConcurrency,
   }
   if (options.publish) data.status = 'queued'
+  if (options.runtimeConfig != null) data.runtimeConfig = normalizeRuntimeConfig(options.runtimeConfig)
   if (options.scheduledAt !== undefined) {
     const checkedSchedule = checkedScheduledAt(options.scheduledAt)
     // Omit an unchanged empty date. PocketBase can reject an empty date value
@@ -399,12 +410,13 @@ export async function createEditedRun(
   planText: string,
   status: 'draft' | 'queued',
   scheduledAt = '',
+  runtimeConfig?: RuntimeConfig | null,
 ): Promise<DispatchRunRecord> {
   const source = await getRun(sourceId)
   if (!['succeeded', 'failed', 'canceled'].includes(source.status)) {
     throw new ApiError('只能基于已结束的 Run 创建编辑版本', 409, 'RUN_NOT_TERMINAL')
   }
-  return createRun(planText, status, scheduledAt, { parentRun: source.id, origin: 'edited_rerun' })
+  return createRun(planText, status, scheduledAt, { parentRun: source.id, origin: 'edited_rerun' }, runtimeConfig)
 }
 
 export async function cloneRun(source: DispatchRunRecord, status: 'draft' | 'queued'): Promise<DispatchRunRecord> {
