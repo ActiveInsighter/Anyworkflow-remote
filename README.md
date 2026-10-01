@@ -204,6 +204,19 @@ node scripts/history-messages.browser.mjs
 可设置 `TEST_BASE_URL` 验证预览部署，设置 `SCREENSHOT_DIR` 保存截图。
 浏览器用例覆盖终态延迟入库、0→1→2 条消息、详情更新、分页、失败重试、键盘焦点和响应式布局。
 
+## 编辑器操作
+
+编辑器的变量按钮始终将声明插入光标所属 Task（包括 Codex）的头部，放在已有配置和变量
+之后、所有 Event 之前。新变量使用未占用的合法名称，并选中名称供修改。
+智能复制与智能删除使用相同规则：光标紧邻或选中结构括号时处理整块，否则处理当前行
+或选中行。选择全文仍可复制完整工作流，消息块的重复后缀随块一起处理。
+
+编辑器的结构扫描位于 `source-structure.ts`，无副作用的插入和范围规划位于
+`editor-commands.ts`，CodeMirror 事务与剪贴板操作位于 `useEditorCommands.ts`。
+新增操作应复用这些模块，不再单独扫描括号。工具栏修改各自保留独立撤销记录。
+浏览器回归：`PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node scripts/editor.browser.mjs`；
+可设置 `TEST_BASE_URL` 检查预览或线上版本，使用模拟 API，不会写入生产数据。
+
 ## 编辑已结束的 Run
 
 已结束的 Run 可直接进入编辑器。进入和修改只读取数据并缓存本地草稿；保存时创建

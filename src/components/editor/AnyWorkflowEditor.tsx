@@ -10,9 +10,7 @@ import {
   history,
   historyKeymap,
   indentWithTab,
-  redo,
   redoDepth,
-  undo,
   undoDepth,
 } from '@codemirror/commands'
 import {
@@ -53,21 +51,15 @@ import {
 import { TooltipProvider } from '@/components/ui/tooltip'
 import {
   anyWorkflowCompletion,
-  collectUsableVariables,
   anyWorkflowHighlightStyle,
   anyWorkflowLanguage,
-  formatAnyWorkflowSource,
-  planSmartDelete,
-  planStructuredInsert,
-  type StructuredInsertKind,
   validateAnyWorkflowSource,
 } from '@/components/editor/anyworkflow-dsl'
 import { EditorToolbar } from '@/components/editor/EditorToolbar'
-import { offsetForLineColumn, sameIssues, type EditorIssue } from '@/components/editor/editor-helpers'
+import { sameIssues, type EditorIssue } from '@/components/editor/editor-helpers'
 export type { EditorIssue } from '@/components/editor/editor-helpers'
-import { readClipboard, writeClipboard } from '@/lib/clipboard'
+import { useEditorCommands } from './useEditorCommands'
 import { cn } from '@/lib/utils'
-import { toast } from 'sonner'
 
 export interface AnyWorkflowEditorHandle {
   focus: () => void
@@ -176,13 +168,11 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
     const valueRef = useRef(value)
     const changeRef = useRef(onChange)
     const saveRef = useRef(onSave)
-    const copiedTimerRef = useRef<number | null>(null)
 
     const [fullscreen, setFullscreen] = useState(false)
     const [status, setStatus] = useState<EditorStatus>(EMPTY_STATUS)
     const [issues, setIssues] = useState<EditorIssue[]>([])
     const [issuesOpen, setIssuesOpen] = useState(false)
-    const [copied, setCopied] = useState(false)
 
     changeRef.current = onChange
     saveRef.current = onSave
@@ -315,14 +305,6 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
     }, [value])
 
     useEffect(() => {
-      if (!copied) return
-      copiedTimerRef.current = window.setTimeout(() => setCopied(false), 1800)
-      return () => {
-        if (copiedTimerRef.current !== null) window.clearTimeout(copiedTimerRef.current)
-      }
-    }, [copied])
-
-    useEffect(() => {
       if (!fullscreen) return
       /**
        * Capture phase on purpose: this has to decide *before* CodeMirror and Radix see the key.
@@ -393,95 +375,10 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
       }
     }, [fullscreen])
 
-    const insert = useCallback((text: string, cursorOffset?: number, selectionLength = 0) => {
-      const view = viewRef.current
-      if (!view) return
-      const selection = view.state.selection.main
-      const offset = Math.max(0, Math.min(cursorOffset ?? text.length, text.length))
-      const anchor = selection.from + offset
-      const head = anchor + Math.max(0, Math.min(selectionLength, text.length - offset))
-      view.dispatch({
-        changes: { from: selection.from, to: selection.to, insert: text },
-        selection: { anchor, head },
-        scrollIntoView: true,
-      })
-      view.focus()
-    }, [])
-
-    const insertStructured = useCallback((kind: StructuredInsertKind) => {
-      const view = viewRef.current
-      if (!view) return
-      const source = view.state.doc.toString()
-      const plan = planStructuredInsert(source, view.state.selection.main.head, kind)
-      if (!plan.ok) {
-        toast.info(plan.message)
-        view.focus()
-        return
-      }
-
-      const anchor = plan.from + plan.cursorOffset
-      view.dispatch({
-        changes: { from: plan.from, insert: plan.text },
-        selection: { anchor },
-        scrollIntoView: true,
-      })
-      view.focus()
-    }, [])
-
-    const runSmartDelete = useCallback(() => {
-      const view = viewRef.current
-      if (!view) return
-      const selection = view.state.selection.main
-      const plan = planSmartDelete(view.state.doc.toString(), selection.from, selection.to)
-      if (!plan.ok) {
-        toast.info(plan.message)
-        view.focus()
-        return
-      }
-
-      view.dispatch({
-        changes: { from: plan.from, to: plan.to, insert: '' },
-        selection: { anchor: plan.from },
-        scrollIntoView: true,
-      })
-      toast.success(plan.message)
-      view.focus()
-    }, [])
-
-    const runUndo = useCallback(() => {
-      const view = viewRef.current
-      if (!view) return
-      undo(view)
-      view.focus()
-    }, [])
-
-    const runRedo = useCallback(() => {
-      const view = viewRef.current
-      if (!view) return
-      redo(view)
-      view.focus()
-    }, [])
-
-    const runFormat = useCallback(() => {
-      const view = viewRef.current
-      if (!view) return
-      const current = view.state.doc.toString()
-      const next = formatAnyWorkflowSource(current)
-      if (next === current) {
-        toast.info('格式已经整齐了')
-        return
-      }
-      const selection = view.state.selection.main
-      const line = view.state.doc.lineAt(selection.head)
-      const column = selection.head - line.from + 1
-      const anchor = offsetForLineColumn(next, line.number, column)
-      view.dispatch({
-        changes: { from: 0, to: current.length, insert: next },
-        selection: { anchor },
-        scrollIntoView: true,
-      })
-      view.focus()
-    }, [])
+    const {
+      insert, insertStructured, runSmartDelete, runUndo, runRedo, runFormat,
+      runCopy, runPaste, insertVariableReference, copied,
+    } = useEditorCommands(viewRef)
 
     const revealRange = useCallback((from: number, to: number) => {
       const view = viewRef.current
@@ -491,52 +388,6 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
       const end = Math.max(start, Math.min(to, max))
       view.dispatch({ selection: { anchor: start, head: end }, scrollIntoView: true })
       view.focus()
-    }, [])
-
-    const runCopy = useCallback(async () => {
-      const text = viewRef.current?.state.doc.toString() ?? ''
-      if (!text) return
-      const ok = await writeClipboard(text)
-      if (ok) {
-        setCopied(true)
-        toast.success('已复制工作流')
-      } else {
-        toast.error('复制失败', { description: '浏览器拒绝了剪贴板写入，请手动选择后复制。' })
-      }
-    }, [])
-
-    const runPaste = useCallback(async () => {
-      try {
-        const text = await readClipboard()
-        if (!text) {
-          toast.info('剪贴板为空')
-          return
-        }
-        insert(text)
-        toast.success('已粘贴到光标位置')
-      } catch {
-        toast.error('无法读取剪贴板', { description: '请允许浏览器访问剪贴板，或使用系统粘贴快捷键。' })
-      }
-    }, [insert])
-
-    const insertVariableReference = useCallback(() => {
-      const view = viewRef.current
-      if (!view) return
-      const selection = view.state.selection.main
-      const from = selection.from
-      view.dispatch({
-        changes: { from: selection.from, to: selection.to, insert: '%%' },
-        selection: { anchor: from + 1 },
-        scrollIntoView: true,
-      })
-      view.focus()
-
-      const available = collectUsableVariables(view.state.doc.toString(), from + 1)
-      if (available.length === 0) {
-        toast.info('当前位置没有可用变量')
-        return
-      }
-      startCompletion(view)
     }, [])
 
     useImperativeHandle(
