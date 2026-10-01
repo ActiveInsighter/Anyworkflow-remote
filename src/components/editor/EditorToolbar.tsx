@@ -216,8 +216,8 @@ export function EditorToolbar({
           )}
           <ToolButton
             icon={copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-            label={copied ? '已复制' : '复制'}
-            hint="复制全文"
+            label={copied ? '已复制' : '智能复制'}
+            hint="选中结构括号复制整块，否则复制当前行或选中行"
             onClick={() => void onCopy()}
           />
           <ToolDivider />

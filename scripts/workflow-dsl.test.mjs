@@ -120,8 +120,8 @@ const forwardLocalVariable = actLocalVariable.replace(
 assert.equal(errors(forwardLocalVariable).length, 0, 'queue metadata may reference a later local @var')
 
 const localVariableInsert = planStructuredInsert(eventLocalVariable, eventLocalVariable.indexOf('@act'), 'variable')
-assert.equal(localVariableInsert.ok, true, 'the variable toolbar inserts into an Event at the cursor')
-if (localVariableInsert.ok) assert.ok(localVariableInsert.from > eventLocalVariable.indexOf('@event E {'))
+assert.equal(localVariableInsert.ok, true, 'the variable toolbar targets the current Task even from an Event')
+if (localVariableInsert.ok) assert.ok(localVariableInsert.from < eventLocalVariable.indexOf('@event E {'))
 
 const validCodexPlan = `@run=Codex
 @Codex Research {
