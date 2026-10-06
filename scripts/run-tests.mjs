@@ -1,4 +1,6 @@
 const testFiles = [
+  'recurrence.test.mjs',
+  'runtime-config.test.mjs',
   'pdf-api.test.mjs',
   'event-structure.test.mjs',
   'codex-dsl.test.mjs',

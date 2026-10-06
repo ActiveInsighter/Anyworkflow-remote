@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
-import { BookMarked, FileText, House, Settings } from 'lucide-react'
+import { CalendarClock, BookMarked, FileText, House, Settings } from 'lucide-react'
 
 export interface AppNavItem {
   id: string
@@ -17,6 +17,7 @@ export const appNavigation: AppNavItem[] = [
     icon: House,
     match: (pathname) => pathname === '/' || pathname.startsWith('/runs/') || pathname.startsWith('/tasks/') || pathname.startsWith('/events/'),
   },
+  { id: 'schedules', label: '重复计划', to: '/schedules', icon: CalendarClock, match: pathname => pathname === '/schedules' },
   {
     id: 'library',
     label: '资料库',

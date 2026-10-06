@@ -17,6 +17,7 @@ import {
   Zap,
 } from 'lucide-react'
 import { useState } from 'react'
+import { RunRuntimeSummary } from '@/components/run/RunRuntimeSummary'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import {
   AppPage,
@@ -54,6 +55,7 @@ import {
   progressText,
   runStatusMeta,
 } from '@/lib/format'
+import { nextDailyInstant } from '@/lib/recurrence'
 import { describeSchedule } from '@/lib/schedule'
 import type { DispatchRequestedAction } from '@/types'
 import { toast } from 'sonner'
@@ -177,7 +179,7 @@ export function RunDetailPage() {
     setActing(true)
     setActionError('')
     try {
-      await updateRunDraft(run.id, run.planText, { publish: true, scheduledAt: run.scheduledAt })
+      await updateRunDraft(run.id, run.planText, { publish: true, scheduledAt: run.recurrence ? nextDailyInstant(run.recurrence) : run.scheduledAt })
       invalidateAsyncDataCache('run:' + run.id)
       invalidateAsyncDataCache('runs:')
       await state.reload()
@@ -196,7 +198,7 @@ export function RunDetailPage() {
     setActing(true)
     setActionError('')
     try {
-      await updateRunDraft(run.id, run.planText, { publish: true, scheduledAt: '' })
+      await updateRunDraft(run.id, run.planText, { publish: true, scheduledAt: '', recurrence: null })
       invalidateAsyncDataCache('run:' + run.id)
       invalidateAsyncDataCache('runs:')
       await state.reload()
@@ -330,7 +332,7 @@ export function RunDetailPage() {
           <>
             {run.status === 'draft' || terminal ? <Button variant="outline" asChild><Link to={'/runs/' + run.id + '/edit'}><Pencil />编辑</Link></Button> : null}
             {terminal ? <Button variant="secondary" onClick={() => void copy('queued')} disabled={acting || !hasPlan}><RotateCcw />完整重跑</Button> : null}
-            {run.status === 'draft' ? <Button variant="secondary" onClick={() => void (schedule.pending ? publishDraft() : runImmediately())} disabled={acting}><Play />{schedule.pending ? '按计划运行' : '运行'}</Button> : null}
+            {run.status === 'draft' ? <Button variant="secondary" onClick={() => void (run.recurrence || schedule.pending ? publishDraft() : runImmediately())} disabled={acting}><Play />{run.recurrence ? '启用每天重复' : schedule.pending ? '按计划运行' : '运行'}</Button> : null}
             {canPause ? <Button variant="outline" onClick={() => void control('pause')} disabled={acting}><Pause />暂停</Button> : null}
             {canResume ? <Button variant="secondary" onClick={() => void control('resume')} disabled={acting}><Play />继续</Button> : null}
             {run.status === 'failed' ? <Button variant="secondary" onClick={() => void resumeFromCheckpoint()} disabled={acting}><RotateCcw />从检查点恢复</Button> : null}
@@ -357,6 +359,8 @@ export function RunDetailPage() {
           <span>更新 {formatDateTime(run.updated)}</span>
         </div>
         {run.lastError ? <div className="mt-3"><InlineError>{run.lastError}</InlineError></div> : null}
+        <RunRuntimeSummary run={run} />
+        {run.recurrenceSchedule ? <Button asChild variant="outline" size="sm"><Link to="/schedules"><CalendarClock />管理重复计划</Link></Button> : run.recurrence ? <span className="text-xs text-muted-foreground">每天 {run.recurrence.time} · 保存为草稿，尚未启用</span> : null}
       </section>
 
       {versionsState.error ? <ErrorBanner>{versionsState.error}</ErrorBanner> : null}
