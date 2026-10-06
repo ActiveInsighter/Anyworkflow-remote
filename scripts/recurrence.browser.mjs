@@ -72,6 +72,8 @@ try {
   assert.equal(schedules.get(id).rule.time, '10:45')
   assert.equal(runs.get(id).runtimeConfig.browser.replyTimeoutMinutes, 45)
   await page.getByRole('link', { name: '管理重复计划', exact: true }).click()
+  await page.waitForURL(/\/schedules$/)
+  await page.getByRole('button', { name: '暂停重复', exact: true }).waitFor()
   for (const width of [320, 390, 760, 1440]) { await page.setViewportSize({ width, height: 900 }); await page.getByText('Daily proof', { exact: true }).waitFor(); await noOverflow(); await screenshot('daily-schedules-' + width) }
   await page.getByRole('button', { name: '暂停重复', exact: true }).click()
   await page.getByRole('button', { name: '恢复重复', exact: true }).waitFor()
