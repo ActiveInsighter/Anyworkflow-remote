@@ -258,3 +258,15 @@ n8n PDF 调度工作流和 AnyWorkflow-workers 的独立 `pdf` 镜像。
 验证：`npm run preflight`，以及
 `PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node scripts/pdf.browser.mjs`。
 浏览器用例使用隔离模拟接口，检查四种宽度、任务参数、状态和自定义 ZIP 下载。
+
+## 远程运行配置
+
+设置页可保存当前账号的回复超时、随机等待和延迟回收默认值，版本冲突会提示重新加载。
+新 Run 从默认值取得完整快照，编辑器允许单独覆盖，Run 详情展示实际配置。已有 Run
+不会随默认值改变；完整重跑和断点恢复继承原配置，编辑副本可以覆盖。历史无快照 Run
+继续使用本地扩展参数。运行配置与计划一起保存本地草稿，并按账号和后端地址隔离。
+
+需配套部署 cloudservice 的 runtime configuration migration/hooks、scheduler 和新版扩展。
+验证：`npm run preflight`，以及 `node scripts/runtime-config.browser.mjs`；Playwright
+模块可通过 `PLAYWRIGHT_MODULE` 指定。浏览器用例使用隔离模拟 API，可设置
+`TEST_BASE_URL` 检查实际部署资产；覆盖四种宽度、配置冲突、草稿恢复竞态和单 Run 覆盖。

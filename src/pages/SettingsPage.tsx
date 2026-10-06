@@ -17,6 +17,7 @@ import { login, toErrorMessage } from '@/lib/api'
 import { clearSession, getBaseUrl, useSession } from '@/lib/session'
 import { setThemePreference, useThemePreference, type ThemePreference } from '@/lib/theme'
 import { toast } from 'sonner'
+import { RuntimeDefaultsPanel } from '@/components/app/runtime-defaults-panel'
 
 const themeOptions = [
   { value: 'system' as ThemePreference, label: '跟随系统' },
@@ -67,6 +68,7 @@ export function SettingsPage() {
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
         <div className="flex min-w-0 flex-col gap-4">
+          {session ? <RuntimeDefaultsPanel key={session.baseUrl + ':' + session.record.id} /> : null}
           <Panel>
             <PanelHeader
               title="连接"

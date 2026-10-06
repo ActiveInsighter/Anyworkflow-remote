@@ -29,7 +29,7 @@ function errorMessage(payload: unknown, fallback: string): string {
 }
 
 export interface RequestOptions {
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   data?: unknown
   query?: Record<string, string | number | boolean | undefined>
   baseUrl?: string
