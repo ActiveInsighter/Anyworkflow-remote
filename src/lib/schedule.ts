@@ -10,7 +10,7 @@ export const SCHEDULED_AT_PATTERN =
   /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})$/u
 
 /** How the user expressed the instant. Both `at` and `after` collapse to the same stored value. */
-export type ScheduleMode = 'now' | 'at' | 'after'
+export type ScheduleMode = 'now' | 'at' | 'after' | 'daily'
 
 export type DelayUnit = 'minute' | 'hour' | 'day'
 

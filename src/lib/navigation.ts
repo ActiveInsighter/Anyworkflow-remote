@@ -27,6 +27,7 @@ export function breadcrumbsFor(pathname: string): BreadcrumbItem[] {
     const templateId = parts[1] || ''
     return [{ label: '资料库', to: '/library?tab=templates' }, { label: `模板 ${shortId(templateId)}` }]
   }
+  if (parts[0] === 'schedules') return [{ label: '重复计划' }]
   if (parts[0] === 'settings') return [{ label: '设置' }]
 
   if (parts[0] === 'tasks') return [{ label: '工作流', to: '/' }, { label: `Task ${shortId(parts[1] || '')}` }]

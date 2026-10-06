@@ -20,6 +20,8 @@ export interface AuthSession {
 }
 
 export interface DispatchRunRecord {
+  recurrence?: import('./lib/recurrence').DailyRecurrence | null
+  recurrenceSchedule?: string
   runtimeConfig?: import('./lib/runtime-config').RuntimeConfig | null
   runtimeConfigChecksum?: string
   runtimeDefaultRevision?: number

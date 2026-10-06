@@ -15,6 +15,7 @@ import { parsePlanMeta } from './plan'
 import { isFutureScheduledAt, isValidScheduledAt } from './schedule'
 import { validateWorkflowSource } from './workflow-dsl'
 import { selectHistoryEventsForDispatchEvent } from './history'
+import { normalizeRecurrence, type DailyRecurrence } from './recurrence'
 import { normalizeRuntimeConfig, type RuntimeConfig } from './runtime-config'
 import { ApiError, assertOwner, collectPages, listOwnedCollection, quoteFilter, request } from './pocketbase'
 import type {
@@ -46,6 +47,7 @@ function normalizeRun<T extends DispatchRunRecord>(run: T): T {
     : 'initial'
   return {
     ...run,
+    recurrence: run.recurrence == null ? null : normalizeRecurrence(run.recurrence),
     runtimeConfig: run.runtimeConfig == null ? null : normalizeRuntimeConfig(run.runtimeConfig),
     familyId: typeof run.familyId === 'string' && run.familyId ? run.familyId : run.id,
     versionNumber: Number.isSafeInteger(run.versionNumber) && run.versionNumber > 0 ? run.versionNumber : 1,
@@ -156,6 +158,7 @@ function savedCreateMatches(
     parentRun: string
     origin: DispatchRunOrigin
     runtimeConfig?: RuntimeConfig | null
+    recurrence?: DailyRecurrence | null
   },
 ): boolean {
   const statusMatches = expected.status === 'draft'
@@ -164,6 +167,7 @@ function savedCreateMatches(
   return run.title === expected.title && samePlanText(run.planText, expected.planText) &&
     statusMatches && sameScheduledAt(run.scheduledAt, expected.scheduledAt) &&
     run.executionMode === expected.executionMode && run.maxConcurrency === expected.maxConcurrency &&
+    JSON.stringify(run.recurrence ?? null) === JSON.stringify(expected.recurrence ?? null) &&
     run.parentRun === expected.parentRun && run.origin === expected.origin &&
     (expected.runtimeConfig === undefined || JSON.stringify(run.runtimeConfig) === JSON.stringify(expected.runtimeConfig))
 }
@@ -171,13 +175,14 @@ function savedCreateMatches(
 function savedDraftUpdateMatches(
   run: DispatchRunRecord,
   expected: { title: string; planText: string; executionMode: string; maxConcurrency: number },
-  options: { publish?: boolean; scheduledAt?: string; runtimeConfig?: RuntimeConfig | null },
+  options: { publish?: boolean; scheduledAt?: string; runtimeConfig?: RuntimeConfig | null; recurrence?: DailyRecurrence | null },
 ): boolean {
   const statusMatches = options.publish
     ? ['queued', 'running', 'succeeded', 'failed', 'canceled'].includes(run.status)
     : run.status === 'draft'
   return statusMatches && run.title === expected.title && samePlanText(run.planText, expected.planText) &&
     run.executionMode === expected.executionMode && run.maxConcurrency === expected.maxConcurrency &&
+    (options.recurrence === undefined || JSON.stringify(run.recurrence ?? null) === JSON.stringify(options.recurrence)) &&
     (options.scheduledAt === undefined || sameScheduledAt(run.scheduledAt, options.scheduledAt)) &&
     (options.runtimeConfig === undefined || options.runtimeConfig === null ||
       JSON.stringify(run.runtimeConfig) === JSON.stringify(normalizeRuntimeConfig(options.runtimeConfig)))
@@ -259,6 +264,7 @@ export async function createRun(
   scheduledAt = '',
   lineage: { parentRun: string; origin: Exclude<DispatchRunOrigin, 'initial'>; title?: string } | null = null,
   runtimeConfig?: RuntimeConfig | null,
+  recurrence?: DailyRecurrence | null,
 ): Promise<DispatchRunRecord> {
   const session = requireSession()
   const checkedPlan = checkedPlanText(planText, status === 'queued')
@@ -276,6 +282,7 @@ export async function createRun(
     parentRun: lineage?.parentRun ?? '',
     origin,
     runtimeConfig: checkedRuntime,
+    recurrence: recurrence == null ? null : normalizeRecurrence(recurrence),
   }
   const runId = newRunId()
   const data: Record<string, unknown> = {
@@ -289,6 +296,7 @@ export async function createRun(
     status: expected.status,
     requestedAction: 'none',
     commandVersion: 0,
+    ...(recurrence ? { recurrence: normalizeRecurrence(recurrence) } : {}),
     ...(checkedRuntime ? { runtimeConfig: checkedRuntime } : {}),
     ...(lineage ? { parentRun: lineage.parentRun, origin: lineage.origin } : {}),
   }
@@ -333,7 +341,7 @@ export async function createRun(
 export async function updateRunDraft(
   id: string,
   planText: string,
-  options: { publish?: boolean; scheduledAt?: string; runtimeConfig?: RuntimeConfig | null } = {},
+  options: { publish?: boolean; scheduledAt?: string; runtimeConfig?: RuntimeConfig | null; recurrence?: DailyRecurrence | null } = {},
 ): Promise<DispatchRunRecord> {
   const current = await getRun(id)
   if (current.status !== 'draft') {
@@ -349,6 +357,7 @@ export async function updateRunDraft(
     executionMode: meta.mode,
     maxConcurrency: meta.maxConcurrency,
   }
+  if (options.recurrence !== undefined) data.recurrence = options.recurrence === null ? null : normalizeRecurrence(options.recurrence)
   if (options.publish) data.status = 'queued'
   if (options.runtimeConfig != null) data.runtimeConfig = normalizeRuntimeConfig(options.runtimeConfig)
   if (options.scheduledAt !== undefined) {
@@ -411,12 +420,13 @@ export async function createEditedRun(
   status: 'draft' | 'queued',
   scheduledAt = '',
   runtimeConfig?: RuntimeConfig | null,
+  recurrence?: DailyRecurrence | null,
 ): Promise<DispatchRunRecord> {
   const source = await getRun(sourceId)
   if (!['succeeded', 'failed', 'canceled'].includes(source.status)) {
     throw new ApiError('只能基于已结束的 Run 创建编辑版本', 409, 'RUN_NOT_TERMINAL')
   }
-  return createRun(planText, status, scheduledAt, { parentRun: source.id, origin: 'edited_rerun' }, runtimeConfig)
+  return createRun(planText, status, scheduledAt, { parentRun: source.id, origin: 'edited_rerun' }, runtimeConfig, recurrence)
 }
 
 export async function cloneRun(source: DispatchRunRecord, status: 'draft' | 'queued'): Promise<DispatchRunRecord> {

@@ -1,6 +1,7 @@
 import { Clock, TriangleAlert } from 'lucide-react'
 import { Segmented, TextInput } from '@/components/app/ui'
 import { Select } from '@/components/ui/select'
+import { formatUtcOffset, type DailyRecurrence } from '@/lib/recurrence'
 import { cn } from '@/lib/utils'
 import {
   describeSchedule,
@@ -15,6 +16,7 @@ const MODE_OPTIONS: ReadonlyArray<{ value: ScheduleMode; label: string }> = [
   { value: 'now', label: '立即' },
   { value: 'at', label: '定时' },
   { value: 'after', label: '延时' },
+  { value: 'daily', label: '每天' },
 ]
 
 const DELAY_UNITS: ReadonlyArray<{ value: DelayUnit; label: string }> = [
@@ -29,6 +31,8 @@ const DELAY_UNITS: ReadonlyArray<{ value: DelayUnit; label: string }> = [
  */
 export function SchedulePicker({
   mode,
+  recurrence,
+  onRecurrenceChange,
   value,
   onModeChange,
   onValueChange,
@@ -40,6 +44,8 @@ export function SchedulePicker({
   className,
 }: {
   mode: ScheduleMode
+  recurrence: DailyRecurrence
+  onRecurrenceChange: (rule: DailyRecurrence) => void
   value: string
   onModeChange: (mode: ScheduleMode) => void
   onValueChange: (value: string) => void
@@ -84,6 +90,25 @@ export function SchedulePicker({
             onChange={(event) => onValueChange(fromLocalInputValue(event.target.value))}
             className={cn('h-10 w-full', invalid && 'border-danger focus-visible:border-danger')}
           />
+        </div>
+      ) : null}
+
+      {mode === 'daily' ? (
+        <div className="grid gap-4">
+          <div className="grid gap-1.5">
+            <label htmlFor="run-daily-time" className="text-xs font-medium">每天执行时间</label>
+            <TextInput id="run-daily-time" type="time" required aria-invalid={invalid || undefined} value={recurrence.time}
+              onChange={event => onRecurrenceChange({ ...recurrence, time: event.target.value })} />
+          </div>
+          <div className="grid gap-1.5">
+            <label htmlFor="run-daily-zone" className="text-xs font-medium">时区（固定 UTC 偏移）</label>
+            <Select id="run-daily-zone" value={recurrence.utcOffsetMinutes}
+              onChange={event => onRecurrenceChange({ ...recurrence, utcOffsetMinutes: Number(event.target.value) })}>
+              {Array.from({ length: 105 }, (_, index) => -720 + index * 15).map(offset =>
+                <option key={offset} value={offset}>{formatUtcOffset(offset)}{offset === 480 ? ' · 北京时间' : ''}</option>)}
+            </Select>
+          </div>
+          <p className="text-xs leading-5 text-muted-foreground">前一次尚未结束时跳过本次。暂停计划不影响已提交的 Run。</p>
         </div>
       ) : null}
 
@@ -132,7 +157,7 @@ export function SchedulePicker({
         )}
         <span>
           {unresolved
-            ? mode === 'at'
+            ? mode === 'daily' ? '请选择每天执行时间' : mode === 'at'
               ? '请选择未来的执行时间'
               : '延时至少为 1 分钟'
             : expired
@@ -140,7 +165,7 @@ export function SchedulePicker({
               : mode === 'now'
                 ? '保存并运行后立即排队执行'
                 : summary.pending
-                  ? `${summary.absolute} · ${summary.relative}`
+                  ? `${mode === 'daily' ? '首次：' : ''}${summary.absolute} · ${summary.relative}`
                   : '请选择执行计划'}
         </span>
       </div>

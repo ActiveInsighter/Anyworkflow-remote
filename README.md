@@ -270,3 +270,19 @@ n8n PDF 调度工作流和 AnyWorkflow-workers 的独立 `pdf` 镜像。
 验证：`npm run preflight`，以及 `node scripts/runtime-config.browser.mjs`；Playwright
 模块可通过 `PLAYWRIGHT_MODULE` 指定。浏览器用例使用隔离模拟 API，可设置
 `TEST_BASE_URL` 检查实际部署资产；覆盖四种宽度、配置冲突、草稿恢复竞态和单 Run 覆盖。
+
+## 每天重复执行
+
+Run 编辑器的“执行计划”增加“每天”：选择时间和固定 UTC 偏移时区（北京时间为
+UTC+08:00），保存草稿不会启动，点击“启用重复”才提交首次执行并启用后续计划。
+首次时间自动选择下一次每日时刻。修改执行方式可以退回单次定时、延时或立即执行。
+
+侧边栏“重复计划”可查看下次执行、最近 Run 和跳过次数，支持暂停、恢复及删除。
+每次执行使用发布时的 DSL 和运行配置快照，生成同家族下独立的重跑版本。
+暂停/删除只阻止后续生成；已提交的 Run 可在详情中单独取消。修改计划内容时，
+暂停旧计划并从源 Run 创建编辑副本，再启用新的每日计划。
+
+后端每分钟扫描；前一次仍在排队/运行时跳过本次，超过 15 分钟的错过时刻不补跑。
+恢复时从未来下次时刻开始，不积压补跑。时区使用固定偏移，不自动调整夏令时。
+需部署 cloudservice 的 `1791300000_recurring_runs.js` 和匹配 hooks。
+验证：`npm run preflight`；`node scripts/recurrence.browser.mjs`（Playwright 配置同上）。

@@ -31,6 +31,7 @@ import {
   type DelayUnit,
   type ScheduleMode,
 } from '@/lib/schedule'
+import { defaultDailyRecurrence, nextDailyInstant, normalizeRecurrence, type DailyRecurrence } from '@/lib/recurrence'
 import { useSession } from '@/lib/session'
 import { toast } from 'sonner'
 import { reserveDefaultRunTitle } from '@/lib/run-name'
@@ -70,6 +71,8 @@ function RunEditorForm() {
   const [loadedRun, setLoadedRun] = useState<DispatchRunRecord | null>(null)
   const [source, setSource] = useState(() => createStarterPlan())
   const [templateTitle, setTemplateTitle] = useState('')
+  const [recurrence, setRecurrence] = useState<DailyRecurrence>(defaultDailyRecurrence)
+  const recurrenceRef = useRef<DailyRecurrence | null>(null)
   const [scheduleMode, setScheduleMode] = useState<ScheduleMode>('now')
   const [scheduledAt, setScheduledAt] = useState('')
   const [delayAmount, setDelayAmount] = useState('1')
@@ -99,16 +102,17 @@ function RunEditorForm() {
   sourceRef.current = source
   templateTitleRef.current = templateTitle
   scheduledAtRef.current = scheduledAt
+  recurrenceRef.current = scheduleMode === 'daily' ? recurrence : null
   dirtyRef.current = dirty
 
   const meta = useMemo(() => parsePlanMeta(source), [source])
   const diagnostics = useMemo(() => validateAnyWorkflowSource(source), [source])
   const errorCount = diagnostics.filter((item) => item.severity === 'error').length
   const scheduleEditable = templateMode !== 'edit'
-  const scheduleInvalid =
-    scheduleEditable &&
-    scheduleMode !== 'now' &&
-    (!scheduledAt || !isFutureScheduledAt(scheduledAt, new Date(now)))
+  let recurrenceInvalid = false
+  try { if (scheduleMode === 'daily') normalizeRecurrence(recurrence) } catch { recurrenceInvalid = true }
+  const scheduleInvalid = scheduleEditable && (scheduleMode === 'daily' ? recurrenceInvalid :
+    scheduleMode !== 'now' && (!scheduledAt || !isFutureScheduledAt(scheduledAt, new Date(now))))
 
   function currentDraftPayload() {
     const currentMeta = parsePlanMeta(sourceRef.current)
@@ -119,6 +123,7 @@ function RunEditorForm() {
       maxConcurrency: currentMeta.maxConcurrency,
       templateTitle: templateTitleRef.current,
       scheduledAt: scheduledAtRef.current,
+      recurrence: recurrenceRef.current,
       ...(runtimeRef.current && !runtimeConfigError(runtimeRef.current) ? { runtimeConfig: normalizeRuntimeConfig(runtimeRef.current) } : {}),
     }
   }
@@ -163,7 +168,7 @@ function RunEditorForm() {
         setDirty(false)
         const { draft, legacy } = readDraftCandidate()
         if (draft && (legacy || draft.source.trim() !== template.planText.trim() || draft.runtimeConfig !== undefined ||
-            draft.scheduledAt || draft.templateTitle !== template.title)) setRestorable(draft)
+            draft.scheduledAt || draft.recurrence || draft.templateTitle !== template.title)) setRestorable(draft)
         else if (draft) clearEditorDraft(scope)
       })
       .catch((cause) => active && setError(toErrorMessage(cause)))
@@ -185,10 +190,12 @@ function RunEditorForm() {
         const initialSchedule = run.status === 'draft' ? run.scheduledAt : ''
         setSource(run.planText)
         setScheduledAt(initialSchedule)
-        setScheduleMode(initialSchedule ? 'at' : 'now')
+        const initialRule = run.status === 'draft' ? run.recurrence : null
+        if (initialRule) setRecurrence(initialRule)
+        setScheduleMode(initialRule ? 'daily' : initialSchedule ? 'at' : 'now')
         setDirty(false)
         const { draft, legacy } = readDraftCandidate()
-        if (draft && (legacy || draft.source !== run.planText || draft.scheduledAt !== initialSchedule ||
+        if (draft && (legacy || draft.source !== run.planText || draft.scheduledAt !== initialSchedule || JSON.stringify(draft.recurrence ?? null) !== JSON.stringify(initialRule ?? null) ||
             (draft.runtimeConfig !== undefined && JSON.stringify(draft.runtimeConfig) !== JSON.stringify(run.runtimeConfig ?? null)))) setRestorable(draft)
         else if (draft) clearEditorDraft(scope)
       })
@@ -224,7 +231,7 @@ function RunEditorForm() {
     if (!dirty) return
     const timer = window.setTimeout(saveLocalDraft, 450)
     return () => window.clearTimeout(timer)
-  }, [dirty, scope, source, templateTitle, scheduledAt, runtimeConfig])
+  }, [dirty, scope, source, templateTitle, scheduledAt, runtimeConfig, scheduleMode, recurrence])
 
   useEffect(() => {
     const flush = () => saveLocalDraft()
@@ -247,11 +254,17 @@ function RunEditorForm() {
     setDirty(true)
   }
 
+  function dailyTime(rule: DailyRecurrence): string {
+    try { return nextDailyInstant(rule, now) } catch { return '' }
+  }
+
   function changeSchedule(next: { mode?: ScheduleMode; value?: string }) {
     if (next.mode !== undefined) {
       setScheduleMode(next.mode)
       if (next.mode === 'now') {
         setScheduledAt('')
+      } else if (next.mode === 'daily') {
+        setScheduledAt(dailyTime(recurrence))
       } else if (next.mode === 'at') {
         setScheduledAt(toScheduledAt(defaultScheduleTime(new Date(now))))
       } else {
@@ -274,7 +287,11 @@ function RunEditorForm() {
     if (!restorable) return
     setSource(restorable.source)
     setScheduledAt(restorable.scheduledAt)
-    setScheduleMode(restorable.scheduledAt ? 'at' : 'now')
+    if (restorable.recurrence) {
+      setRecurrence(restorable.recurrence)
+      setScheduledAt(dailyTime(restorable.recurrence))
+    }
+    setScheduleMode(restorable.recurrence ? 'daily' : restorable.scheduledAt ? 'at' : 'now')
     if (restorable.templateTitle) setTemplateTitle(restorable.templateTitle)
     if (restorable.runtimeConfig !== undefined) {
       runtimeGeneration.current += 1
@@ -312,7 +329,8 @@ function RunEditorForm() {
     setError('')
     try {
       const planText = source
-      const schedule = scheduleEditable ? scheduledAt : ''
+      const rule = scheduleMode === 'daily' ? normalizeRecurrence(recurrence) : null
+      const schedule = scheduleEditable ? rule ? nextDailyInstant(rule) : scheduledAt : ''
 
       if (templateMode === 'edit' && templateId) {
         await updateWorkflowTemplate(templateId, { title: templateTitle || meta.title || '未命名模板', planText })
@@ -327,9 +345,9 @@ function RunEditorForm() {
 
       const saved = runId
         ? loadedRun?.status === 'draft'
-          ? await updateRunDraft(runId, planText, { publish, scheduledAt: schedule, runtimeConfig })
-          : await createEditedRun(runId, planText, publish ? 'queued' : 'draft', schedule, runtimeConfig)
-        : await createRun(planText, publish ? 'queued' : 'draft', schedule, null, runtimeConfig)
+          ? await updateRunDraft(runId, planText, { publish, scheduledAt: schedule, runtimeConfig, recurrence: rule })
+          : await createEditedRun(runId, planText, publish ? 'queued' : 'draft', schedule, runtimeConfig, rule)
+        : await createRun(planText, publish ? 'queued' : 'draft', schedule, null, runtimeConfig, rule)
 
       dirtyRef.current = false
       clearEditorDraft(scope)
@@ -338,7 +356,7 @@ function RunEditorForm() {
       invalidateAsyncDataCache('runs:')
       invalidateAsyncDataCache(`run-family:${saved.familyId}`)
       invalidateAsyncDataCache(`run:${saved.id}`)
-      toast.success(publish ? '工作流已提交执行' : '草稿已保存')
+      toast.success(publish ? rule ? '每天重复计划已启用' : '工作流已提交执行' : '草稿已保存')
       navigate(publish ? `/runs/${saved.id}` : `/runs/${saved.id}/edit`, { replace: true })
     } catch (cause) {
       const message = editorSaveErrorMessage(cause)
@@ -363,7 +381,7 @@ function RunEditorForm() {
   const runtimeLocked = loadedRun?.status === 'draft' && ['rerun', 'resume'].includes(loadedRun.origin)
   const delayUnitLabel = delayUnit === 'minute' ? '分钟' : delayUnit === 'hour' ? '小时' : '天'
   const scheduleButtonLabel =
-    scheduleMode === 'now'
+    scheduleMode === 'daily' ? `每天 ${recurrence.time}` : scheduleMode === 'now'
       ? '立即'
       : scheduleMode === 'at'
         ? '定时'
@@ -426,7 +444,7 @@ function RunEditorForm() {
         className="h-auto min-h-0 flex-1 sm:h-auto sm:min-h-0"
       />
 
-      <div className="mt-2 flex shrink-0 items-center gap-2 border-t border-border pt-2">
+      <div className="mt-2 flex shrink-0 flex-wrap items-center gap-2 border-t border-border pt-2">
         {templateMode !== 'edit' ? <Button type="button" variant="outline" className="size-10 shrink-0 px-0" aria-label="运行配置" title="运行配置" onClick={() => setRuntimeOpen(true)}><SlidersHorizontal className="size-4" /></Button> : null}
         {scheduleEditable ? (
           <Button
@@ -472,7 +490,7 @@ function RunEditorForm() {
                 disabled={blocked}
               >
                 <Play />
-                {scheduleSummary.pending ? '安排' : '运行'}
+                {scheduleMode === 'daily' ? '启用重复' : scheduleSummary.pending ? '安排' : '运行'}
               </Button>
             </>
           )}
@@ -481,14 +499,20 @@ function RunEditorForm() {
 
       {scheduleEditable ? (
         <Dialog open={scheduleOpen} onOpenChange={setScheduleOpen}>
-          <DialogContent className="max-w-sm">
+          <DialogContent className="max-h-[85dvh] max-w-sm overflow-y-auto">
             <DialogHeader>
               <DialogTitle>执行计划</DialogTitle>
-              <DialogDescription>选择立即运行，或设置一个未来的定时 / 延时执行时间。</DialogDescription>
+              <DialogDescription>选择立即、定时、延时，或每天重复执行。</DialogDescription>
             </DialogHeader>
             <SchedulePicker
               mode={scheduleMode}
-              value={scheduledAt}
+              recurrence={recurrence}
+              onRecurrenceChange={next => {
+                setRecurrence(next)
+                try { setScheduledAt(nextDailyInstant(next, now)) } catch { setScheduledAt('') }
+                setDirty(true)
+              }}
+              value={scheduleMode === 'daily' && !recurrenceInvalid ? nextDailyInstant(recurrence, now) : scheduledAt}
               onModeChange={(next) => changeSchedule({ mode: next })}
               onValueChange={(next) => changeSchedule({ value: next })}
               delayAmount={delayAmount}

@@ -12,6 +12,7 @@ const EventDetailPage = lazy(() => import('@/pages/EventDetailPage').then(({ Eve
 const LibraryPage = lazy(() => import('@/pages/LibraryPage').then(({ LibraryPage: page }) => ({ default: page })))
 const TemplateDetailPage = lazy(() => import('@/pages/TemplateDetailPage').then(({ TemplateDetailPage: page }) => ({ default: page })))
 const RunDetailPage = lazy(() => import('@/pages/RunDetailPage').then(({ RunDetailPage: page }) => ({ default: page })))
+const RunSchedulesPage = lazy(() => import('@/pages/RunSchedulesPage').then(({ RunSchedulesPage: page }) => ({ default: page })))
 const SettingsPage = lazy(() => import('@/pages/SettingsPage').then(({ SettingsPage: page }) => ({ default: page })))
 const TaskDetailPage = lazy(() => import('@/pages/TaskDetailPage').then(({ TaskDetailPage: page }) => ({ default: page })))
 
@@ -68,6 +69,7 @@ const router = createBrowserRouter([
           { path: 'events/:eventId', element: <PageRoute><EventDetailPage /></PageRoute> },
           { path: 'file-converter', element: <PageRoute><PdfToMdPage /></PageRoute> },
           { path: 'pdf-to-md', element: <PageRoute><PdfToMdPage /></PageRoute> },
+          { path: 'schedules', element: <PageRoute><RunSchedulesPage /></PageRoute> },
           { path: 'library', element: <PageRoute><LibraryPage /></PageRoute> },
           { path: 'templates/:templateId', element: <PageRoute><TemplateDetailPage /></PageRoute> },
         ],
