@@ -5,6 +5,7 @@ const testFiles = [
   'event-structure.test.mjs',
   'codex-dsl.test.mjs',
   'workflow-dsl.test.mjs',
+  'queue-repeat.test.mjs',
   'history-selection.test.mjs',
   'editor-helpers.test.mjs',
   'editor-commands.test.mjs',
