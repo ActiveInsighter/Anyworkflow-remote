@@ -24,7 +24,7 @@ export const WORKFLOW_DSL_LIMITS = Object.freeze({
   maxNesting: 8,
   maxEventQueueBytes: 768 * 1024,
   maxExpandedPlanBytes: 32 * 1024 * 1024,
-  maxQueueRepeat: 30,
+  maxQueueRepeat: 100,
   maxBrowserLoopItems: 200,
   maxBrowserTotalActs: 200,
   maxBrowserPollDepth: 3,

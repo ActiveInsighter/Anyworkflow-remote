@@ -206,6 +206,10 @@ node scripts/history-messages.browser.mjs
 
 ## 编辑器操作
 
+Event 队列中的消息块和轮询组支持 `}*N` 重复后缀，`N` 为 1–100 的整数，
+例如 `{ 继续整理 }*50`。Codex 消息也使用相同范围。
+需要配套更新 workers / cloudservice 的编译器和浏览器扩展；旧版本仍会拒绝超过 30 次。
+
 编辑器的变量按钮始终将声明插入光标所属 Task（包括 Codex）的头部，放在已有配置和变量
 之后、所有 Event 之前。新变量使用未占用的合法名称，并选中名称供修改。
 智能复制与智能删除使用相同规则：光标紧邻或选中结构括号时处理整块，否则处理当前行
@@ -214,6 +218,8 @@ node scripts/history-messages.browser.mjs
 编辑器的结构扫描位于 `source-structure.ts`，无副作用的插入和范围规划位于
 `editor-commands.ts`，CodeMirror 事务与剪贴板操作位于 `useEditorCommands.ts`。
 新增操作应复用这些模块，不再单独扫描括号。工具栏修改各自保留独立撤销记录。
+重复次数浏览器回归：`PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node scripts/queue-repeat.browser.mjs`，
+支持 `TEST_BASE_URL`（默认 `http://127.0.0.1:5197`），覆盖手机和桌面的有效次数及越界提示。
 浏览器回归：`PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node scripts/editor.browser.mjs`；
 可设置 `TEST_BASE_URL` 检查预览或线上版本，使用模拟 API，不会写入生产数据。
 
