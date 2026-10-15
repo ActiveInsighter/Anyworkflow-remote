@@ -23,7 +23,7 @@ export function AppTopBar() {
   }
 
   return (
-    <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-1 border-b border-border bg-background px-3 pt-[env(safe-area-inset-top)] sm:px-6">
+    <header className="sticky top-0 z-40 flex h-[calc(3.5rem+env(safe-area-inset-top))] shrink-0 items-center gap-1 border-b border-border bg-background px-3 pt-[env(safe-area-inset-top)] sm:px-6">
       <SidebarTrigger
         surface="external"
         data-mobile-only="true"
@@ -37,7 +37,7 @@ export function AppTopBar() {
         <button
           type="button"
           onClick={goBack}
-          className="grid size-9 shrink-0 place-items-center rounded-md text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40"
+          className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring sm:size-9"
           aria-label="返回"
         >
           <ArrowLeft className="size-4" />
@@ -71,7 +71,7 @@ export function AppTopBar() {
         </ol>
       </nav>
 
-      <span className="flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-card px-2 py-1 text-[11px] text-muted-foreground" title={session ? '已连接' : '未连接'}>
+      <span role="status" aria-label={session ? '已连接' : '未连接'} className="flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-card px-2 py-1 text-[11px] text-muted-foreground" title={session ? '已连接' : '未连接'}>
         <span className={session ? 'size-1.5 rounded-full bg-success' : 'size-1.5 rounded-full bg-muted-foreground'} aria-hidden="true" />
         <span className="hidden sm:inline">{session ? '已连接' : '未连接'}</span>
       </span>

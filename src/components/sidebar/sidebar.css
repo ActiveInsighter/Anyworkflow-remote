@@ -610,6 +610,11 @@
 }
 
 @media (max-width: 767.98px) {
+  [data-slot='sidebar-trigger'][data-mobile-only='true'] {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
   [data-slot='sidebar-shell'] {
     display: none;
   }

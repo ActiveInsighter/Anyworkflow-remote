@@ -300,7 +300,7 @@ export function ErrorBanner({ children }: { children: ReactNode }) {
 export function LoadingState({ label = '加载中…' }: { label?: string }) {
   return (
     <div
-      className="flex min-h-32 items-center justify-center gap-2 rounded-lg border border-dashed border-border-strong text-sm text-muted-foreground"
+      className="flex min-h-32 items-center justify-center gap-2 rounded-lg border border-border bg-muted/30 text-sm text-muted-foreground"
       role="status"
       aria-live="polite"
     >

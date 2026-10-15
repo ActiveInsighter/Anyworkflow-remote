@@ -170,6 +170,7 @@ export function DashboardPage() {
         <PageHeader title="工作流" />
         <EmptyState
           title="未连接"
+          description="连接后端后，即可查看和运行工作流。"
           action={
             <Button asChild variant="secondary">
               <Link to="/settings">设置连接</Link>
@@ -191,13 +192,14 @@ export function DashboardPage() {
             <Button
               variant="ghost"
               size="icon"
+              className="size-11 sm:size-9"
               onClick={() => void state.reload()}
               disabled={state.loading || state.refreshing}
               aria-label="刷新"
             >
               <RefreshCw className={state.refreshing ? 'animate-spin' : undefined} />
             </Button>
-            <Button asChild>
+            <Button asChild className="h-11 sm:h-9">
               <Link to="/runs/new">
                 <Plus />
                 <span className="sm:hidden">新建</span><span className="hidden sm:inline">新建工作流</span>
@@ -265,13 +267,14 @@ export function DashboardPage() {
             const terminal = ['succeeded', 'failed', 'canceled'].includes(run.status)
             const StatusIcon = statusIcons[run.status] || CircleDashed
             return (
-              <article key={run.id} className="group relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 border-b border-border px-3 py-3.5 transition-colors last:border-b-0 hover:bg-muted/40 sm:px-5 lg:grid-cols-[minmax(0,1fr)_96px_88px_142px_36px] lg:gap-x-4">
+              <article key={run.id} className="grid grid-cols-[minmax(0,1fr)_44px] items-center gap-x-3 gap-y-2 border-b border-border px-3 py-3.5 transition-colors last:border-b-0 hover:bg-muted/40 sm:px-5 lg:grid-cols-[minmax(0,1fr)_96px_88px_142px_36px] lg:gap-x-4 lg:py-3">
                 <div className="flex min-w-0 items-start gap-3 lg:items-center">
                   <StatusIcon className={cn('mt-1 size-4 shrink-0 lg:mt-0', statusIconColors[status.tone])} aria-hidden="true" />
                   <div className="min-w-0 flex-1">
                     <Link
                       to={'/runs/' + run.id}
-                      className="block break-words text-[13px] font-medium leading-6 outline-none hover:underline focus-visible:underline lg:truncate"
+                      title={run.title || '未命名 Run'}
+                      className="block break-words text-sm font-medium leading-6 outline-none hover:underline focus-visible:underline lg:truncate lg:text-[13px]"
                     >
                       {run.title || '未命名 Run'}
                     </Link>
@@ -290,12 +293,12 @@ export function DashboardPage() {
                     ) : null}
                   </div>
                 </div>
-                <div className="col-start-1 row-start-2 ps-7 lg:col-auto lg:row-auto lg:ps-0">
-                  <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+                <div className="col-span-2 flex min-w-0 items-center justify-between gap-3 ps-7 lg:contents">
+                  <div><StatusBadge tone={status.tone}>{status.label}</StatusBadge></div>
+                  <span className="shrink-0 font-mono text-[11px] tabular-nums text-muted-foreground" title="已完成任务 / 总任务">
+                    {progressText(run.completedTasks, run.totalTasks, 'Tasks')}
+                  </span>
                 </div>
-                <span className="col-start-2 row-start-2 text-right font-mono text-[11px] tabular-nums text-muted-foreground lg:col-auto lg:row-auto lg:text-left" title="已完成任务 / 总任务">
-                  {progressText(run.completedTasks, run.totalTasks, 'Tasks')}
-                </span>
                 <time className="hidden text-[11px] tabular-nums text-muted-foreground lg:block" dateTime={run.updated}>{formatDateTime(run.updated)}</time>
                 <Button
                   size="icon"
@@ -315,6 +318,7 @@ export function DashboardPage() {
       {!state.loading && state.data && runs.length === 0 ? (
         <EmptyState
           title={query ? '没有找到匹配的工作流' : filter === 'all' ? '还没有 Run' : '没有匹配的 Run'}
+          description={query ? '试试其他名称或 Run ID。' : filter === 'all' ? '新建一个工作流，开始编排任务。' : undefined}
           action={
             query ? (
               <Button variant="outline" onClick={() => setSearchInput('')}>
