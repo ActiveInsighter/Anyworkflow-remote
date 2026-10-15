@@ -14,7 +14,7 @@ Use this skill for pages, components, navigation, forms, dialogs, status surface
 3. Project-specific composed UI may live in `src/components/` or the page.
 4. Use `cn()` from `@/lib/utils` for class composition.
 5. Use Lucide icons. Do not use emoji or Unicode symbols as navigation/product icons.
-6. Keep visual state in semantic variables. Preserve the pure-black dark background.
+6. Keep visual state in semantic variables. Follow the light and dark palettes in root `DESIGN.md`.
 7. Avoid duplicating shadcn primitive CSS in `styles.css`; legacy layout CSS may remain until migrated.
 
 ## Responsive rules

@@ -17,15 +17,15 @@ export const sidebarLayoutVars = {
  * follows the light/dark theme automatically and never hardcodes a one-off color.
  */
 export const sidebarDefaultTokens = {
-  '--sidebar-width': '15.5rem',
+  '--sidebar-width': '15rem',
   '--sidebar-rail-width': '3.25rem',
-  '--sidebar-header-height': '3.25rem',
+  '--sidebar-header-height': '4.5rem',
   '--sidebar-item-height': '2.25rem',
   '--sidebar-icon-button-size': '2.25rem',
   '--sidebar-icon-size': '1.125rem',
   '--sidebar-inline-margin': '0.5rem',
   '--sidebar-inline-padding': '0.625rem',
-  '--sidebar-item-radius': '0.5rem',
+  '--sidebar-item-radius': '0.375rem',
   '--sidebar-font-size': '0.8125rem',
   '--sidebar-line-height': '1.25rem',
   '--sidebar-scrollbar-size': '0.5rem',

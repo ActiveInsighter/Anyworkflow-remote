@@ -1,5 +1,21 @@
 @import 'tailwindcss';
 
+@font-face {
+  font-family: 'Geist';
+  src: url('/fonts/geist-sans.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('/fonts/geist-mono.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
 @theme inline {
   --font-sans: var(--ui-font-sans);
   --font-mono: var(--ui-font-mono);
@@ -10,6 +26,7 @@
   --color-card-foreground: var(--ui-card-foreground);
   --color-sidebar: var(--ui-sidebar);
   --color-primary: var(--ui-primary);
+  --color-primary-hover: var(--ui-primary-hover);
   --color-primary-foreground: var(--ui-primary-foreground);
   --color-secondary: var(--ui-secondary);
   --color-secondary-foreground: var(--ui-secondary-foreground);
@@ -18,6 +35,7 @@
   --color-accent: var(--ui-accent);
   --color-accent-foreground: var(--ui-accent-foreground);
   --color-destructive: var(--ui-destructive);
+  --color-destructive-foreground: var(--ui-destructive-foreground);
   --color-border: var(--ui-border);
   --color-border-strong: var(--ui-border-strong);
   --color-input: var(--ui-input);
@@ -63,199 +81,194 @@
  * operating system preference, so the app works before any explicit choice is made.
  */
 
+/* Linear surfaces with Vercel's restrained technical typography. */
 :root {
   color-scheme: light;
-
-  --ui-font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
-  --ui-font-mono: 'SFMono-Regular', 'Cascadia Code', Consolas, 'Liberation Mono', monospace;
+  --ui-font-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --ui-font-mono: 'Geist Mono', 'SFMono-Regular', 'Cascadia Code', Consolas, monospace;
   --ui-editor-font-size: 14px;
-  --ui-editor-line-height: 1.7;
-
+  --ui-editor-line-height: 1.8;
+  --radius: 8px;
   font-family: var(--ui-font-sans);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-
-  --radius: 9px;
-
-  --ui-background: #f7f8f8;
-  --ui-foreground: #171b19;
+  -webkit-font-smoothing: antialiased;
+  --ui-background: #ffffff;
+  --ui-foreground: #202127;
   --ui-card: #ffffff;
-  --ui-card-foreground: #171b19;
-  --ui-sidebar: #ffffff;
-  --ui-sidebar-hover: rgb(23 27 25 / 5%);
-  --ui-sidebar-active: rgb(49 95 88 / 11%);
-  --ui-primary: #dceee9;
-  --ui-primary-foreground: #1c4039;
-  --ui-secondary: #eef1f0;
-  --ui-secondary-foreground: #2e3c39;
-  --ui-muted: #eff2f1;
-  --ui-muted-foreground: #636d6a;
-  --ui-accent: #eaf1ef;
-  --ui-accent-foreground: #29564f;
-  --ui-destructive: #bc4c47;
-  --ui-border: #e3e8e6;
-  --ui-border-strong: #d3dad7;
-  --ui-input: #d8dedb;
-  --ui-ring: #6b9f97;
-  --ui-overlay: rgb(16 22 20 / 42%);
-
-  --ui-shadow-xs: 0 1px 2px rgb(23 27 25 / 5%);
-  --ui-shadow-sm: 0 1px 2px rgb(23 27 25 / 6%), 0 1px 3px rgb(23 27 25 / 4%);
-  --ui-shadow-md: 0 2px 4px rgb(23 27 25 / 6%), 0 6px 16px rgb(23 27 25 / 6%);
-  --ui-shadow-lg: 0 10px 38px rgb(23 27 25 / 16%);
-
-  --info: #456f96;
-  --info-soft: #edf3f7;
-  --success: #34745a;
-  --success-soft: #ecf5f0;
-  --warning: #8f6220;
-  --warning-soft: #faf3e6;
-  --danger: #bc4c47;
-  --danger-soft: #faeeee;
-
-  --cm-bg: #fcfdfd;
-  --cm-fg: #202624;
-  --cm-gutter-bg: #f6f8f7;
-  --cm-gutter-fg: #8b9491;
-  --cm-toolbar-bg: #f3f6f5;
-  --cm-border: #dde4e1;
-  --cm-active-line: #edf5f2;
-  --cm-selection: #d9ebe6;
+  --ui-card-foreground: #202127;
+  --ui-sidebar: #f7f7f8;
+  --ui-sidebar-hover: rgb(32 33 39 / 5%);
+  --ui-sidebar-active: #e9e9ee;
+  --ui-primary: #5e6ad2;
+  --ui-primary-hover: #515fc4;
+  --ui-primary-foreground: #ffffff;
+  --ui-secondary: #f0f0f3;
+  --ui-secondary-foreground: #33343c;
+  --ui-muted: #f4f4f6;
+  --ui-muted-foreground: #666973;
+  --ui-accent: #eeeefa;
+  --ui-accent-foreground: #505ab8;
+  --ui-destructive: #c9364f;
+  --ui-destructive-foreground: #ffffff;
+  --ui-border: #e8e8ed;
+  --ui-border-strong: #d5d6df;
+  --ui-input: #858995;
+  --ui-ring: #5e6ad2;
+  --ui-overlay: rgb(15 16 20 / 38%);
+  --ui-shadow-xs: 0 1px 2px rgb(15 16 20 / 3%);
+  --ui-shadow-sm: 0 1px 3px rgb(15 16 20 / 7%);
+  --ui-shadow-md: 0 4px 16px rgb(15 16 20 / 9%);
+  --ui-shadow-lg: 0 12px 48px rgb(15 16 20 / 18%);
+  --info: #5062bf;
+  --info-soft: #eeeffb;
+  --success: #207c56;
+  --success-soft: #edf8f2;
+  --warning: #916313;
+  --warning-soft: #fcf6e8;
+  --danger: #c9364f;
+  --danger-soft: #fdf0f2;
+  --cm-bg: #fcfcfd;
+  --cm-fg: #272933;
+  --cm-gutter-bg: #f8f8fa;
+  --cm-gutter-fg: #737783;
+  --cm-toolbar-bg: #f8f8fa;
+  --cm-border: #e5e5ec;
+  --cm-active-line: #f0f0f7;
+  --cm-selection: #e1e3fa;
   --cm-tooltip-bg: #ffffff;
-  --cm-caret: #315f58;
-  --cm-keyword: #87458c;
-  --cm-variable: #8c611a;
-  --cm-string: #2f7355;
-  --cm-link: #356c98;
-  --cm-atom: #6f5ba2;
-  --cm-number: #955b36;
-  --cm-function: #356c98;
-  --cm-comment: #87908d;
-  --cm-bracket: #626b68;
+  --cm-caret: #5e6ad2;
+  --cm-keyword: #8058aa;
+  --cm-variable: #8b641f;
+  --cm-string: #277253;
+  --cm-link: #4066b6;
+  --cm-atom: #6855ae;
+  --cm-number: #aa583c;
+  --cm-function: #4066b6;
+  --cm-comment: #747783;
+  --cm-bracket: #686b76;
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
-
-  --ui-background: #000000;
-  --ui-foreground: #e9eeec;
-  --ui-card: #090b0a;
-  --ui-card-foreground: #e9eeec;
-  --ui-sidebar: #070908;
-  --ui-sidebar-hover: rgb(233 238 236 / 7%);
-  --ui-sidebar-active: rgb(142 198 189 / 15%);
-  --ui-primary: #8ec6bd;
-  --ui-primary-foreground: #06201c;
-  --ui-secondary: #141817;
-  --ui-secondary-foreground: #e4e9e7;
-  --ui-muted: #121615;
-  --ui-muted-foreground: #74807b;
-  --ui-accent: #10201d;
-  --ui-accent-foreground: #b5ded7;
-  --ui-destructive: #ec7d77;
-  --ui-border: #1f2523;
-  --ui-border-strong: #2c3431;
-  --ui-input: #2a312f;
-  --ui-ring: #7fb5ac;
-  --ui-overlay: rgb(0 0 0 / 62%);
-
-  --ui-shadow-xs: 0 1px 2px rgb(0 0 0 / 55%);
-  --ui-shadow-sm: 0 1px 2px rgb(0 0 0 / 50%), 0 1px 3px rgb(0 0 0 / 40%);
-  --ui-shadow-md: 0 2px 6px rgb(0 0 0 / 55%), 0 8px 20px rgb(0 0 0 / 45%);
-  --ui-shadow-lg: 0 12px 44px rgb(0 0 0 / 68%);
-
-  --info: #8bb5dc;
-  --info-soft: #101b25;
-  --success: #82c6a3;
-  --success-soft: #0e1f18;
-  --warning: #ddb36a;
-  --warning-soft: #211a10;
-  --danger: #ec7d77;
-  --danger-soft: #231211;
-
-  --cm-bg: #090b0a;
-  --cm-fg: #e7ecea;
-  --cm-toolbar-bg: #0f1211;
-  --cm-border: #202724;
-  --cm-active-line: #101816;
-  --cm-selection: #17352f;
-  --cm-tooltip-bg: #101412;
-  --cm-caret: #91c9c0;
-  --cm-keyword: #d8a4db;
-  --cm-variable: #dfb675;
-  --cm-string: #91cfac;
-  --cm-link: #89b9e5;
-  --cm-atom: #b4a0e3;
-  --cm-number: #e0a17e;
-  --cm-function: #89b9e5;
-  --cm-comment: #6e7774;
-  --cm-bracket: #a4adaa;
+  --ui-background: #101114;
+  --ui-foreground: #edeef2;
+  --ui-card: #141519;
+  --ui-card-foreground: #edeef2;
+  --ui-sidebar: #0c0d10;
+  --ui-sidebar-hover: rgb(237 238 242 / 5%);
+  --ui-sidebar-active: #23242c;
+  --ui-primary: #5e6ad2;
+  --ui-primary-hover: #515fc4;
+  --ui-primary-foreground: #ffffff;
+  --ui-secondary: #25262e;
+  --ui-secondary-foreground: #e4e5ed;
+  --ui-muted: #1c1d23;
+  --ui-muted-foreground: #9699a6;
+  --ui-accent: #24263d;
+  --ui-accent-foreground: #b0b7ff;
+  --ui-destructive: #eb8294;
+  --ui-destructive-foreground: #210c12;
+  --ui-border: #272830;
+  --ui-border-strong: #3b3d48;
+  --ui-input: #666a78;
+  --ui-ring: #939cf0;
+  --ui-overlay: rgb(0 0 0 / 64%);
+  --ui-shadow-xs: 0 1px 2px rgb(0 0 0 / 14%);
+  --ui-shadow-sm: 0 1px 3px rgb(0 0 0 / 20%);
+  --ui-shadow-md: 0 4px 16px rgb(0 0 0 / 28%);
+  --ui-shadow-lg: 0 12px 48px rgb(0 0 0 / 48%);
+  --info: #a3afff;
+  --info-soft: #20243c;
+  --success: #70cea4;
+  --success-soft: #162b24;
+  --warning: #e4bc77;
+  --warning-soft: #30281a;
+  --danger: #f08c9d;
+  --danger-soft: #321e28;
+  --cm-bg: #121318;
+  --cm-fg: #e1e3ed;
+  --cm-gutter-bg: #101116;
+  --cm-gutter-fg: #9699a6;
+  --cm-toolbar-bg: #191a20;
+  --cm-border: #2a2b35;
+  --cm-active-line: #1d1f2c;
+  --cm-selection: #30345b;
+  --cm-tooltip-bg: #22232d;
+  --cm-caret: #a3afff;
+  --cm-keyword: #c7a5ef;
+  --cm-variable: #dbbd84;
+  --cm-string: #8ccfaf;
+  --cm-link: #9bbcff;
+  --cm-atom: #b7a5ef;
+  --cm-number: #e3ab8e;
+  --cm-function: #9bbcff;
+  --cm-comment: #9699a6;
+  --cm-bracket: #a6a9b9;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     color-scheme: dark;
-
-    --ui-background: #000000;
-    --ui-foreground: #e9eeec;
-    --ui-card: #090b0a;
-    --ui-card-foreground: #e9eeec;
-    --ui-sidebar: #070908;
-    --ui-sidebar-hover: rgb(233 238 236 / 7%);
-    --ui-sidebar-active: rgb(142 198 189 / 15%);
-    --ui-primary: #8ec6bd;
-    --ui-primary-foreground: #06201c;
-    --ui-secondary: #141817;
-    --ui-secondary-foreground: #e4e9e7;
-    --ui-muted: #121615;
-    --ui-muted-foreground: #74807b;
-    --ui-accent: #10201d;
-    --ui-accent-foreground: #b5ded7;
-    --ui-destructive: #ec7d77;
-    --ui-border: #1f2523;
-    --ui-border-strong: #2c3431;
-    --ui-input: #2a312f;
-    --ui-ring: #7fb5ac;
-    --ui-overlay: rgb(0 0 0 / 62%);
-
-    --ui-shadow-xs: 0 1px 2px rgb(0 0 0 / 55%);
-    --ui-shadow-sm: 0 1px 2px rgb(0 0 0 / 50%), 0 1px 3px rgb(0 0 0 / 40%);
-    --ui-shadow-md: 0 2px 6px rgb(0 0 0 / 55%), 0 8px 20px rgb(0 0 0 / 45%);
-    --ui-shadow-lg: 0 12px 44px rgb(0 0 0 / 68%);
-
-    --info: #8bb5dc;
-    --info-soft: #101b25;
-    --success: #82c6a3;
-    --success-soft: #0e1f18;
-    --warning: #ddb36a;
-    --warning-soft: #211a10;
-    --danger: #ec7d77;
-    --danger-soft: #231211;
-
-    --cm-bg: #090b0a;
-    --cm-fg: #e7ecea;
-    --cm-gutter-bg: #0d100f;
-    --cm-gutter-fg: #69716f;
-    --cm-toolbar-bg: #0f1211;
-    --cm-border: #202724;
-    --cm-active-line: #101816;
-    --cm-selection: #17352f;
-    --cm-tooltip-bg: #101412;
-    --cm-caret: #91c9c0;
-    --cm-keyword: #d8a4db;
-    --cm-variable: #dfb675;
-    --cm-string: #91cfac;
-    --cm-link: #89b9e5;
-    --cm-atom: #b4a0e3;
-    --cm-number: #e0a17e;
-    --cm-function: #89b9e5;
-    --cm-comment: #6e7774;
-    --cm-bracket: #a4adaa;
+    --ui-background: #101114;
+    --ui-foreground: #edeef2;
+    --ui-card: #141519;
+    --ui-card-foreground: #edeef2;
+    --ui-sidebar: #0c0d10;
+    --ui-sidebar-hover: rgb(237 238 242 / 5%);
+    --ui-sidebar-active: #23242c;
+    --ui-primary: #5e6ad2;
+    --ui-primary-hover: #515fc4;
+    --ui-primary-foreground: #ffffff;
+    --ui-secondary: #25262e;
+    --ui-secondary-foreground: #e4e5ed;
+    --ui-muted: #1c1d23;
+    --ui-muted-foreground: #9699a6;
+    --ui-accent: #24263d;
+    --ui-accent-foreground: #b0b7ff;
+    --ui-destructive: #eb8294;
+    --ui-destructive-foreground: #210c12;
+    --ui-border: #272830;
+    --ui-border-strong: #3b3d48;
+    --ui-input: #666a78;
+    --ui-ring: #939cf0;
+    --ui-overlay: rgb(0 0 0 / 64%);
+    --ui-shadow-xs: 0 1px 2px rgb(0 0 0 / 14%);
+    --ui-shadow-sm: 0 1px 3px rgb(0 0 0 / 20%);
+    --ui-shadow-md: 0 4px 16px rgb(0 0 0 / 28%);
+    --ui-shadow-lg: 0 12px 48px rgb(0 0 0 / 48%);
+    --info: #a3afff;
+    --info-soft: #20243c;
+    --success: #70cea4;
+    --success-soft: #162b24;
+    --warning: #e4bc77;
+    --warning-soft: #30281a;
+    --danger: #f08c9d;
+    --danger-soft: #321e28;
+    --cm-bg: #121318;
+    --cm-fg: #e1e3ed;
+    --cm-gutter-bg: #101116;
+    --cm-gutter-fg: #9699a6;
+    --cm-toolbar-bg: #191a20;
+    --cm-border: #2a2b35;
+    --cm-active-line: #1d1f2c;
+    --cm-selection: #30345b;
+    --cm-tooltip-bg: #22232d;
+    --cm-caret: #a3afff;
+    --cm-keyword: #c7a5ef;
+    --cm-variable: #dbbd84;
+    --cm-string: #8ccfaf;
+    --cm-link: #9bbcff;
+    --cm-atom: #b7a5ef;
+    --cm-number: #e3ab8e;
+    --cm-function: #9bbcff;
+    --cm-comment: #9699a6;
+    --cm-bracket: #a6a9b9;
   }
 }
 
 /*
- * Everything below lives in `@layer base` on purpose.
+ * Element resets live in `@layer base` on purpose.
  *
  * Unlayered rules always outrank layered ones regardless of specificity. When these element
  * selectors sat outside every layer they silently beat every `@layer utilities` class — a
@@ -433,5 +446,17 @@
 
   .aw-editor-shell[data-fullscreen='true'] .aw-code-editor .cm-content {
     padding-bottom: max(104px, calc(88px + env(safe-area-inset-bottom)));
+  }
+}
+
+/* Motion never carries information required to operate the console. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

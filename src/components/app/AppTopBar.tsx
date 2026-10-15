@@ -23,11 +23,12 @@ export function AppTopBar() {
   }
 
   return (
-    <header className="sticky top-0 z-40 flex h-[52px] shrink-0 items-center border-b border-border bg-background/92 px-2.5 pt-[env(safe-area-inset-top)] backdrop-blur sm:px-3">
+    <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-1 border-b border-border bg-background px-3 pt-[env(safe-area-inset-top)] sm:px-6">
       <SidebarTrigger
         surface="external"
+        data-mobile-only="true"
         tooltip=""
-        className="-ms-1 size-10 shrink-0 text-foreground md:hidden"
+        className="-ms-1 size-10 shrink-0 text-foreground"
       >
         <Menu />
       </SidebarTrigger>
@@ -45,7 +46,7 @@ export function AppTopBar() {
 
       <nav aria-label="当前位置" className="min-w-0 flex-1 overflow-hidden px-1">
         <ol className="flex min-w-0 items-center gap-1 text-[12px] sm:text-[13px]">
-          <li className="hidden shrink-0 font-semibold tracking-[-0.02em] text-foreground sm:block">AnyWorkflow</li>
+          <li className="hidden shrink-0 text-muted-foreground sm:block">工作空间</li>
           <li className="hidden shrink-0 text-muted-foreground sm:block"><ChevronRight className="size-3.5" /></li>
           {crumbs.map((crumb, index) => {
             const current = index === crumbs.length - 1
@@ -70,8 +71,8 @@ export function AppTopBar() {
         </ol>
       </nav>
 
-      <span className="flex shrink-0 items-center gap-1.5 px-1 text-[11px] text-muted-foreground" title={session ? '已连接' : '未连接'}>
-        <span className={session ? 'size-2 rounded-full bg-success' : 'size-2 rounded-full bg-muted-foreground/35'} aria-hidden="true" />
+      <span className="flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-card px-2 py-1 text-[11px] text-muted-foreground" title={session ? '已连接' : '未连接'}>
+        <span className={session ? 'size-1.5 rounded-full bg-success' : 'size-1.5 rounded-full bg-muted-foreground'} aria-hidden="true" />
         <span className="hidden sm:inline">{session ? '已连接' : '未连接'}</span>
       </span>
     </header>

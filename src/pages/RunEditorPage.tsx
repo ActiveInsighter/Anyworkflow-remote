@@ -388,8 +388,8 @@ function RunEditorForm() {
         : `${delayAmount || 1}${delayUnitLabel}后`
 
   return (
-    <AppPage className="aw-run-editor-page flex min-h-0 flex-1 flex-col overflow-hidden max-w-[1360px] px-3 pb-[calc(8px+env(safe-area-inset-bottom))] pt-3 sm:px-5 sm:pb-3 sm:pt-4 lg:px-8">
-      <div className="mb-2 flex min-w-0 shrink-0 items-center gap-2 px-0.5">
+    <AppPage className="aw-run-editor-page flex min-h-0 flex-1 flex-col overflow-hidden max-w-[1440px] px-3 pb-[calc(12px+env(safe-area-inset-bottom))] pt-4 sm:px-6 sm:pb-4 sm:pt-6 lg:px-8">
+      <div className="mb-4 flex min-w-0 shrink-0 items-center gap-2 px-0.5">
         <h1 className="min-w-0 truncate text-[21px] font-semibold tracking-[-0.03em] sm:text-[24px]">{pageTitle}</h1>
         {dirty ? (
           <Badge variant="warning" className="shrink-0 rounded-md">本地草稿</Badge>
@@ -444,7 +444,7 @@ function RunEditorForm() {
         className="h-auto min-h-0 flex-1 sm:h-auto sm:min-h-0"
       />
 
-      <div className="mt-2 flex shrink-0 flex-wrap items-center gap-2 border-t border-border pt-2">
+      <div className="mt-3 flex shrink-0 flex-wrap items-center gap-2 pt-1">
         {templateMode !== 'edit' ? <Button type="button" variant="outline" className="size-10 shrink-0 px-0" aria-label="运行配置" title="运行配置" onClick={() => setRuntimeOpen(true)}><SlidersHorizontal className="size-4" /></Button> : null}
         {scheduleEditable ? (
           <Button
@@ -485,7 +485,7 @@ function RunEditorForm() {
               </Button>
               <Button
                 className="h-10 shrink-0 px-3"
-                variant="secondary"
+                variant="default"
                 onClick={() => void persist(true)}
                 disabled={blocked}
               >

@@ -25,7 +25,7 @@ All of these skills are bundled under `.agents/skills/` in the CI source artifac
 
 - Product: a responsive web control surface for automation workflows, Runs, Tasks, and Events.
 - Stack: React 19, Vite 8, TypeScript, Tailwind CSS 4, shadcn/ui with Radix primitives, and Lucide icons.
-- Preserve the current pure-black dark foundation and semantic CSS-variable theme unless the user explicitly requests a visual direction change.
+- Follow root `DESIGN.md`: Linear-inspired neutral surfaces and indigo accents, with Vercel-inspired technical typography. Keep the semantic CSS-variable theme.
 - Desktop and mobile are equal product surfaces, not a desktop UI with a minimal mobile fallback.
 
 ## Design direction
