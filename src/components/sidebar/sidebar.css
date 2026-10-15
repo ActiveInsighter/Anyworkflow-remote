@@ -180,6 +180,7 @@
 
 [data-slot='sidebar-menu'] {
   display: flex;
+  gap: 3px;
   flex-direction: column;
   width: 100%;
   min-width: 0;
@@ -228,7 +229,7 @@
   min-width: 0;
   min-height: var(--sidebar-item-height);
   padding-inline: var(--sidebar-inline-padding);
-  color: inherit;
+  color: var(--sidebar-muted-foreground);
   font: inherit;
   font-size: var(--sidebar-font-size);
   line-height: var(--sidebar-line-height);
@@ -260,6 +261,15 @@
 
 [data-slot='sidebar-menu-item'][data-active] [data-slot='sidebar-menu-button'] {
   font-weight: 500;
+  color: var(--sidebar-foreground);
+}
+
+[data-slot='sidebar-menu-item']:hover [data-slot='sidebar-menu-button'] {
+  color: var(--sidebar-foreground);
+}
+
+[data-slot='sidebar-menu-item'][data-active] [data-slot='sidebar-menu-icon'] {
+  color: var(--ui-accent-foreground);
 }
 
 [data-slot='sidebar-menu-icon'] {
@@ -593,7 +603,18 @@
 }
 
 /* Hide the desktop shell while JS has not yet switched to the drawer presentation. */
+@media (min-width: 768px) {
+  [data-slot='sidebar-trigger'][data-mobile-only='true'] {
+    display: none;
+  }
+}
+
 @media (max-width: 767.98px) {
+  [data-slot='sidebar-trigger'][data-mobile-only='true'] {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
   [data-slot='sidebar-shell'] {
     display: none;
   }

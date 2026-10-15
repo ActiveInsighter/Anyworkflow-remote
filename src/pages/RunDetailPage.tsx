@@ -331,8 +331,8 @@ export function RunDetailPage() {
         actions={
           <>
             {run.status === 'draft' || terminal ? <Button variant="outline" asChild><Link to={'/runs/' + run.id + '/edit'}><Pencil />编辑</Link></Button> : null}
-            {terminal ? <Button variant="secondary" onClick={() => void copy('queued')} disabled={acting || !hasPlan}><RotateCcw />完整重跑</Button> : null}
-            {run.status === 'draft' ? <Button variant="secondary" onClick={() => void (run.recurrence || schedule.pending ? publishDraft() : runImmediately())} disabled={acting}><Play />{run.recurrence ? '启用每天重复' : schedule.pending ? '按计划运行' : '运行'}</Button> : null}
+            {terminal ? <Button onClick={() => void copy('queued')} disabled={acting || !hasPlan}><RotateCcw />完整重跑</Button> : null}
+            {run.status === 'draft' ? <Button onClick={() => void (run.recurrence || schedule.pending ? publishDraft() : runImmediately())} disabled={acting}><Play />{run.recurrence ? '启用每天重复' : schedule.pending ? '按计划运行' : '运行'}</Button> : null}
             {canPause ? <Button variant="outline" onClick={() => void control('pause')} disabled={acting}><Pause />暂停</Button> : null}
             {canResume ? <Button variant="secondary" onClick={() => void control('resume')} disabled={acting}><Play />继续</Button> : null}
             {run.status === 'failed' ? <Button variant="secondary" onClick={() => void resumeFromCheckpoint()} disabled={acting}><RotateCcw />从检查点恢复</Button> : null}
@@ -345,19 +345,22 @@ export function RunDetailPage() {
       {tasksState.error ? <ErrorBanner>{tasksState.error}</ErrorBanner> : null}
       {actionError ? <ErrorBanner>{actionError}</ErrorBanner> : null}
 
-      <section aria-label="运行概况" className="border-y border-border py-4">
+      <section aria-label="运行概况" className="rounded-lg border border-border bg-card p-4 sm:p-5">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
           <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
           <span className="font-medium tabular-nums">{progressText(run.completedTasks, totalTasks, 'Tasks')}</span>
-          <span className="ml-auto text-xs tabular-nums text-muted-foreground">{percent}%</span>
+          <span className="ml-auto font-mono text-xs tabular-nums text-muted-foreground">{percent}%</span>
         </div>
         <ProgressBar className="mt-3 w-full" value={percent} tone={status.tone} />
-        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
-          <span className="inline-flex items-center gap-1"><GitBranch className="size-3.5" />v{run.versionMajor}.{run.versionMinor} · {run.origin === 'resume' ? '恢复' : run.origin === 'rerun' ? '重跑' : run.origin === 'edited_rerun' ? '编辑副本' : '初始'}</span>
-          <span>{modeLabel(run.executionMode, run.maxConcurrency, '任务')}</span>
-          <span>{schedule.set ? schedule.absolute : '立即执行'}</span>
-          <span>更新 {formatDateTime(run.updated)}</span>
-        </div>
+        <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-5 border-t border-border pt-4 text-xs sm:grid-cols-4">
+          <div className="min-w-0">
+            <dt className="mb-2 text-[11px] text-muted-foreground">版本</dt>
+            <dd className="flex flex-wrap items-center gap-1 font-mono"><GitBranch className="size-3.5 text-muted-foreground" />v{run.versionMajor}.{run.versionMinor}<span className="ms-1 font-sans text-muted-foreground">{run.origin === 'resume' ? '恢复' : run.origin === 'rerun' ? '重跑' : run.origin === 'edited_rerun' ? '编辑副本' : '初始'}</span></dd>
+          </div>
+          <div className="min-w-0"><dt className="mb-2 text-[11px] text-muted-foreground">执行方式</dt><dd>{modeLabel(run.executionMode, run.maxConcurrency, '任务')}</dd></div>
+          <div className="min-w-0"><dt className="mb-2 text-[11px] text-muted-foreground">执行时间</dt><dd className="break-words tabular-nums">{schedule.set ? schedule.absolute : '立即执行'}</dd></div>
+          <div className="min-w-0"><dt className="mb-2 text-[11px] text-muted-foreground">最后更新</dt><dd className="break-words tabular-nums">{formatDateTime(run.updated)}</dd></div>
+        </dl>
         {run.lastError ? <div className="mt-3"><InlineError>{run.lastError}</InlineError></div> : null}
         <RunRuntimeSummary run={run} />
         {run.recurrenceSchedule ? <Button asChild variant="outline" size="sm"><Link to="/schedules"><CalendarClock />管理重复计划</Link></Button> : run.recurrence ? <span className="text-xs text-muted-foreground">每天 {run.recurrence.time} · 保存为草稿，尚未启用</span> : null}
@@ -392,7 +395,7 @@ export function RunDetailPage() {
         {run.status === 'draft' || terminal ? <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setConfirmDeleteOpen(true)} disabled={acting}><Trash2 />删除</Button> : null}
       </div>
 
-      <div className="mt-5 flex items-center justify-between gap-3">
+      <div className="mt-8 flex items-center justify-between gap-3">
         <h2 className="text-sm font-semibold">执行记录</h2>
         {tasksData ? <span className="text-[11px] tabular-nums text-muted-foreground">{tasksData.totalItems} Tasks</span> : null}
       </div>

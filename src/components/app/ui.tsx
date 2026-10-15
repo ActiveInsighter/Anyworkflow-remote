@@ -10,11 +10,11 @@ import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
 
 const toneClasses: Record<StatusTone, string> = {
-  neutral: 'border-transparent bg-muted text-muted-foreground',
-  info: 'border-transparent bg-info-soft text-info',
-  success: 'border-transparent bg-success-soft text-success',
-  danger: 'border-transparent bg-danger-soft text-danger',
-  warning: 'border-transparent bg-warning-soft text-warning',
+  neutral: 'border-border bg-muted/60 text-muted-foreground',
+  info: 'border-info/20 bg-info-soft text-info',
+  success: 'border-success/20 bg-success-soft text-success',
+  danger: 'border-danger/20 bg-danger-soft text-danger',
+  warning: 'border-warning/20 bg-warning-soft text-warning',
 }
 
 const progressToneClasses: Record<StatusTone, string> = {
@@ -31,7 +31,7 @@ export function AppPage({ children, className }: { children: ReactNode; classNam
   return (
     <div
       className={cn(
-        'mx-auto w-full max-w-[1180px] px-4 pb-[calc(3rem+env(safe-area-inset-bottom))] pt-4 sm:px-6 sm:pb-16 sm:pt-7 lg:px-10 lg:pt-9',
+        'mx-auto w-full max-w-[1440px] px-4 pb-[calc(3rem+env(safe-area-inset-bottom))] pt-6 sm:px-7 sm:pb-16 sm:pt-8 lg:px-10 lg:pt-10',
         className,
       )}
     >
@@ -64,7 +64,7 @@ export function PageHeader({
         {eyebrow ? (
           <div className="mb-1.5 flex items-center gap-2 text-[11px] font-medium text-muted-foreground">{eyebrow}</div>
         ) : null}
-        <h1 className="truncate text-[21px] font-semibold tracking-[-0.03em] sm:text-[24px]">{title}</h1>
+        <h1 className="truncate text-[23px] font-semibold tracking-[-0.035em] sm:text-[28px]">{title}</h1>
         {description ? (
           <p className="mt-1.5 max-w-2xl text-[13px] leading-5 text-muted-foreground">{description}</p>
         ) : null}
@@ -110,7 +110,7 @@ export function Panel({
 }: React.ComponentProps<'section'>) {
   return (
     <section
-      className={cn('overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-xs', className)}
+      className={cn('overflow-hidden rounded-lg border border-border bg-card text-card-foreground', className)}
       {...props}
     >
       {children}
@@ -224,8 +224,9 @@ export function StatusBadge({ tone, children }: { tone: StatusTone; children: Re
   return (
     <Badge
       variant="plain"
-      className={cn('h-[22px] shrink-0 rounded-md px-2 text-[11px] font-medium', toneClasses[tone])}
+      className={cn('h-6 shrink-0 gap-1.5 rounded-md px-2 text-[11px] font-medium', toneClasses[tone])}
     >
+      <span className="size-1.5 shrink-0 rounded-full bg-current" aria-hidden="true" />
       {children}
     </Badge>
   )
@@ -299,7 +300,7 @@ export function ErrorBanner({ children }: { children: ReactNode }) {
 export function LoadingState({ label = '加载中…' }: { label?: string }) {
   return (
     <div
-      className="flex min-h-32 items-center justify-center gap-2 rounded-lg border border-dashed border-border-strong text-sm text-muted-foreground"
+      className="flex min-h-32 items-center justify-center gap-2 rounded-lg border border-border bg-muted/30 text-sm text-muted-foreground"
       role="status"
       aria-live="polite"
     >
@@ -323,12 +324,14 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        'flex min-h-40 flex-col items-center justify-center rounded-lg border border-dashed border-border-strong px-6 py-10 text-center',
+        'flex min-h-64 flex-col items-center justify-center rounded-lg border border-border bg-card px-6 py-12 text-center',
         className,
       )}
     >
-      <CircleDashed className="mb-3 size-5 text-muted-foreground" aria-hidden="true" />
-      <div className="text-[13px] font-medium">{title}</div>
+      <div className="mb-4 grid size-12 place-items-center rounded-xl border border-border bg-muted/60">
+        <CircleDashed className="size-5 text-muted-foreground" aria-hidden="true" />
+      </div>
+      <div className="text-sm font-medium">{title}</div>
       {description ? <p className="mt-1 max-w-sm text-xs leading-5 text-muted-foreground">{description}</p> : null}
       {action ? <div className="mt-4">{action}</div> : null}
     </div>

@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react'
 import {
   ChevronLeft,
   ChevronRight,
+  CircleCheck,
+  CircleDashed,
+  CircleDot,
+  CircleX,
   Copy,
   GitBranch,
   MoreHorizontal,
@@ -33,11 +37,27 @@ import { invalidateAsyncDataCache, useAsyncData } from '@/hooks/useAsyncData'
 import { cloneRun, deleteRun, listRuns, toErrorMessage, type RunListFilter } from '@/lib/api'
 import { formatDateTime, progressPercent, progressText, runStatusMeta } from '@/lib/format'
 import { useSession } from '@/lib/session'
-import type { DispatchRunRecord } from '@/types'
+import { cn } from '@/lib/utils'
+import type { DispatchRunRecord, DispatchStatus, StatusTone } from '@/types'
 import { toast } from 'sonner'
 
 const filterKeys: readonly RunListFilter[] = ['all', 'draft', 'active', 'done', 'failed', 'canceled']
 const PAGE_SIZE = 20
+const statusIcons: Record<DispatchStatus, typeof CircleDot> = {
+  draft: CircleDashed,
+  queued: CircleDot,
+  running: CircleDot,
+  succeeded: CircleCheck,
+  failed: CircleX,
+  canceled: CircleX,
+}
+const statusIconColors: Record<StatusTone, string> = {
+  neutral: 'text-muted-foreground',
+  info: 'text-info',
+  success: 'text-success',
+  warning: 'text-warning',
+  danger: 'text-danger',
+}
 
 function readFilter(value: string | null): RunListFilter {
   return filterKeys.includes(value as RunListFilter) ? (value as RunListFilter) : 'all'
@@ -150,6 +170,7 @@ export function DashboardPage() {
         <PageHeader title="工作流" />
         <EmptyState
           title="未连接"
+          description="连接后端后，即可查看和运行工作流。"
           action={
             <Button asChild variant="secondary">
               <Link to="/settings">设置连接</Link>
@@ -164,22 +185,24 @@ export function DashboardPage() {
     <AppPage>
       <PageHeader
         title="工作流"
-        className="flex-row items-center justify-between gap-2 [&>div:last-child]:w-auto"
+        description="编排任务，追踪每一次执行。"
+        className="flex-row items-center justify-between gap-2 [&>div:last-child]:w-auto [&>div:last-child]:flex-nowrap [&_p]:hidden sm:[&_p]:block"
         actions={
           <>
             <Button
               variant="ghost"
               size="icon"
+              className="size-11 sm:size-9"
               onClick={() => void state.reload()}
               disabled={state.loading || state.refreshing}
               aria-label="刷新"
             >
               <RefreshCw className={state.refreshing ? 'animate-spin' : undefined} />
             </Button>
-            <Button asChild variant="secondary">
+            <Button asChild className="h-11 sm:h-9">
               <Link to="/runs/new">
                 <Plus />
-                新建
+                <span className="sm:hidden">新建</span><span className="hidden sm:inline">新建工作流</span>
               </Link>
             </Button>
           </>
@@ -189,22 +212,22 @@ export function DashboardPage() {
       {state.error ? <ErrorBanner>{state.error}</ErrorBanner> : null}
       {actionError ? <ErrorBanner>{actionError}</ErrorBanner> : null}
 
-      <div className="mb-4 space-y-3">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-3.5 size-4 text-muted-foreground" />
+      <div className="mb-5 flex flex-col gap-4">
+        <div className="relative sm:max-w-sm">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             aria-label="搜索工作流"
             type="search"
             placeholder="搜索名称或 Run ID"
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
-            className="h-11 bg-card ps-10 pe-10 text-base sm:text-sm [&::-webkit-search-cancel-button]:appearance-none"
+            className="h-11 bg-card ps-9 pe-10 text-base sm:h-9 sm:text-sm [&::-webkit-search-cancel-button]:appearance-none"
           />
           {searchInput ? (
             <Button
               size="icon"
               variant="ghost"
-              className="absolute right-0 top-0 size-11"
+              className="absolute right-0 top-0 size-11 sm:size-9"
               aria-label="清除搜索"
               onClick={() => setSearchInput('')}
             >
@@ -212,10 +235,10 @@ export function DashboardPage() {
             </Button>
           ) : null}
         </div>
-        <Tabs value={filter} onValueChange={(value) => updateQuery({ filter: readFilter(value) })}>
+        <Tabs className="border-b border-border" value={filter} onValueChange={(value) => updateQuery({ filter: readFilter(value) })}>
           <TabsList
             aria-label="运行状态"
-            className="grid h-auto w-full grid-cols-6 gap-0 sm:gap-1 [&_button]:h-10 [&_button]:px-1"
+            className="grid h-auto w-full grid-cols-6 gap-0 rounded-none bg-transparent p-0 sm:flex sm:w-fit sm:gap-5 [&_button]:h-11 [&_button]:rounded-none [&_button]:border-b-2 [&_button]:border-transparent [&_button]:bg-transparent [&_button]:px-1 [&_button]:data-[state=active]:border-primary sm:[&_button]:px-1.5"
           >
             <TabsTrigger value="all">全部</TabsTrigger>
             <TabsTrigger value="draft">草稿</TabsTrigger>
@@ -225,9 +248,9 @@ export function DashboardPage() {
             <TabsTrigger value="canceled">取消</TabsTrigger>
           </TabsList>
         </Tabs>
-        <div className="flex items-center justify-between text-xs text-muted-foreground" role="status">
+        <div className="flex items-center justify-between text-[11px] text-muted-foreground" role="status">
           <span className="min-w-0 flex-1 truncate pe-3" title={query || undefined}>{query ? `搜索“${query}”` : '运行记录'}</span>
-          <span className="shrink-0">{state.refreshing ? '更新中…' : state.data ? `${state.data.totalItems} 条` : '加载中…'}</span>
+          <span className="shrink-0 font-mono tabular-nums">{state.refreshing ? '更新中…' : state.data ? `${state.data.totalItems} 条` : '加载中…'}</span>
         </div>
       </div>
 
@@ -235,47 +258,57 @@ export function DashboardPage() {
 
       {runs.length ? (
         <Panel>
+          <div aria-hidden="true" className="hidden grid-cols-[minmax(0,1fr)_96px_88px_142px_36px] items-center gap-4 border-b border-border bg-muted/50 px-5 py-3 text-[11px] font-medium text-muted-foreground lg:grid">
+            <span>工作流名称</span><span>状态</span><span>任务</span><span>最后更新</span><span />
+          </div>
           {runs.map((run) => {
             const status = runStatusMeta(run.status, run.requestedAction)
             const percent = progressPercent(run.completedTasks, run.totalTasks)
             const terminal = ['succeeded', 'failed', 'canceled'].includes(run.status)
+            const StatusIcon = statusIcons[run.status] || CircleDashed
             return (
-              <article key={run.id} className="border-b border-border px-3 py-4 last:border-b-0 sm:px-5">
-                <div className="flex min-w-0 items-start gap-2">
+              <article key={run.id} className="grid grid-cols-[minmax(0,1fr)_44px] items-center gap-x-3 gap-y-2 border-b border-border px-3 py-3.5 transition-colors last:border-b-0 hover:bg-muted/40 sm:px-5 lg:grid-cols-[minmax(0,1fr)_96px_88px_142px_36px] lg:gap-x-4 lg:py-3">
+                <div className="flex min-w-0 items-start gap-3 lg:items-center">
+                  <StatusIcon className={cn('mt-1 size-4 shrink-0 lg:mt-0', statusIconColors[status.tone])} aria-hidden="true" />
                   <div className="min-w-0 flex-1">
                     <Link
                       to={'/runs/' + run.id}
-                      className="block break-words text-sm font-semibold leading-6 outline-none hover:underline focus-visible:underline"
+                      title={run.title || '未命名 Run'}
+                      className="block break-words text-sm font-medium leading-6 outline-none hover:underline focus-visible:underline lg:truncate lg:text-[13px]"
                     >
                       {run.title || '未命名 Run'}
                     </Link>
-                    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                      <span className="inline-flex items-center gap-1 tabular-nums">
-                        <GitBranch className="size-3.5" />v{run.versionMajor}.{run.versionMinor}
+                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                      <span className="inline-flex items-center gap-1 font-mono tabular-nums">
+                        <GitBranch className="size-3" />v{run.versionMajor}.{run.versionMinor}
                       </span>
-                      <time dateTime={run.updated}>{formatDateTime(run.updated)}</time>
-                      <span>{progressText(run.completedTasks, run.totalTasks, 'Tasks')}</span>
+                      <time className="lg:hidden" dateTime={run.updated}>{formatDateTime(run.updated)}</time>
+                      <span className="hidden font-mono text-[10px] xl:inline">{run.id}</span>
                     </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1">
-                    <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="size-11"
-                      aria-label={`操作 ${run.title || '未命名 Run'}`}
-                      onClick={() => setActionTarget(run)}
-                    >
-                      <MoreHorizontal />
-                    </Button>
+                    {!terminal && run.status !== 'draft' ? (
+                      <div className="mt-2 flex max-w-48 items-center gap-2">
+                        <ProgressBar className="h-1 flex-1" value={percent} tone={status.tone} />
+                        <span className="font-mono text-[10px] tabular-nums text-muted-foreground">{percent}%</span>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
-                {!terminal && run.status !== 'draft' ? (
-                  <div className="mt-3 flex items-center gap-3">
-                    <ProgressBar className="flex-1" value={percent} tone={status.tone} />
-                    <span className="text-xs tabular-nums text-muted-foreground">{percent}%</span>
-                  </div>
-                ) : null}
+                <div className="col-span-2 flex min-w-0 items-center justify-between gap-3 ps-7 lg:contents">
+                  <div><StatusBadge tone={status.tone}>{status.label}</StatusBadge></div>
+                  <span className="shrink-0 font-mono text-[11px] tabular-nums text-muted-foreground" title="已完成任务 / 总任务">
+                    {progressText(run.completedTasks, run.totalTasks, 'Tasks')}
+                  </span>
+                </div>
+                <time className="hidden text-[11px] tabular-nums text-muted-foreground lg:block" dateTime={run.updated}>{formatDateTime(run.updated)}</time>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="col-start-2 row-start-1 size-11 lg:col-auto lg:row-auto lg:size-9"
+                  aria-label={`操作 ${run.title || '未命名 Run'}`}
+                  onClick={() => setActionTarget(run)}
+                >
+                  <MoreHorizontal />
+                </Button>
               </article>
             )
           })}
@@ -285,6 +318,7 @@ export function DashboardPage() {
       {!state.loading && state.data && runs.length === 0 ? (
         <EmptyState
           title={query ? '没有找到匹配的工作流' : filter === 'all' ? '还没有 Run' : '没有匹配的 Run'}
+          description={query ? '试试其他名称或 Run ID。' : filter === 'all' ? '新建一个工作流，开始编排任务。' : undefined}
           action={
             query ? (
               <Button variant="outline" onClick={() => setSearchInput('')}>

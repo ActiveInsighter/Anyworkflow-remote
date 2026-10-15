@@ -345,7 +345,7 @@ export function LibraryPage() {
             const run = item.runRecord
             const status = run ? runStatusMeta(run.status, run.requestedAction) : { label: '不可用', tone: 'neutral' as const }
             return (
-              <ListRow key={item.id} className="grid gap-3">
+              <ListRow key={item.id} className="grid gap-3 sm:flex sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <div className="flex min-w-0 items-center gap-2">
                     <Star className="size-3.5 shrink-0 fill-warning text-warning" aria-hidden="true" />
@@ -393,7 +393,7 @@ export function LibraryPage() {
       {tab === 'templates' && templates.length ? (
         <Panel>
           {templates.map((item) => (
-            <ListRow key={item.id} className="grid gap-3">
+            <ListRow key={item.id} className="grid gap-3 sm:flex sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <Link to={'/templates/' + item.id} className="block truncate text-[13px] font-medium outline-none hover:underline focus-visible:underline">
                   {item.title || '未命名模板'}

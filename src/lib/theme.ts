@@ -9,8 +9,8 @@ const THEME_EVENT = 'anyworkflow:theme-change'
 let cachedRaw: string | null | undefined
 let cachedPreference: ThemePreference = 'system'
 
-const LIGHT_THEME_COLOR = '#f7f8f8'
-const DARK_THEME_COLOR = '#000000'
+const LIGHT_THEME_COLOR = '#ffffff'
+const DARK_THEME_COLOR = '#101114'
 
 function isPreference(value: unknown): value is ThemePreference {
   return value === 'system' || value === 'light' || value === 'dark'
