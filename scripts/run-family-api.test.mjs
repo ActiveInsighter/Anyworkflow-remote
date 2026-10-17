@@ -384,6 +384,14 @@ assert.ok(createCall)
 assert.equal(JSON.parse(String(createCall.init.body)).parentRun, parentRun.id)
 assert.equal(JSON.parse(String(createCall.init.body)).origin, 'resume')
 
+// A Claude conversation checkpoint resumes the same way as a ChatGPT one.
+const claudeResult = await runWithCheckpoint({
+  ...checkpoint,
+  checkpointSeq: 10,
+  conversationUrl: 'https://claude.ai/chat/0b4f1a52-7c1e-4f0f-9d57-0e0a1f3b9c11',
+})
+assert.equal(claudeResult.result?.id, 'run-child-2')
+
 const unsafeResult = await runWithCheckpoint({ ...checkpoint, checkpointSeq: 9, phase: 'unsafe' })
 assert.ok(unsafeResult.error instanceof ApiError)
 assert.equal(unsafeResult.error.code, 'RUN_RESUME_CHECKPOINT_UNSAFE')
