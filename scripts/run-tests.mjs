@@ -16,6 +16,7 @@ const testFiles = [
   'run-edit.test.mjs',
   'dashboard-api.test.mjs',
   'run-name.test.mjs',
+  'conversation-url.test.mjs',
 ]
 
 for (const file of testFiles) {

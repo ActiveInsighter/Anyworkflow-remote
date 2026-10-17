@@ -11,6 +11,7 @@ import {
   TASK_COLLECTION,
 } from './config'
 import { requireSession, saveBaseUrl, setSession } from './session'
+import { isSafeConversationUrl } from './conversation-url'
 import { parsePlanMeta } from './plan'
 import { isFutureScheduledAt, isValidScheduledAt } from './schedule'
 import { validateWorkflowSource } from './workflow-dsl'
@@ -442,17 +443,6 @@ export async function cloneRun(source: DispatchRunRecord, status: 'draft' | 'que
     origin: status === 'draft' ? 'edited_rerun' : 'rerun',
     title,
   })
-}
-
-function isSafeConversationUrl(value: string): boolean {
-  try {
-    const url = new URL(value)
-    return url.protocol === 'https:' &&
-      ['chatgpt.com', 'chat.openai.com'].includes(url.hostname.toLowerCase()) &&
-      /^\/c\/[^/]+/u.test(url.pathname)
-  } catch {
-    return false
-  }
 }
 
 function checkpointIsSafe(
