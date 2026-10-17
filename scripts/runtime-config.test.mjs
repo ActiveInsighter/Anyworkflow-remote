@@ -4,7 +4,7 @@ const server = await createServer({ server: { middlewareMode: true }, appType: '
 const originalFetch = globalThis.fetch
 try {
   const { setSession } = await server.ssrLoadModule('/src/lib/session.ts')
-  const { defaultRuntimeConfig } = await server.ssrLoadModule('/src/lib/runtime-config.ts')
+  const { defaultRuntimeConfig, defaultModelSelection, normalizeRuntimeConfig } = await server.ssrLoadModule('/src/lib/runtime-config.ts')
   const { getRuntimeDefaults, saveRuntimeDefaults } = await server.ssrLoadModule('/src/lib/runtime-defaults.ts')
   const api = await server.ssrLoadModule('/src/lib/api.ts')
   setSession({ token: 'fixture', record: { id: 'owner-1' }, baseUrl: 'https://pb.example.invalid' })
@@ -27,6 +27,21 @@ try {
   const run = await api.createRun(plan, 'draft', '', null, config)
   assert.deepEqual(payload.runtimeConfig, config)
   assert.deepEqual(run.runtimeConfig, config)
+  const models = defaultModelSelection()
+  models.chatgpt = { model: 'GPT-6', reasoningEffort: 'high' }
+  models.claude = { model: 'claude-sonnet-5-5', reasoningEffort: 'xhigh' }
+  const modelConfig = { ...config, schemaVersion: 2, modelSelection: models }
+  assert.deepEqual(normalizeRuntimeConfig(modelConfig), modelConfig)
+  const modelRun = await api.createRun(plan, 'draft', '', null, modelConfig)
+  assert.deepEqual(modelRun.runtimeConfig, modelConfig)
+  globalThis.fetch = async (_url, init) => {
+    payload = init.body ? JSON.parse(init.body) : null
+    return Response.json({ owner: 'owner-1', revision: 8, schemaVersion: 2, config: modelConfig })
+  }
+  assert.deepEqual((await saveRuntimeDefaults(modelConfig, 7)).config, modelConfig)
+  assert.deepEqual(payload, { config: modelConfig, expectedRevision: 7 })
+  globalThis.fetch = async () => Response.json({ owner: 'owner-1', revision: 8, schemaVersion: 1, config: modelConfig })
+  await assert.rejects(getRuntimeDefaults(), /运行配置响应无效/)
   const malformed = { ...config, schemaVersion: 2 }
   await assert.rejects(api.createRun(plan, 'draft', '', null, malformed), /runtimeConfig/)
   const { draftScopeFor, legacyDraftScopeFor, writeEditorDraft, readEditorDraft, clearEditorDraft } = await server.ssrLoadModule('/src/lib/draft.ts')
@@ -45,5 +60,5 @@ try {
     clearEditorDraft(second)
     assert.deepEqual(readEditorDraft(first).runtimeConfig, config)
   } finally { delete globalThis.localStorage }
-  console.log('runtime-config: owner validation, revision writes and Run snapshots passed')
+  console.log('runtime-config: owner validation, revision writes, v1/v2 model configuration and Run snapshots passed')
 } finally { globalThis.fetch = originalFetch; await server.close() }

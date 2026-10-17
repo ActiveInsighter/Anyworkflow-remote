@@ -1,6 +1,7 @@
 import { useId } from 'react'
 import { Field, TextInput } from './ui'
-import { normalizeRuntimeConfig, type RuntimeConfig } from '@/lib/runtime-config'
+import { defaultModelSelection, normalizeRuntimeConfig, type RuntimeConfig, type ModelSelection } from '@/lib/runtime-config'
+import { ModelSelectionFields } from './model-selection-fields'
 
 export function runtimeConfigError(config: RuntimeConfig): string {
   try { normalizeRuntimeConfig(config); return '' }
@@ -10,7 +11,8 @@ export function runtimeConfigError(config: RuntimeConfig): string {
     const wait = browser.randomWait
     if (![wait.minSeconds, wait.maxSeconds].every(value => Number.isSafeInteger(value) && value >= 0 && value <= 86400)) return '随机等待需为 0–86400 的整数秒。'
     if (wait.maxSeconds < wait.minSeconds) return '最长等待不能小于最短等待。'
-    return '回收延迟需为 0–1440 的整数分钟。'
+    if (!Number.isSafeInteger(browser.deferredReply.delayMinutes) || browser.deferredReply.delayMinutes < 0 || browser.deferredReply.delayMinutes > 1440) return '回收延迟需为 0–1440 的整数分钟。'
+    return '模型名称或思考程度无效。'
   }
 }
 
@@ -61,6 +63,15 @@ export function RuntimeConfigFields({ value, onChange, disabled = false }: {
         </Field>
         {browser.deferredReply.enabled ? <p className="text-xs text-muted-foreground">并发投递期间不使用随机等待。</p> : null}
       </div>
+      <ModelSelectionFields value={value.modelSelection ?? defaultModelSelection()}
+        onChange={(site: 'chatgpt' | 'claude', patch: Partial<ModelSelection>) => {
+          const models = value.modelSelection ?? defaultModelSelection()
+          const next = { ...models, [site]: { ...models[site], ...patch } }
+          const configured = Object.values(next).some(item => item.model !== null || item.reasoningEffort !== null)
+          onChange(configured ? { ...value, schemaVersion: 2, modelSelection: next } : {
+            schemaVersion: 1, browser: value.browser,
+          })
+        }} />
       {error ? <p role="alert" className="text-xs leading-5 text-destructive">{error}</p> : null}
     </fieldset>
   )

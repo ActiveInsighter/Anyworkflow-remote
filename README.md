@@ -292,3 +292,14 @@ UTC+08:00），保存草稿不会启动，点击“启用重复”才提交首�
 恢复时从未来下次时刻开始，不积压补跑。时区使用固定偏移，不自动调整夏令时。
 需部署 cloudservice 的 `1791300000_recurring_runs.js` 和匹配 hooks。
 验证：`npm run preflight`；`node scripts/recurrence.browser.mjs`（Playwright 配置同上）。
+
+## 模型与思考程度
+
+默认运行配置和 Run 编辑器的运行配置支持分别设置 ChatGPT、Claude 的模型与思考程度。
+模型可从建议列表选择，也可填写页面中的显示名称或稳定 ID；留空保持页面当前选择。
+配置按 Run 固定，已有 Run 不受账号默认值修改影响。扩展每次发送前读取并核验实际
+选择，不可用或未生效时阻止发送。Claude Chat 和 Code 均由站点适配层处理。
+
+选择覆盖值后配置采用 schemaVersion 2；清空全部覆盖值后回到 v1。需先部署 cloudservice
+的模型选择 migration/hooks 与新版 scheduler，再加载支持能力版本 2 的扩展。旧版
+Remote 不支持编辑 v2 默认值，功能分支测试使用对应预览部署。
