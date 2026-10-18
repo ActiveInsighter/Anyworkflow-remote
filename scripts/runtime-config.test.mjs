@@ -4,7 +4,7 @@ const server = await createServer({ server: { middlewareMode: true }, appType: '
 const originalFetch = globalThis.fetch
 try {
   const { setSession } = await server.ssrLoadModule('/src/lib/api/session.ts')
-  const { defaultRuntimeConfig } = await server.ssrLoadModule('/src/lib/domain/runtime-config.ts')
+  const { defaultRuntimeConfig, defaultModelSelection, normalizeRuntimeConfig } = await server.ssrLoadModule('/src/lib/domain/runtime-config.ts')
   const { getRuntimeDefaults, saveRuntimeDefaults } = await server.ssrLoadModule('/src/lib/api/runtime-defaults.ts')
   const api = await server.ssrLoadModule('/src/lib/api/index.ts')
   setSession({ token: 'fixture', record: { id: 'owner-1' }, baseUrl: 'https://pb.example.invalid' })
@@ -27,6 +27,21 @@ try {
   const run = await api.createRun(plan, 'draft', '', null, config)
   assert.deepEqual(payload.runtimeConfig, config)
   assert.deepEqual(run.runtimeConfig, config)
+  const v2 = { ...config, schemaVersion: 2, modelSelection: {
+    chatgpt: { model: ' GPT-6 ', reasoningEffort: 'high' }, claude: { model: null, reasoningEffort: null } } }
+  const v2Normalized = normalizeRuntimeConfig(v2)
+  assert.equal(v2Normalized.modelSelection.chatgpt.model, 'GPT-6')
+  assert.deepEqual(Object.keys(v2Normalized), ['schemaVersion', 'browser', 'modelSelection'])
+  assert.throws(() => normalizeRuntimeConfig({ ...v2, modelSelection: { ...v2.modelSelection, claude: { model: '', reasoningEffort: null } } }), /claude\.model/)
+  assert.throws(() => normalizeRuntimeConfig({ ...v2, modelSelection: { ...v2.modelSelection, claude: { model: null, reasoningEffort: 'x' } } }), /reasoningEffort/)
+  assert.throws(() => normalizeRuntimeConfig({ ...config, modelSelection: v2.modelSelection }), /fields/)
+  globalThis.fetch = async () => Response.json({ owner: 'owner-1', revision: 9, schemaVersion: 2, config: v2 })
+  assert.equal((await getRuntimeDefaults()).config.schemaVersion, 2)
+  globalThis.fetch = async (_url, init) => {
+    payload = JSON.parse(init.body)
+    return Response.json({ ...payload, runtimeConfig: v2, runtimeConfigChecksum: 'a'.repeat(64), runtimeDefaultRevision: 9 })
+  }
+  assert.equal((await api.createRun(plan, 'draft', '', null, v2)).runtimeConfig.modelSelection.chatgpt.reasoningEffort, 'high')
   const malformed = { ...config, schemaVersion: 2 }
   await assert.rejects(api.createRun(plan, 'draft', '', null, malformed), /runtimeConfig/)
   const { draftScopeFor, legacyDraftScopeFor, writeEditorDraft, readEditorDraft, clearEditorDraft } = await server.ssrLoadModule('/src/features/run-editor/lib/editor-draft.ts')

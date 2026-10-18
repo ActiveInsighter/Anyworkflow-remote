@@ -3,16 +3,18 @@ import { normalizeRuntimeConfig, type RuntimeConfig } from '../domain/runtime-co
 
 export interface RuntimeDefaults {
   owner: string
-  schemaVersion: 1
+  schemaVersion: 1 | 2
   revision: number
   config: RuntimeConfig
 }
 function checkedDefaults(value: RuntimeDefaults): RuntimeDefaults {
   assertOwner(value)
-  if (value.schemaVersion !== 1 || !Number.isSafeInteger(value.revision) || value.revision < 0) {
+  if (![1, 2].includes(value.schemaVersion) || !Number.isSafeInteger(value.revision) || value.revision < 0) {
     throw new ApiError('运行配置响应无效', 502, 'INVALID_RUNTIME_DEFAULTS')
   }
-  return { ...value, config: normalizeRuntimeConfig(value.config) }
+  const config = normalizeRuntimeConfig(value.config)
+  if (config.schemaVersion !== value.schemaVersion) throw new ApiError('运行配置响应无效', 502, 'INVALID_RUNTIME_DEFAULTS')
+  return { ...value, config }
 }
 export async function getRuntimeDefaults(signal?: AbortSignal): Promise<RuntimeDefaults> {
   return checkedDefaults(await request<RuntimeDefaults>('/api/anyworkflow/runtime-defaults', { signal }))

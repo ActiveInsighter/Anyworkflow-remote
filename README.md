@@ -24,7 +24,6 @@ AnyWorkflow 的响应式 Web 控制端。项目参考 `Anyworkflow-wechat` 的�
 - 进行中数据自动轮询刷新与有界跨页缓存
 - 收藏、模板与层级资料库目录
 - CodeMirror DSL 编辑器、本地草稿与括号消息语法
-- Run 级 `@Codex` 编排语法（与 `@task` 同级）
 - 桌面侧栏布局
 - 手机侧边导航、顶部路径导航与触控优化
 - 自动深色模式
@@ -42,7 +41,7 @@ AnyWorkflow 的响应式 Web 控制端。项目参考 `Anyworkflow-wechat` 的�
 - `aw_dispatch_events`
 
 Run 控制仍使用 `requestedAction + commandVersion + 1`。Run DSL 仍写入 `planText`，云端继续负责 Task/Event 展开。
-其中 `@task` 交给浏览器扩展，`@Codex` 交给云端 Codex 执行器；两者仍共享 Run → Task → Event → Act → Message 的数据层级。
+`@task` 交给浏览器扩展执行，保留 Run → Task → Event → Act → Message 数据层级。Codex 执行已移除，新计划会拒绝 `@Codex`，旧记录仍可查看。
 
 ## 前端结构
 
@@ -258,10 +257,10 @@ Run 详情中的消息来自 `aw_messages` 的分页记录，不使用计划消�
 ## 编辑器操作
 
 Event 队列中的消息块和轮询组支持 `}*N` 重复后缀，`N` 为 1–100 的整数，
-例如 `{ 继续整理 }*50`。Codex 消息也使用相同范围。
-需要配套更新 workers / cloudservice 的编译器和浏览器扩展；旧版本仍会拒绝超过 30 次。
+例如 `{ 继续整理 }*50`。
+需要配套更新 AnyWorkflow-workers 的编译器和浏览器扩展；旧版本仍会拒绝超过 30 次。
 
-编辑器的变量按钮始终将声明插入光标所属 Task（包括 Codex）的头部，放在已有配置和变量
+编辑器的变量按钮始终将声明插入光标所属 Task的头部，放在已有配置和变量
 之后、所有 Event 之前。新变量使用未占用的合法名称，并选中名称供修改。
 智能复制与智能删除使用相同规则：光标紧邻或选中结构括号时处理整块，否则处理当前行
 或选中行。选择全文仍可复制完整工作流，消息块的重复后缀随块一起处理。
@@ -277,7 +276,7 @@ Event 队列中的消息块和轮询组支持 `}*N` 重复后缀，`N` 为 1–1
 已结束的 Run 可直接进入编辑器。进入和修改只读取数据并缓存本地草稿；保存时创建
 `edited_rerun` 草稿，运行时创建 `edited_rerun` 排队记录。原 Run 保持不变。
 保存后继续编辑该草稿使用原记录，发布时不额外创建版本。完整重跑继续使用 `rerun`。
-版本号由 PocketBase 分配，需配套部署 cloudservice 的操作语义版本规则。
+版本号由 PocketBase 分配，需配套部署 AnyWorkflow-workers 的操作语义版本规则。
 
 浏览器回归：`npm run test:browser -- run-edit`。
 
@@ -303,9 +302,9 @@ Event 队列中的消息块和轮询组支持 `}*N` 重复后缀，`N` 为 1–1
 任务历史每 5 秒刷新，支持分页、GitHub 运行详情和受保护 ZIP 下载。
 源 PDF 不上传 PocketBase；文件库只保留最终 ZIP。
 
-后端需先部署 cloudservice 中的配置 migration、`aw_pdf_to_md_jobs` 验证 hook、
-n8n PDF 调度工作流和 AnyWorkflow-workers 的独立 `pdf` 镜像。
-任务最迟在下一次每分钟调度时提交，GitHub 仍使用共享 Gemini 队列。
+后端需先部署 AnyWorkflow-workers 中的配置 migration、`aw_pdf_to_md_jobs` 验证 hook、
+独立 `pdf` 镜像。
+任务通过 PocketBase realtime 唤醒转换 worker，GitHub 仍使用共享 Gemini 队列。
 
 验证：`npm run preflight`，以及 `npm run test:browser -- pdf`。浏览器用例检查四种宽度、任务参数、状态和自定义 ZIP 下载。
 
@@ -316,7 +315,7 @@ n8n PDF 调度工作流和 AnyWorkflow-workers 的独立 `pdf` 镜像。
 不会随默认值改变；完整重跑和断点恢复继承原配置，编辑副本可以覆盖。历史无快照 Run
 继续使用本地扩展参数。运行配置与计划一起保存本地草稿，并按账号和后端地址隔离。
 
-需配套部署 cloudservice 的 runtime configuration migration/hooks、scheduler 和新版扩展。
+需配套部署 AnyWorkflow-workers 的 runtime configuration migration/hooks、scheduler 和新版扩展。
 验证：`npm run preflight`，以及 `npm run test:browser -- runtime-config`；覆盖四种宽度、配置冲突、草稿恢复竞态和单 Run 覆盖。
 
 ## 每天重复执行
@@ -332,5 +331,16 @@ UTC+08:00），保存草稿不会启动，点击“启用重复”才提交首�
 
 后端每分钟扫描；前一次仍在排队/运行时跳过本次，超过 15 分钟的错过时刻不补跑。
 恢复时从未来下次时刻开始，不积压补跑。时区使用固定偏移，不自动调整夏令时。
-需部署 cloudservice 的 `1791300000_recurring_runs.js` 和匹配 hooks。
+需部署 AnyWorkflow-workers 的 `1791300000_recurring_runs.js` 和匹配 hooks。
 验证：`npm run preflight`；`npm run test:browser -- recurrence`。
+
+## 模型与思考程度
+
+默认运行配置和 Run 编辑器的运行配置支持分别设置 ChatGPT、Claude 的模型与思考程度。
+模型可从建议列表选择，也可填写页面中的显示名称或稳定 ID；留空保持页面当前选择。
+配置按 Run 固定，已有 Run 不受账号默认值修改影响。扩展每次发送前读取并核验实际
+选择，不可用或未生效时阻止发送。Claude Chat 和 Code 均由站点适配层处理。
+
+选择覆盖值后配置采用 schemaVersion 2；清空全部覆盖值后回到 v1。需先部署 AnyWorkflow-workers
+的模型选择 migration/hooks 与新版 scheduler，再加载支持能力版本 2 的扩展。前端必须同时
+识别 v1 与 v2，否则遇到 v2 的 Run 时列表会整页加载失败。

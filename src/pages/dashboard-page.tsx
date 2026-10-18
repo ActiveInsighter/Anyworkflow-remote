@@ -82,7 +82,17 @@ export function DashboardPage() {
         }
       />
 
-      <ErrorAlert>{state.error}</ErrorAlert>
+      <ErrorAlert
+        action={
+          !state.data ? (
+            <Button size="sm" variant="outline" onClick={() => void state.reload()} disabled={state.loading || state.refreshing}>
+              重试
+            </Button>
+          ) : null
+        }
+      >
+        {state.error}
+      </ErrorAlert>
       <ErrorAlert>{actions.error}</ErrorAlert>
 
       <div className="mb-5 flex flex-col gap-4">
@@ -100,7 +110,7 @@ export function DashboardPage() {
             {query ? `搜索“${query}”` : '运行记录'}
           </span>
           <span className="shrink-0 font-mono tabular-nums">
-            {state.refreshing ? '更新中…' : state.data ? `${state.data.totalItems} 条` : '加载中…'}
+            {state.refreshing ? '更新中…' : state.data ? `${state.data.totalItems} 条` : state.error ? '加载失败' : '加载中…'}
           </span>
         </div>
       </div>

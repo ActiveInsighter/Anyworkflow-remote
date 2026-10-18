@@ -15,6 +15,10 @@ export function runtimeConfigError(config: RuntimeConfig): string {
       return '随机等待需为 0–86400 的整数秒。'
     }
     if (wait.maxSeconds < wait.minSeconds) return '最长等待不能小于最短等待。'
-    return '回收延迟需为 0–1440 的整数分钟。'
+    const deferred = browser.deferredReply
+    if (!Number.isSafeInteger(deferred.delayMinutes) || deferred.delayMinutes < 0 || deferred.delayMinutes > 1440) {
+      return '回收延迟需为 0–1440 的整数分钟。'
+    }
+    return '模型名称或思考程度无效。'
   }
 }

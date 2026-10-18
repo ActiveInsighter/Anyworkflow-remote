@@ -1,6 +1,6 @@
 import type * as React from 'react'
 import { CircleAlert, TriangleAlert } from 'lucide-react'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Alert, AlertActions, AlertDescription } from '@/components/ui/alert'
 import { cn } from '@/lib/utils'
 
 /**
@@ -10,10 +10,13 @@ import { cn } from '@/lib/utils'
 export function ErrorAlert({
   children,
   inline = false,
+  action,
   className,
 }: {
   children: React.ReactNode
   inline?: boolean
+  /** Recovery control, e.g. a retry button, shown under the message. */
+  action?: React.ReactNode
   className?: string
 }) {
   if (children === '' || children == null || children === false) return null
@@ -22,6 +25,7 @@ export function ErrorAlert({
     <Alert variant="destructive" size={inline ? 'sm' : 'default'} className={cn(!inline && 'mb-4', className)}>
       <Icon aria-hidden="true" />
       <AlertDescription>{children}</AlertDescription>
+      {action ? <AlertActions>{action}</AlertActions> : null}
     </Alert>
   )
 }

@@ -2,8 +2,9 @@ import { useId } from 'react'
 import { Field, FieldContent, FieldDescription, FieldError, FieldGroup, FieldLabel, FieldSeparator, FieldSet } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
-import type { RuntimeConfig } from '@/lib/domain/runtime-config'
+import { defaultModelSelection, type ModelSite, type RuntimeConfig, type SiteModelSelection } from '@/lib/domain/runtime-config'
 import { runtimeConfigError } from '../lib/runtime-config-error'
+import { ModelSelectionFields } from './model-selection-fields'
 
 type BrowserConfig = RuntimeConfig['browser']
 
@@ -85,6 +86,13 @@ export function RuntimeConfigFields({
   const randomWait = (patch: Partial<BrowserConfig['randomWait']>) => update({ randomWait: { ...browser.randomWait, ...patch } })
   const deferred = (patch: Partial<BrowserConfig['deferredReply']>) =>
     update({ deferredReply: { ...browser.deferredReply, ...patch } })
+  /** Any override makes the config v2; clearing them all returns to v1 so its checksum bytes stay stable. */
+  const selectModel = (site: ModelSite, patch: Partial<SiteModelSelection>) => {
+    const current = value.modelSelection ?? defaultModelSelection()
+    const next = { ...current, [site]: { ...current[site], ...patch } }
+    const configured = Object.values(next).some((item) => item.model !== null || item.reasoningEffort !== null)
+    onChange(configured ? { schemaVersion: 2, browser, modelSelection: next } : { schemaVersion: 1, browser })
+  }
   const waitDisabled = !browser.randomWait.enabled || browser.deferredReply.enabled
   const error = runtimeConfigError(value)
 
@@ -143,6 +151,8 @@ export function RuntimeConfigFields({
           value={browser.deferredReply.delayMinutes}
           onChange={(delayMinutes) => deferred({ delayMinutes })}
         />
+        <FieldSeparator />
+        <ModelSelectionFields value={value.modelSelection ?? defaultModelSelection()} onChange={selectModel} />
       </FieldGroup>
       {error ? <FieldError>{error}</FieldError> : null}
     </FieldSet>

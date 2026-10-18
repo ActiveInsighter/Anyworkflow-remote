@@ -13,7 +13,7 @@ export function RunEditorHeader({ editor }: { editor: RunEditorModel }) {
       : editor.meta.title || (target.runId ? '未命名 Run' : '新建 Run')
 
   return (
-    <div className="mb-4 flex shrink-0 flex-col gap-1.5 px-0.5">
+    <div className="mb-4 flex shrink-0 flex-col gap-1.5">
       <div className="flex min-w-0 items-center gap-2">
         <h1 className="min-w-0 truncate text-xl font-semibold tracking-heading sm:text-title">{title}</h1>
         {dirty ? (

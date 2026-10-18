@@ -1,6 +1,5 @@
 import {
   AlignLeft,
-  Bot,
   Braces,
   Check,
   ClipboardPaste,
@@ -46,13 +45,11 @@ interface ToolItem {
   hint?: string
   run: (actions: EditorToolbarActions) => void
   disabled?: boolean
-  primary?: boolean
 }
 
 /** Insert tools, in DSL nesting order. Hidden for read-only editors. */
 const INSERT_TOOLS: ToolItem[] = [
   { icon: Braces, label: 'Task', hint: '追加到 Run 最外层', run: (a) => a.insertStructured('task') },
-  { icon: Bot, label: 'Codex', hint: '追加到 Run 最外层，交给云端 Codex', run: (a) => a.insertStructured('codex') },
   { icon: Zap, label: 'Event', hint: '添加到光标所在 Task', run: (a) => a.insertStructured('event') },
   { icon: ListTree, label: 'Act', hint: '添加到光标所在 Event', run: (a) => a.insertStructured('act') },
   { icon: Repeat, label: '循环', hint: '插入循环', run: (a) => a.insert('@for i in range(1, 3) {\n  \n}\n', 5, 1) },
@@ -75,11 +72,11 @@ function ToolButton({ item, actions }: { item: ToolItem; actions: EditorToolbarA
       <TooltipTrigger asChild>
         <Button
           size="icon-sm"
-          variant={item.primary ? 'default' : 'ghost'}
+          variant="ghost"
           onClick={() => item.run(actions)}
           disabled={item.disabled}
           aria-label={item.label}
-          className={cn('size-10 shrink-0 sm:size-8', item.primary && 'bg-primary/80')}
+          className="h-10 min-w-9 flex-1 shrink-0 sm:size-8 sm:min-w-0 sm:flex-none"
         >
           <Icon />
         </Button>
@@ -106,8 +103,9 @@ function ToolRow({ groups, actions, className }: { groups: ToolItem[][]; actions
 }
 
 /**
- * Two rows: structural inserts on top, history/clipboard/view tools right-aligned below. The
- * lower row uses safe alignment so narrow screens scroll it instead of clipping its first tools.
+ * Two rows: structural inserts on top, history/clipboard/view tools below. On mobile, buttons share
+ * each row's width; from `sm` up the lower row is right-aligned with safe alignment so narrow
+ * screens scroll it instead of clipping its first tools.
  */
 export function EditorToolbar({
   readOnly,
@@ -133,7 +131,7 @@ export function EditorToolbar({
           { icon: ClipboardPaste, label: '粘贴', hint: '粘贴到当前光标位置', run: (a) => void a.paste() },
         ],
         [{ icon: AlignLeft, label: '格式化', hint: '按块结构重排缩进', run: (a) => a.format() }],
-        actions.save ? [{ icon: Save, label: '保存', hint: 'Ctrl/⌘ S', run: (a) => a.save?.(), primary: true }] : [],
+        actions.save ? [{ icon: Save, label: '保存', hint: 'Ctrl/⌘ S', run: (a) => a.save?.() }] : [],
       ]
   const copyTool: ToolItem = {
     icon: copied ? Check : Copy,
@@ -151,7 +149,7 @@ export function EditorToolbar({
     <div className="shrink-0 border-b border-cm-border bg-cm-toolbar-bg">
       {readOnly ? null : <ToolRow groups={[INSERT_TOOLS]} actions={actions} />}
       <ToolRow
-        className="justify-end-safe border-t border-cm-border/70 bg-background/35"
+        className="sm:justify-end-safe border-t border-cm-border/70 bg-background/35"
         groups={[...editTools, [copyTool], [viewTool]]}
         actions={actions}
       />

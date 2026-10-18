@@ -24,7 +24,7 @@ await page.route('https://pb.example.invalid/**', async route => {
       return route.fulfill({ json: defaults })
     }
     if (data.expectedRevision !== defaults.revision) return route.fulfill({ status: 409, json: { message: '默认配置已更新，请重新加载后再保存' } })
-    defaults = { ...defaults, revision: defaults.revision + 1, config: data.config }
+    defaults = { ...defaults, revision: defaults.revision + 1, schemaVersion: data.config.schemaVersion, config: data.config }
     writes.push(data); return route.fulfill({ json: defaults })
   }
   const collection = url.pathname.split('/')[3], id = url.pathname.split('/')[5]
@@ -118,6 +118,36 @@ try {
   assert.equal(writes.at(-1).runtimeConfig.browser.replyTimeoutMinutes, 120)
   assert.deepEqual(writes.at(-1).runtimeConfig.browser.randomWait, { enabled: true, minSeconds: 20, maxSeconds: 25 })
   assert.equal(defaults.config.browser.replyTimeoutMinutes, 90)
+  await page.goto(`${base}/settings`)
+  await page.getByLabel('ChatGPT 模型', { exact: true }).fill('GPT-6')
+  await page.getByLabel('ChatGPT 思考程度', { exact: true }).selectOption('high')
+  await page.getByLabel('Claude 模型', { exact: true }).fill('Sonnet 5.5')
+  await page.getByLabel('Claude 思考程度', { exact: true }).selectOption('xhigh')
+  await page.getByRole('button', { name: '保存默认配置', exact: true }).click()
+  await page.getByText('默认运行配置已保存', { exact: true }).waitFor()
+  assert.equal(defaults.config.schemaVersion, 2)
+  assert.deepEqual(defaults.config.modelSelection, {
+    chatgpt: { model: 'GPT-6', reasoningEffort: 'high' },
+    claude: { model: 'Sonnet 5.5', reasoningEffort: 'xhigh' },
+  })
+  await page.reload()
+  await page.getByLabel('Claude 模型', { exact: true }).waitFor()
+  assert.equal(await page.getByLabel('Claude 模型', { exact: true }).inputValue(), 'Sonnet 5.5')
+  for (const width of [320, 390, 760, 1440]) {
+    await page.setViewportSize({ width, height: 900 }); await noOverflow()
+  }
+  await page.goto(`${base}/runs/new`)
+  await page.locator('.cm-content').waitFor()
+  await page.getByRole('button', { name: '运行配置', exact: true }).click()
+  assert.equal(await page.getByLabel('ChatGPT 模型', { exact: true }).inputValue(), 'GPT-6')
+  assert.equal(await page.getByLabel('Claude 思考程度', { exact: true }).inputValue(), 'xhigh')
+  await page.getByLabel('ChatGPT 模型', { exact: true }).fill('GPT-5.6 Sol')
+  await page.getByRole('button', { name: '完成', exact: true }).click()
+  await page.reload()
+  await page.getByRole('button', { name: '恢复', exact: true }).click()
+  await page.getByRole('button', { name: '运行配置', exact: true }).click()
+  assert.equal(await page.getByLabel('ChatGPT 模型', { exact: true }).inputValue(), 'GPT-5.6 Sol')
+  assert.equal(defaults.config.modelSelection.chatgpt.model, 'GPT-6', 'per-Run model edit changed account defaults')
   assert.deepEqual(errors, [])
   console.log('PASS runtime UI: defaults/CAS, existing snapshot, config-only restore, per-Run override, numeric validation, 320/390/760/1440px, clean console')
 } finally { await browser.close() }

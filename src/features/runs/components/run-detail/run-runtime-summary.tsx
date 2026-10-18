@@ -3,9 +3,17 @@ import { DescriptionList } from '@/components/data-display/description-list'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import type { DispatchRunRecord } from '@/types'
 
+const SITE_LABELS = { chatgpt: 'ChatGPT', claude: 'Claude' } as const
+
+function selectionText(selection: { model: string | null; reasoningEffort: string | null }) {
+  if (!selection.model && !selection.reasoningEffort) return '站点默认'
+  return [selection.model ?? '默认模型', selection.reasoningEffort].filter(Boolean).join(' · ')
+}
+
 /** Browser runtime settings frozen on this Run; collapsed by default. */
 export function RunRuntimeSummary({ run }: { run: DispatchRunRecord }) {
   const config = run.runtimeConfig?.browser
+  const models = run.runtimeConfig?.modelSelection
   return (
     <Collapsible className="group/runtime">
       <CollapsibleTrigger className="-mx-1 flex min-h-touch items-center gap-1 rounded-md px-1 text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring sm:min-h-8">
@@ -31,6 +39,12 @@ export function RunRuntimeSummary({ run }: { run: DispatchRunRecord }) {
                 label: '并发投递后回收',
                 value: config.deferredReply.enabled ? `延迟 ${config.deferredReply.delayMinutes} 分钟` : '关闭',
               },
+              ...(models
+                ? (Object.keys(SITE_LABELS) as (keyof typeof SITE_LABELS)[]).map((site) => ({
+                    label: `${SITE_LABELS[site]} 模型`,
+                    value: selectionText(models[site]),
+                  }))
+                : []),
             ]}
           />
         ) : (
