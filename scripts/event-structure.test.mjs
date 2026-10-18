@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 
-const { deriveEventProgress } = await import('../src/lib/event-structure.ts')
+const { deriveEventProgress } = await import('../src/lib/domain/event-structure.ts')
 
 const progress = deriveEventProgress(
   `@event=示例

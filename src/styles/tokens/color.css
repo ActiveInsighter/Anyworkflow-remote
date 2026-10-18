@@ -1,0 +1,147 @@
+/*
+ * Colour tokens.
+ *
+ * Semantic roles only — components never reference a hex value. Names follow the shadcn/ui
+ * contract (`--background`, `--primary`, `--sidebar-accent`…) so registry components work
+ * unchanged; project-specific roles (status tones, editor syntax) extend the same scheme.
+ *
+ * Light values live on :root. `.dark` on <html> (set by src/lib/theme.ts before first paint)
+ * overrides only the roles whose value changes. theme.css exposes every role to Tailwind.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Surfaces */
+  --background: #ffffff;
+  --foreground: #202127;
+  --card: #ffffff;
+  --card-foreground: #202127;
+  --popover: #ffffff;
+  --popover-foreground: #202127;
+  --overlay: rgb(15 16 20 / 38%);
+
+  /* Brand and interaction */
+  --primary: #5e6ad2;
+  --primary-hover: #515fc4;
+  --primary-foreground: #ffffff;
+  --secondary: #f0f0f3;
+  --secondary-foreground: #33343c;
+  --muted: #f4f4f6;
+  --muted-foreground: #666973;
+  --accent: #eeeefa;
+  --accent-foreground: #505ab8;
+  --destructive: #c9364f;
+  --destructive-foreground: #ffffff;
+
+  /* Lines: decorative dividers stay quiet, inputs and focus stay legible. */
+  --border: #e8e8ed;
+  --border-strong: #d5d6df;
+  --input: #858995;
+  --ring: #5e6ad2;
+
+  /* Status tones: each pairs a readable foreground with a soft surface. */
+  --info: #5062bf;
+  --info-soft: #eeeffb;
+  --success: #207c56;
+  --success-soft: #edf8f2;
+  --warning: #916313;
+  --warning-soft: #fcf6e8;
+  --danger: #c9364f;
+  --danger-soft: #fdf0f2;
+
+  /* Navigation */
+  --sidebar: #f7f7f8;
+  --sidebar-foreground: #202127;
+  --sidebar-hover: rgb(32 33 39 / 5%);
+  --sidebar-accent: #e9e9ee;
+  --sidebar-accent-foreground: #202127;
+  --sidebar-primary: #5e6ad2;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-border: #e8e8ed;
+  --sidebar-ring: #5e6ad2;
+
+  /* Code editor surfaces and syntax */
+  --cm-bg: #fcfcfd;
+  --cm-fg: #272933;
+  --cm-gutter-bg: #f8f8fa;
+  --cm-gutter-fg: #737783;
+  --cm-toolbar-bg: #f8f8fa;
+  --cm-border: #e5e5ec;
+  --cm-active-line: #f0f0f7;
+  --cm-selection: #e1e3fa;
+  --cm-tooltip-bg: #ffffff;
+  --cm-caret: #5e6ad2;
+  --cm-keyword: #8058aa;
+  --cm-variable: #8b641f;
+  --cm-string: #277253;
+  --cm-link: #4066b6;
+  --cm-atom: #6855ae;
+  --cm-number: #aa583c;
+  --cm-function: #4066b6;
+  --cm-comment: #747783;
+  --cm-bracket: #686b76;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --background: #101114;
+  --foreground: #edeef2;
+  --card: #141519;
+  --card-foreground: #edeef2;
+  --popover: #18191e;
+  --popover-foreground: #edeef2;
+  --overlay: rgb(0 0 0 / 64%);
+
+  --secondary: #25262e;
+  --secondary-foreground: #e4e5ed;
+  --muted: #1c1d23;
+  --muted-foreground: #9699a6;
+  --accent: #24263d;
+  --accent-foreground: #b0b7ff;
+  --destructive: #eb8294;
+  --destructive-foreground: #210c12;
+
+  --border: #272830;
+  --border-strong: #3b3d48;
+  --input: #666a78;
+  --ring: #939cf0;
+
+  --info: #a3afff;
+  --info-soft: #20243c;
+  --success: #70cea4;
+  --success-soft: #162b24;
+  --warning: #e4bc77;
+  --warning-soft: #30281a;
+  --danger: #f08c9d;
+  --danger-soft: #321e28;
+
+  --sidebar: #0c0d10;
+  --sidebar-foreground: #edeef2;
+  --sidebar-hover: rgb(237 238 242 / 5%);
+  --sidebar-accent: #23242c;
+  --sidebar-accent-foreground: #edeef2;
+  --sidebar-border: #272830;
+  --sidebar-ring: #939cf0;
+
+  --cm-bg: #121318;
+  --cm-fg: #e1e3ed;
+  --cm-gutter-bg: #101116;
+  --cm-gutter-fg: #9699a6;
+  --cm-toolbar-bg: #191a20;
+  --cm-border: #2a2b35;
+  --cm-active-line: #1d1f2c;
+  --cm-selection: #30345b;
+  --cm-tooltip-bg: #22232d;
+  --cm-caret: #a3afff;
+  --cm-keyword: #c7a5ef;
+  --cm-variable: #dbbd84;
+  --cm-string: #8ccfaf;
+  --cm-link: #9bbcff;
+  --cm-atom: #b7a5ef;
+  --cm-number: #e3ab8e;
+  --cm-function: #9bbcff;
+  --cm-comment: #9699a6;
+  --cm-bracket: #a6a9b9;
+}

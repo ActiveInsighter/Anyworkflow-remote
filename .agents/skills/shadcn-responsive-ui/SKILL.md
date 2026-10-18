@@ -11,11 +11,11 @@ Use this skill for pages, components, navigation, forms, dialogs, status surface
 
 1. Prefer existing shadcn primitives in `src/components/ui/`.
 2. If a primitive is missing, add it in shadcn style and keep it reusable; do not bury a generic Button/Input/Dialog inside a page.
-3. Project-specific composed UI may live in `src/components/` or the page.
+3. Composed UI shared across features lives in `src/components/{layout,feedback,data-display,form,navigation}/`; UI for one domain lives in `src/features/<domain>/components/`. Pages only compose.
 4. Use `cn()` from `@/lib/utils` for class composition.
 5. Use Lucide icons. Do not use emoji or Unicode symbols as navigation/product icons.
 6. Keep visual state in semantic variables. Follow the light and dark palettes in root `DESIGN.md`.
-7. Avoid duplicating shadcn primitive CSS in `styles.css`; legacy layout CSS may remain until migrated.
+7. Do not add component CSS. Visual values come from `src/styles/tokens/`; only third-party DOM (CodeMirror) is styled in `src/styles/editor.css`.
 
 ## Responsive rules
 

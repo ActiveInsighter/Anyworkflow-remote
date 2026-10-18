@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { validateAnyWorkflowSource } from '../src/components/editor/anyworkflow-dsl.ts'
+import { validateAnyWorkflowSource } from '../src/features/editor/lib/anyworkflow-dsl.ts'
 
 for (const executor of ['@task', '@Codex']) {
   const queueBodies = (count) => [

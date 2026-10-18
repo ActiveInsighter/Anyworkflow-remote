@@ -44,6 +44,51 @@ AnyWorkflow 的响应式 Web 控制端。项目参考 `Anyworkflow-wechat` 的�
 Run 控制仍使用 `requestedAction + commandVersion + 1`。Run DSL 仍写入 `planText`，云端继续负责 Task/Event 展开。
 其中 `@task` 交给浏览器扩展，`@Codex` 交给云端 Codex 执行器；两者仍共享 Run → Task → Event → Act → Message 的数据层级。
 
+## 前端结构
+
+依赖方向自上而下，下层不得引用上层：
+
+```text
+src/
+├── main.tsx              入口：初始化主题、挂载路由
+├── app/                  应用壳：路由、Provider、侧栏/顶栏、面包屑、导航配置、错误边界
+├── pages/                路由页面，只负责组合 feature，不写业务逻辑
+├── features/<领域>/       业务模块：components/ hooks/ lib/
+│   ├── runs/             工作流列表、Run 详情与 Task → Event → Act → Message 层级
+│   ├── run-editor/       新建/编辑 Run：草稿、执行计划、运行配置、保存与运行
+│   ├── editor/           CodeMirror DSL 编辑器、工具栏与命令
+│   ├── library/          收藏、模板与目录
+│   ├── schedules/        每天重复计划
+│   ├── runtime-config/   浏览器运行配置字段与默认值
+│   ├── file-converter/   PDF → Markdown 转换
+│   └── settings/         连接、外观、快捷键
+├── components/
+│   ├── ui/               shadcn/ui 原语（唯一的基础组件来源）
+│   ├── layout/ feedback/ data-display/ form/ navigation/   跨 feature 复用的组合组件
+│   └── theme/            主题选项
+├── hooks/                通用 Hook（异步数据、异步操作、时钟、断点）
+├── lib/
+│   ├── api/              PocketBase 客户端、会话与各集合读写（唯一的后端访问层）
+│   ├── domain/           纯领域逻辑：状态文案、计划、调度、重复规则、资料库树
+│   ├── workflow-dsl/     DSL 校验、元数据与编辑器上下文
+│   └── platform/         浏览器能力：存储、剪贴板、主题、键盘、下载
+├── types/                后端记录与共享类型
+└── styles/
+    ├── tokens/           设计 Token：color / typography / shape / layout / elevation / motion
+    ├── theme.css         Token → Tailwind 工具类映射
+    ├── base.css          元素基线
+    └── editor.css        CodeMirror 第三方 DOM 样式
+```
+
+约定：
+
+- 组件只使用语义工具类（`bg-card`、`text-muted-foreground`、`duration-fast`、`z-overlay` 等），
+  不写颜色值、数字 z-index 或自定义时长；新增视觉值先加到 `styles/tokens/`。
+- 菜单、浮层、对话框、抽屉、折叠、选择统一使用 `components/ui/` 中的 shadcn 原语
+  （DropdownMenu、Popover、Dialog/AlertDialog、Sheet、Collapsible、NativeSelect）。
+- feature 之间通过公开的组件或 Hook 引用；页面只做组合。组件与 Hook 保持在约 300 行以内，
+  超出时按子组件、Hook、纯函数拆分；`lib/` 中单一职责的解析器或集合访问模块可略长。
+
 ## 本地开发
 
 ```bash
@@ -216,7 +261,7 @@ Event 队列中的消息块和轮询组支持 `}*N` 重复后缀，`N` 为 1–1
 或选中行。选择全文仍可复制完整工作流，消息块的重复后缀随块一起处理。
 
 编辑器的结构扫描位于 `source-structure.ts`，无副作用的插入和范围规划位于
-`editor-commands.ts`，CodeMirror 事务与剪贴板操作位于 `useEditorCommands.ts`。
+`editor-commands.ts`，CodeMirror 事务与剪贴板操作位于 `use-editor-commands.ts`。
 新增操作应复用这些模块，不再单独扫描括号。工具栏修改各自保留独立撤销记录。
 重复次数浏览器回归：`PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node scripts/queue-repeat.browser.mjs`，
 支持 `TEST_BASE_URL`（默认 `http://127.0.0.1:5197`），覆盖手机和桌面的有效次数及越界提示。

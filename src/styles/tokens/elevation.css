@@ -1,0 +1,48 @@
+/*
+ * Elevation tokens.
+ *
+ * Structure comes from dividers and surface changes; shadows are reserved for things that
+ * float above the page (menus, popovers, dialogs, drawers). Dark mode needs denser shadows
+ * to stay visible against near-black surfaces.
+ */
+
+:root {
+  --elevation-xs: 0 1px 2px rgb(15 16 20 / 3%);
+  --elevation-sm: 0 1px 3px rgb(15 16 20 / 7%);
+  --elevation-md: 0 4px 16px rgb(15 16 20 / 9%);
+  --elevation-lg: 0 12px 48px rgb(15 16 20 / 18%);
+}
+
+.dark {
+  --elevation-xs: 0 1px 2px rgb(0 0 0 / 14%);
+  --elevation-sm: 0 1px 3px rgb(0 0 0 / 20%);
+  --elevation-md: 0 4px 16px rgb(0 0 0 / 28%);
+  --elevation-lg: 0 12px 48px rgb(0 0 0 / 48%);
+}
+
+/*
+ * Stacking layers. Use these utilities instead of numeric z-index values:
+ *
+ *   z-raised   an element lifted over its siblings (focused toggle, sidebar rail)
+ *   z-chrome   fixed application chrome (desktop sidebar)
+ *   z-overlay  anything that covers the page: dialogs, sheets, menus, popovers, tooltips and
+ *              the fullscreen editor. Portalled overlays opened later stack above earlier ones.
+ */
+
+:root {
+  --layer-raised: 10;
+  --layer-chrome: 20;
+  --layer-overlay: 50;
+}
+
+@utility z-raised {
+  z-index: var(--layer-raised);
+}
+
+@utility z-chrome {
+  z-index: var(--layer-chrome);
+}
+
+@utility z-overlay {
+  z-index: var(--layer-overlay);
+}

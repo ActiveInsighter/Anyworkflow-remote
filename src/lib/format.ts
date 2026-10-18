@@ -1,45 +1,6 @@
-import type {
-  DispatchEventStatus,
-  DispatchExecutionMode,
-  DispatchRequestedAction,
-  DispatchStatus,
-  StatusTone,
-  WorkflowHistoryStatus,
-} from '../types'
+import type { DispatchEventStatus, DispatchExecutionMode } from '../types'
 
-const STATUS_META: Record<DispatchStatus, { label: string; tone: StatusTone }> = {
-  draft: { label: '草稿', tone: 'neutral' },
-  queued: { label: '排队中', tone: 'info' },
-  running: { label: '执行中', tone: 'warning' },
-  succeeded: { label: '已完成', tone: 'success' },
-  failed: { label: '失败', tone: 'danger' },
-  canceled: { label: '已取消', tone: 'neutral' },
-}
-
-const EVENT_META: Record<DispatchEventStatus, { label: string; tone: StatusTone }> = {
-  waiting: { label: '等待编排', tone: 'neutral' },
-  ready: { label: '待分配', tone: 'info' },
-  leased: { label: '已分配', tone: 'info' },
-  running: { label: '执行中', tone: 'warning' },
-  paused: { label: '已暂停', tone: 'neutral' },
-  terminal: { label: '已结束', tone: 'success' },
-}
-
-export function runStatusMeta(status: DispatchStatus, requestedAction: DispatchRequestedAction = 'none') {
-  if (status === 'queued' || status === 'running') {
-    if (requestedAction === 'pause') return { label: '已请求暂停', tone: 'warning' as const }
-    if (requestedAction === 'resume') return { label: '正在恢复', tone: 'info' as const }
-    if (requestedAction === 'cancel') return { label: '正在取消', tone: 'warning' as const }
-  }
-  return STATUS_META[status] || { label: status, tone: 'neutral' as const }
-}
-
-export function eventStatusMeta(status: DispatchEventStatus, result: string) {
-  if (status === 'terminal' && result === 'failed') return { label: '失败', tone: 'danger' as const }
-  if (status === 'terminal' && result === 'canceled') return { label: '已取消', tone: 'neutral' as const }
-  if (status === 'terminal' && result === 'succeeded') return { label: '已完成', tone: 'success' as const }
-  return EVENT_META[status] || { label: status, tone: 'neutral' as const }
-}
+/** Display formatting shared by every page. Status wording lives in domain/run-status.ts. */
 
 export function formatDateTime(value: string): string {
   if (!value) return '—'
@@ -86,14 +47,8 @@ export function eventProgressLabel(status: DispatchEventStatus, progress: Record
   return '暂无进度信息'
 }
 
-export function historyStatusMeta(status: WorkflowHistoryStatus) {
-  if (status === 'succeeded') return { label: '已完成', tone: 'success' as const }
-  if (status === 'failed') return { label: '失败', tone: 'danger' as const }
-  if (status === 'canceled') return { label: '已取消', tone: 'neutral' as const }
-  if (status === 'interrupted') return { label: '已中断', tone: 'danger' as const }
-  return { label: '等待执行', tone: 'neutral' as const }
-}
-
-export function historyStatusCompleted(status: WorkflowHistoryStatus): boolean {
-  return status !== 'unknown'
+export function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }

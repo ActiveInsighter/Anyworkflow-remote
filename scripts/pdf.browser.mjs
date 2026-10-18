@@ -47,7 +47,7 @@ try {
  await page.getByText('暂无转换记录', { exact: true }).waitFor()
  if (process.env.CONFIG_LOAD_FAILURE) await page.getByText(/fixture config load failed/u).waitFor()
  else await page.getByText(/配置已加载/u).waitFor()
- await page.getByText(/转换配置：系统提示词与高级参数/u).click()
+ await page.getByRole('button', { name: '系统提示词与高级参数', exact: true }).click()
  const imagesPerRequest = page.getByLabel('每次请求页数', { exact: true })
  await imagesPerRequest.fill('')
  await imagesPerRequest.pressSequentially('1')

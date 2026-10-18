@@ -15,7 +15,7 @@ Object.defineProperty(globalThis, 'localStorage', {
   },
 })
 
-const { readStorage, removeStorage, writeStorage } = await import('../src/lib/storage.ts')
+const { readStorage, removeStorage, writeStorage } = await import('../src/lib/platform/storage.ts')
 
 assert.equal(readStorage('session'), undefined)
 assert.doesNotThrow(() => writeStorage('session', 'value'))

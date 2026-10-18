@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 
-const { flattenLibraryFolders, scopedFolders } = await import('../src/lib/library-tree.ts')
+const { flattenLibraryFolders, scopedFolders } = await import('../src/lib/domain/library-tree.ts')
 
 const folders = [
   { id: 'root-b', owner: 'owner', parent: '', name: 'B', scope: 'favorite', sortOrder: 2 },

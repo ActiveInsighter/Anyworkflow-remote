@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 
-const { offsetForLineColumn, sameIssues } = await import('../src/components/editor/editor-helpers.ts')
+const { offsetForLineColumn, sameIssues } = await import('../src/features/editor/lib/editor-helpers.ts')
 
 assert.equal(offsetForLineColumn('one\ntwo\nthree', 2, 2), 5)
 assert.equal(offsetForLineColumn('one', 99, 99), 3)

@@ -65,10 +65,11 @@ Do not apply every UI skill mechanically. Use `ui-style` first, then consult the
 ## Non-negotiable project constraints
 
 - Keep backend collection names and command semantics compatible with Anyworkflow-wechat unless the user explicitly requests a backend migration.
-- Use shadcn/ui primitives from `src/components/ui/` before creating a new primitive.
+- Use shadcn/ui primitives from `src/components/ui/` before creating a new primitive. Menus, popovers, dialogs, sheets and disclosures use the matching primitive, never a hand-rolled floating layer.
+- Respect the source layout in `README.md` (前端结构): `app/` → `pages/` → `features/` → `components/` → `hooks/` → `lib/` → `types/`; lower layers never import higher ones, and pages only compose features.
 - Use Lucide icons instead of emoji or Unicode symbol icons in product UI.
 - Desktop and mobile are both first-class. Verify desktop and widths at or below 760px; avoid horizontal overflow at 320px.
-- Use semantic CSS variables/theme tokens instead of hardcoded component colors unless the task explicitly requires a new token.
+- Use semantic CSS variables/theme tokens instead of hardcoded component colors unless the task explicitly requires a new token. New tokens go in `src/styles/tokens/`.
 - Never read a React external-store snapshot by parsing storage into a new object on every `getSnapshot` call.
 - Do not introduce a second source of truth for Run/Task/Event state or command semantics.
 - Keep user-facing copy concise and remove implementation-detail prose from product UI unless it is necessary for operation.

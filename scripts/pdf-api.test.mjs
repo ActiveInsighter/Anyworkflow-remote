@@ -3,8 +3,8 @@ import { createServer } from 'vite'
 const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' })
 const originalFetch = globalThis.fetch
 try {
-  const { setSession } = await server.ssrLoadModule('/src/lib/session.ts')
-  const { cancelPdfJob, createPdfJob, getPdfConversionConfig, listPdfJobs, pdfDownloadUrl, rerunPdfJob, savePdfConversionConfig } = await server.ssrLoadModule('/src/lib/file-conversion.ts')
+  const { setSession } = await server.ssrLoadModule('/src/lib/api/session.ts')
+  const { cancelPdfJob, createPdfJob, getPdfConversionConfig, listPdfJobs, pdfDownloadUrl, rerunPdfJob, savePdfConversionConfig } = await server.ssrLoadModule('/src/lib/api/file-conversion.ts')
   setSession({ token: 'test', record: { id: 'owner-1' }, baseUrl: 'https://pb.example.invalid' })
   let sent
   const config = {

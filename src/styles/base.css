@@ -1,0 +1,98 @@
+/*
+ * Element baseline.
+ *
+ * Everything here sits in `@layer base` on purpose: unlayered rules outrank every utility
+ * regardless of specificity, so a bare `button { color: inherit }` would silently beat
+ * `text-danger`. Layered, the reset stays a baseline that utilities can override.
+ */
+
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    /* Preflight defaults borders to currentColor; pin hairlines to the quiet divider token. */
+    border-color: var(--color-border);
+  }
+
+  /* The app is a fixed viewport workspace: only designated regions scroll. */
+  html,
+  body,
+  #root {
+    width: 100%;
+    max-width: 100%;
+    min-width: 320px;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  html {
+    background: var(--color-background);
+    font-family: var(--font-sans);
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    margin: 0;
+    height: 100dvh;
+    background: var(--color-background);
+    color: var(--color-foreground);
+  }
+
+  button,
+  a,
+  input,
+  textarea,
+  select {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  code,
+  pre,
+  kbd {
+    font-family: var(--font-mono);
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--color-ring) 24%, transparent);
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--color-muted-foreground) 34%, transparent);
+    background-clip: padding-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--color-muted-foreground) 55%, transparent);
+    background-clip: padding-box;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+/* Horizontal strips (toolbars, breadcrumbs) scroll without a visible bar. */
+@utility scrollbar-none {
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}

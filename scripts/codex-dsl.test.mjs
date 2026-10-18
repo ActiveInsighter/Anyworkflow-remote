@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 
-const { planStructuredInsert, validateAnyWorkflowSource } = await import('../src/components/editor/anyworkflow-dsl.ts')
+const { planStructuredInsert, validateAnyWorkflowSource } = await import('../src/features/editor/lib/anyworkflow-dsl.ts')
 
 const source = `@run=Mixed\n\n@Codex Researcher {\n  @event Prompt {\n    { hello }\n  }\n}`
 const diagnostics = validateAnyWorkflowSource(source)

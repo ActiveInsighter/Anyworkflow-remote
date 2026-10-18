@@ -1,0 +1,60 @@
+/*
+ * Typography tokens.
+ *
+ * Geist for Latin UI text with system CJK fallbacks; Geist Mono for code, IDs, versions and
+ * numeric metadata. Fonts are self-hosted from public/fonts (geist 1.7.2, SIL OFL).
+ *
+ * Type scale (generates `text-*` utilities):
+ *   text-micro    10px  dense numeric metadata only
+ *   text-caption  11px  field labels, secondary metadata, column headers
+ *   text-xs       12px  supporting copy (Tailwind default)
+ *   text-body     13px  primary console text: rows, panels, navigation
+ *   text-sm       14px  prose, inputs, dialogs (Tailwind default)
+ *   text-title    23px  page titles on small screens
+ *   text-display  28px  page titles from `sm` up
+ */
+
+@font-face {
+  font-family: 'Geist';
+  src: url('/fonts/geist-sans.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('/fonts/geist-mono.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@theme {
+  --font-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'Geist Mono', 'SFMono-Regular', 'Cascadia Code', Consolas, monospace;
+
+  --text-micro: 0.625rem;
+  --text-micro--line-height: 0.875rem;
+  --text-caption: 0.6875rem;
+  --text-caption--line-height: 1rem;
+  --text-body: 0.8125rem;
+  --text-body--line-height: 1.25rem;
+  --text-title: 1.4375rem;
+  --text-title--line-height: 1.2;
+  --text-title--letter-spacing: -0.035em;
+  --text-display: 1.75rem;
+  --text-display--line-height: 1.15;
+  --text-display--letter-spacing: -0.035em;
+
+  --tracking-heading: -0.02em;
+  --tracking-snug: -0.01em;
+  --tracking-label: 0.04em;
+}
+
+/* CodeMirror reads these directly; keep the editor in step with the console type scale. */
+:root {
+  --editor-font-size: 14px;
+  --editor-line-height: 1.8;
+}

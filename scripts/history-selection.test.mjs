@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 
-const { selectHistoryEventsForDispatchEvent } = await import('../src/lib/history.ts')
+const { selectHistoryEventsForDispatchEvent } = await import('../src/lib/domain/history-selection.ts')
 
 const historyEvents = [
   { id: 'history-0', eventIndex: 0 },

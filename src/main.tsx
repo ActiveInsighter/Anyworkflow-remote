@@ -1,9 +1,9 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import App from './App'
-import { AppErrorBoundary } from './components/AppErrorBoundary'
-import { initTheme } from './lib/theme'
-import './styles.css'
+import { App } from './app/app'
+import { AppErrorBoundary } from './app/error-boundary'
+import { initTheme } from './lib/platform/theme'
+import './styles/index.css'
 
 initTheme()
 

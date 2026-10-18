@@ -5,7 +5,7 @@ description: Preserve AnyWorkflow backend/API compatibility when changing Pocket
 
 # AnyWorkflow contract
 
-Use this skill whenever code touches `src/lib/api.ts`, `src/lib/session.ts`, `src/lib/plan.ts`, record types, or pages that mutate Runs.
+Use this skill whenever code touches `src/lib/api/` (client, session, runs, tasks, history, library, schedules), `src/lib/domain/` (plan, run status, schedule), `src/lib/workflow-dsl/`, record types in `src/types/`, or features that mutate Runs.
 
 ## Invariants
 

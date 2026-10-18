@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
-const { collectUsableVariables, planStructuredInsert, validateAnyWorkflowSource } = await import('../src/components/editor/anyworkflow-dsl.ts')
+const { collectUsableVariables, planStructuredInsert, validateAnyWorkflowSource } = await import('../src/features/editor/lib/anyworkflow-dsl.ts')
 
 function errors(source) {
   return validateAnyWorkflowSource(source).filter((diagnostic) => diagnostic.severity === 'error')

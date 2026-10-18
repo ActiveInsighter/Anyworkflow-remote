@@ -43,7 +43,7 @@ Treat the interface as a calm, high-signal operator console. Prioritize scanabil
 ## Theme and Tailwind rules
 
 - Use semantic tokens such as `bg-background`, `text-foreground`, `bg-primary`, and `text-muted-foreground`; do not hardcode colors in components.
-- Keep theme values in the existing global stylesheet and map them through Tailwind v4 `@theme inline`. Do not create a second theme file.
+- Keep raw values in `src/styles/tokens/*.css` and map them to utilities in `src/styles/theme.css` (Tailwind v4 `@theme inline`). Do not declare colors, durations, radii or z-index values anywhere else.
 - Keep `:root` and `.dark` at stylesheet root level, not inside `@layer base`; avoid double `hsl()` wrapping.
 - Prefer existing shadcn primitives in `src/components/ui/`. Use `cn()` from `@/lib/utils` for conditional classes.
 - Use `gap-*` for layout, `size-*` for equal dimensions, and component variants before writing new CSS.

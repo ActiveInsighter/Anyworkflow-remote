@@ -3,8 +3,8 @@ import { createServer } from 'vite'
 const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' })
 const originalFetch = globalThis.fetch
 try {
-  const { setSession } = await server.ssrLoadModule('/src/lib/session.ts')
-  const { listRuns } = await server.ssrLoadModule('/src/lib/api.ts')
+  const { setSession } = await server.ssrLoadModule('/src/lib/api/session.ts')
+  const { listRuns } = await server.ssrLoadModule('/src/lib/api/index.ts')
   setSession({ token: 'test', record: { id: 'owner-1' }, baseUrl: 'https://pb.example.invalid' })
   let filter
   globalThis.fetch = async input => {

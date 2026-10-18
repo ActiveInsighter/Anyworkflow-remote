@@ -1,0 +1,17 @@
+/*
+ * Shape tokens.
+ *
+ * Controls use modest 5–8px radii; avoid pill shapes except for status dots and avatars.
+ * `--radius` is the shadcn/ui base value; the scale is derived from it.
+ */
+
+:root {
+  --radius: 0.5rem;
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 3px);
+  --radius-md: calc(var(--radius) - 1px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}

@@ -3,10 +3,10 @@ import { createServer } from 'vite'
 const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' })
 const originalFetch = globalThis.fetch
 try {
-  const { setSession } = await server.ssrLoadModule('/src/lib/session.ts')
-  const { defaultRuntimeConfig } = await server.ssrLoadModule('/src/lib/runtime-config.ts')
-  const { getRuntimeDefaults, saveRuntimeDefaults } = await server.ssrLoadModule('/src/lib/runtime-defaults.ts')
-  const api = await server.ssrLoadModule('/src/lib/api.ts')
+  const { setSession } = await server.ssrLoadModule('/src/lib/api/session.ts')
+  const { defaultRuntimeConfig } = await server.ssrLoadModule('/src/lib/domain/runtime-config.ts')
+  const { getRuntimeDefaults, saveRuntimeDefaults } = await server.ssrLoadModule('/src/lib/api/runtime-defaults.ts')
+  const api = await server.ssrLoadModule('/src/lib/api/index.ts')
   setSession({ token: 'fixture', record: { id: 'owner-1' }, baseUrl: 'https://pb.example.invalid' })
   const config = defaultRuntimeConfig(); config.browser.replyTimeoutMinutes = 45
   let payload
@@ -29,7 +29,7 @@ try {
   assert.deepEqual(run.runtimeConfig, config)
   const malformed = { ...config, schemaVersion: 2 }
   await assert.rejects(api.createRun(plan, 'draft', '', null, malformed), /runtimeConfig/)
-  const { draftScopeFor, legacyDraftScopeFor, writeEditorDraft, readEditorDraft, clearEditorDraft } = await server.ssrLoadModule('/src/lib/draft.ts')
+  const { draftScopeFor, legacyDraftScopeFor, writeEditorDraft, readEditorDraft, clearEditorDraft } = await server.ssrLoadModule('/src/features/run-editor/lib/editor-draft.ts')
   const storage = new Map()
   globalThis.localStorage = { getItem: key => storage.get(key) ?? null,
     setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) }

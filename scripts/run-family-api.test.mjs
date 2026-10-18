@@ -13,8 +13,8 @@ Object.defineProperty(globalThis, 'localStorage', {
 
 const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' })
 try {
-const { setSession } = await server.ssrLoadModule('/src/lib/session.ts')
-const { ApiError, cloneRun, createRun, getHistoryMessageForAct, resumeFailedRun, updateRunDraft } = await server.ssrLoadModule('/src/lib/api.ts')
+const { setSession } = await server.ssrLoadModule('/src/lib/api/session.ts')
+const { ApiError, cloneRun, createRun, getHistoryMessageForAct, resumeFailedRun, updateRunDraft } = await server.ssrLoadModule('/src/lib/api/index.ts')
 
 setSession({
   token: 'session-token',
@@ -259,7 +259,7 @@ globalThis.fetch = async (input, init = {}) => {
   }
   throw new Error(`Unexpected history recovery request: ${init.method || 'GET'} ${url.pathname}`)
 }
-const { getHistoryMessageForDispatchEvent } = await server.ssrLoadModule('/src/lib/api.ts')
+const { getHistoryMessageForDispatchEvent } = await server.ssrLoadModule('/src/lib/api/index.ts')
 const recoveredHistoryMessage = await getHistoryMessageForDispatchEvent(fallbackDispatchEvent, 0, 0)
 assert.equal(recoveredHistoryMessage?.id, savedMessage.id,
   'fallback Acts should resolve their messages through the single local history Event')
@@ -297,18 +297,19 @@ assert.equal(rerunBody.title, `${parentRun.title} · 重跑`, 'rerun labels belo
 assert.equal(rerun.versionMajor, 1)
 assert.equal(rerun.versionMinor, 1)
 
-const viewSource = await (await import('node:fs/promises')).readFile(new URL('../src/pages/RunDetailPage.tsx', import.meta.url), 'utf8')
+const readSource = async (path) => (await import('node:fs/promises')).readFile(new URL(`../src/${path}`, import.meta.url), 'utf8')
+const viewSource = (await readSource('pages/run-detail-page.tsx')) + (await readSource('features/runs/hooks/use-run-detail.ts'))
 assert.match(viewSource, /setTaskPageSelection\(/u, 'Task pagination should stay in component state')
 assert.doesNotMatch(viewSource, /setSearchParams\(/u, 'Run detail view-only controls must not push URL history')
-const librarySource = await (await import('node:fs/promises')).readFile(new URL('../src/pages/LibraryPage.tsx', import.meta.url), 'utf8')
+const librarySource = await readSource('features/library/hooks/use-library-view.ts')
 assert.equal((librarySource.match(/setSearchParams\(params, \{ replace: true \}\)/gu) || []).length, 2,
   'library Tab and folder selections should replace the current history entry')
-const actNodeSource = await (await import('node:fs/promises')).readFile(new URL('../src/components/run/RunActNode.tsx', import.meta.url), 'utf8')
-const messageNodeSource = await (await import('node:fs/promises')).readFile(new URL('../src/components/run/RunMessageNode.tsx', import.meta.url), 'utf8')
+const actNodeSource = await readSource('features/runs/components/hierarchy/act-node.tsx')
+const messageNodeSource = await readSource('features/runs/components/hierarchy/message-node.tsx')
 assert.match(actNodeSource, /<HistoryMessageNode/u, 'each persisted Act should expose Message child nodes')
 const { renderToStaticMarkup } = await import('react-dom/server')
 const { createElement } = await import('react')
-const { FallbackActNode } = await server.ssrLoadModule('/src/components/run/RunActNode.tsx')
+const { FallbackActNode } = await server.ssrLoadModule('/src/features/runs/components/hierarchy/act-node.tsx')
 const fallbackHtml = renderToStaticMarkup(createElement(FallbackActNode, { act: { id: 'act-1', title: 'Planned Act', messageCount: 24, state: 'completed' } }))
 assert.ok(!fallbackHtml.includes('查看消息'), 'planned counts must never create clickable message records')
 assert.ok(fallbackHtml.includes('暂无消息'))

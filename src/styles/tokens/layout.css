@@ -1,0 +1,25 @@
+/*
+ * Layout tokens.
+ *
+ * Fixed application chrome and content measures. A 4px spacing rhythm comes from Tailwind's
+ * default `--spacing`; the named sizes below cover the few dimensions that recur on purpose.
+ *
+ *   h-header / size-touch / min-h-touch / max-w-page / max-w-detail
+ */
+
+:root {
+  /* Read by the shadcn Sidebar (components/ui/sidebar.tsx). */
+  --sidebar-width: 15rem;
+  --sidebar-width-icon: 3.25rem;
+  --sidebar-width-mobile: 18rem;
+}
+
+@theme {
+  /* 44px: the minimum comfortable touch target on mobile. */
+  --spacing-touch: 2.75rem;
+  /* Top bar height, excluding the safe-area inset. */
+  --spacing-header: 3.5rem;
+
+  --container-page: 90rem;
+  --container-detail: 80rem;
+}

@@ -3,7 +3,7 @@ import { createServer } from 'vite'
 
 const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' })
 try {
-  const { isSafeConversationUrl } = await server.ssrLoadModule('/src/lib/conversation-url.ts')
+  const { isSafeConversationUrl } = await server.ssrLoadModule('/src/lib/domain/conversation-url.ts')
   const claudeId = '0b4f1a52-7c1e-4f0f-9d57-0e0a1f3b9c11'
 
   assert.equal(isSafeConversationUrl('https://chatgpt.com/c/abc'), true)

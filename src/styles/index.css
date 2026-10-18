@@ -1,0 +1,23 @@
+/*
+ * Stylesheet entry. Order matters:
+ *   1. Tailwind and the animation plugin used by shadcn/ui overlays
+ *   2. Design tokens — the only place raw values are declared
+ *   3. The Tailwind bridge that turns tokens into utilities
+ *   4. Element baseline and the CodeMirror shell
+ *
+ * Components style themselves with utilities; add CSS here only for third-party DOM.
+ */
+
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@import './tokens/color.css';
+@import './tokens/elevation.css';
+@import './tokens/typography.css';
+@import './tokens/shape.css';
+@import './tokens/layout.css';
+@import './tokens/motion.css';
+
+@import './theme.css';
+@import './base.css';
+@import './editor.css';

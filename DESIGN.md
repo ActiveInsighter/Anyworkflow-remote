@@ -25,7 +25,18 @@ Make active work, errors, and the next useful action easy to find.
 | Primary action | `#5e6ad2` | `#5e6ad2` |
 | Decorative divider | `#e8e8ed` | `#272830` |
 
-All values live in `src/styles.css`, mapped through Tailwind v4 `@theme inline`.
+All values live in `src/styles/tokens/`, one file per concern, and are mapped to
+Tailwind utilities in `src/styles/theme.css`:
+
+| File | Owns |
+| --- | --- |
+| `color.css` | Light/dark palettes, semantic status colors, sidebar and editor colors |
+| `typography.css` | Font families and the type scale (`text-micro` … `text-display`) |
+| `shape.css` | Radii |
+| `layout.css` | Touch target, header height, content widths, sidebar widths |
+| `elevation.css` | Shadows for floating surfaces and stacking layers (`z-raised`, `z-chrome`, `z-overlay`) |
+| `motion.css` | Durations (`duration-fast/base/slow`), easing, reduced-motion handling |
+
 Use semantic utility classes in components. Indigo is reserved for primary actions,
 brand, selection emphasis, and focus. Success, warning, and failure have their own
 semantic colors and readable text labels. Decorative dividers are intentionally subtle;

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 
 const { planStructuredInsert, planSmartDelete, planSmartCopy, validateAnyWorkflowSource } =
-  await import('../src/components/editor/anyworkflow-dsl.ts')
+  await import('../src/features/editor/lib/anyworkflow-dsl.ts')
 
 const source = `@run=Editor
 @task First {

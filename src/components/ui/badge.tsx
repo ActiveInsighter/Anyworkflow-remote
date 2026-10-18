@@ -1,10 +1,10 @@
 import * as React from 'react'
-import { Slot } from '@radix-ui/react-slot'
 import { cva, type VariantProps } from 'class-variance-authority'
+import { Slot } from 'radix-ui'
 import { cn } from '@/lib/utils'
 
 const badgeVariants = cva(
-  'inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-md border px-2 py-0.5 text-xs font-medium whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:ring-ring/40 [&>svg]:size-3',
+  'inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-md border px-2 py-0.5 text-xs font-medium whitespace-nowrap transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50 [&>svg]:pointer-events-none [&>svg]:size-3',
   {
     variants: {
       variant: {
@@ -12,11 +12,12 @@ const badgeVariants = cva(
         secondary: 'border-transparent bg-secondary text-secondary-foreground',
         destructive: 'border-transparent bg-destructive text-destructive-foreground',
         outline: 'text-foreground',
-        /** No colors of its own so callers can supply a semantic tone without conflicts. */
-        plain: 'border-transparent',
-        warning: 'border-warning/30 bg-warning-soft text-warning',
-        success: 'border-success/30 bg-success-soft text-success',
-        ghost: 'border-transparent hover:bg-accent hover:text-accent-foreground',
+        /* Status tones — soft surface, readable foreground. Always pair with a text label. */
+        neutral: 'border-border bg-muted/60 text-muted-foreground',
+        info: 'border-info/20 bg-info-soft text-info',
+        success: 'border-success/20 bg-success-soft text-success',
+        warning: 'border-warning/25 bg-warning-soft text-warning',
+        danger: 'border-danger/20 bg-danger-soft text-danger',
       },
     },
     defaultVariants: {
@@ -31,7 +32,7 @@ function Badge({
   asChild = false,
   ...props
 }: React.ComponentProps<'span'> & VariantProps<typeof badgeVariants> & { asChild?: boolean }) {
-  const Comp = asChild ? Slot : 'span'
+  const Comp = asChild ? Slot.Root : 'span'
   return <Comp data-slot="badge" className={cn(badgeVariants({ variant }), className)} {...props} />
 }
 

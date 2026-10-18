@@ -1,0 +1,145 @@
+import { useState } from 'react'
+import { Bot, ChevronRight, Clock3, UserRound, type LucideIcon } from 'lucide-react'
+import { StatusBadge } from '@/components/data-display/status-badge'
+import { ErrorAlert } from '@/components/feedback/error-alert'
+import { LoadingState } from '@/components/feedback/loading-state'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { useAsyncData } from '@/hooks/use-async-data'
+import { getHistoryMessage, toErrorMessage } from '@/lib/api'
+import { historyStatusMeta } from '@/lib/domain/run-status'
+import { formatDateTime } from '@/lib/format'
+import { cn } from '@/lib/utils'
+import type { WorkflowHistoryMessageSummary } from '@/types'
+import { POLL_MS } from '../../lib/constants'
+
+function MessageBlock({
+  icon: Icon,
+  label,
+  content,
+  emptyLabel,
+  emphasized = false,
+}: {
+  icon: LucideIcon
+  label: string
+  content: string
+  emptyLabel: string
+  emphasized?: boolean
+}) {
+  return (
+    <section
+      aria-label={label}
+      className={cn('rounded-lg border px-3 py-3 sm:px-4', emphasized ? 'bg-accent/35' : 'bg-muted/25')}
+    >
+      <h3 className="flex items-center gap-2 text-xs font-semibold">
+        <Icon className="size-4 text-muted-foreground" aria-hidden="true" />
+        {label}
+      </h3>
+      <p className="mt-2 text-body leading-6 [overflow-wrap:anywhere] break-words whitespace-pre-wrap text-foreground/90">
+        {content.trim() || <span className="text-muted-foreground">{emptyLabel}</span>}
+      </p>
+    </section>
+  )
+}
+
+/** A message summary row. The full record is fetched only while its dialog is open. */
+export function HistoryMessageNode({
+  summary,
+  actTitle,
+  messageNumber,
+}: {
+  summary: WorkflowHistoryMessageSummary
+  actTitle: string
+  messageNumber: number
+}) {
+  const [open, setOpen] = useState(false)
+  const messageTitle = `消息 ${messageNumber}`
+  const messageState = useAsyncData(
+    (signal) => getHistoryMessage(summary.id, summary.act, signal),
+    [summary.id, summary.act],
+    { enabled: open, pollMs: POLL_MS.hierarchy, errorMessage: toErrorMessage },
+  )
+  const message = messageState.data
+  const status = historyStatusMeta(message?.status ?? summary.status)
+  const timestamp = summary.receivedAt || summary.sentAt
+
+  return (
+    <li className="min-w-0">
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <button
+            type="button"
+            aria-label={`查看${messageTitle}`}
+            className="flex min-h-16 w-full items-center gap-2 rounded-md px-1 py-3 text-left transition-colors outline-none hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <span className="grid size-7 shrink-0 place-items-center rounded-full bg-accent text-accent-foreground">
+              <Bot className="size-4" aria-hidden="true" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-medium">{messageTitle}</span>
+              <span className="mt-1 block truncate text-xs text-muted-foreground">
+                {summary.receivedAt ? '已回复' : status.label}
+                {timestamp ? ` · ${formatDateTime(timestamp)}` : ''}
+              </span>
+            </span>
+            <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          </button>
+        </DialogTrigger>
+        <DialogContent className="gap-4 p-4 sm:max-w-2xl sm:p-6">
+          <DialogHeader>
+            <DialogTitle>{messageTitle}</DialogTitle>
+            <DialogDescription className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="min-w-0 truncate">{actTitle}</span>
+              <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex max-h-[calc(100dvh-10rem)] flex-col gap-3 overflow-y-auto overscroll-contain pe-1">
+            {!message && !messageState.error ? <LoadingState label="正在查询消息…" /> : null}
+            {messageState.error ? (
+              <div className="flex flex-col items-start gap-2">
+                <ErrorAlert inline className="w-full">
+                  {messageState.error}
+                </ErrorAlert>
+                <Button size="sm" variant="secondary" onClick={() => void messageState.reload()}>
+                  重试查询
+                </Button>
+              </div>
+            ) : null}
+            {message ? (
+              <>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-micro text-muted-foreground">
+                  {message.sentAt ? (
+                    <span className="inline-flex items-center gap-1">
+                      <Clock3 className="size-3" aria-hidden="true" />
+                      用户发送于 {formatDateTime(message.sentAt)}
+                    </span>
+                  ) : null}
+                  {message.receivedAt ? (
+                    <span className="inline-flex items-center gap-1">
+                      <Clock3 className="size-3" aria-hidden="true" />
+                      AI 回复于 {formatDateTime(message.receivedAt)}
+                    </span>
+                  ) : null}
+                </div>
+                <MessageBlock
+                  icon={UserRound}
+                  label="用户消息"
+                  content={message.userMarkdown || ''}
+                  emptyLabel="没有记录用户消息"
+                />
+                <MessageBlock
+                  icon={Bot}
+                  label="AI 回复"
+                  content={message.assistantMarkdown || ''}
+                  emptyLabel={message.status === 'unknown' ? '等待 AI 回复' : '没有记录 AI 回复'}
+                  emphasized
+                />
+              </>
+            ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </li>
+  )
+}

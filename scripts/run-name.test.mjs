@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { createServer } from 'vite'
 const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' })
 try {
-  const { nextRunTitle } = await server.ssrLoadModule('/src/lib/run-name.ts')
+  const { nextRunTitle } = await server.ssrLoadModule('/src/lib/api/run-name.ts')
   const date = new Date(2026, 8, 27, 0, 5)
   assert.equal(nextRunTitle([], 0, date), '工作流 2026-09-27 #001')
   assert.equal(nextRunTitle(['工作流 2026-09-27 #009', '工作流 2026-09-26 #999'], 3, date), '工作流 2026-09-27 #010')
