@@ -95,7 +95,7 @@ npm run preflight
 
 For CI/deployment changes, also inspect the resulting GitHub Actions run.
 
-For UI work, verify both desktop and mobile behavior and review the final implementation against `ui-style`.
+For UI work, also run `npm run test:browser` (it starts its own dev server; run `npm run test:browser:install` once if Chromium is missing), verify both desktop and mobile behavior, and review the final implementation against `ui-style`.
 
 For backend/contract work, verify compatibility with `anyworkflow-contract` and existing Anyworkflow-wechat semantics.
 

@@ -1,7 +1,7 @@
 // Uses isolated mock API responses; never submits a Run.
 import assert from 'node:assert/strict'
-const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright')
-const baseUrl = process.env.TEST_BASE_URL || 'http://127.0.0.1:5197'
+import { chromium } from 'playwright'
+const baseUrl = process.env.TEST_BASE_URL || 'http://127.0.0.1:5173'
 const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] })
 
 try {

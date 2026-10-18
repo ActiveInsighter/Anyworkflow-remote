@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright')
+import { chromium } from 'playwright'
 const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] })
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } })
 const page = await context.newPage()

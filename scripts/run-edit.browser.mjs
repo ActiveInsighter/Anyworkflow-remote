@@ -1,6 +1,6 @@
 // Vite or TEST_BASE_URL; uses only an isolated mock API, never production records.
 import assert from 'node:assert/strict'
-const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright')
+import { chromium } from 'playwright'
 const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] })
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } })
 const baseUrl = process.env.TEST_BASE_URL || 'http://127.0.0.1:5173'

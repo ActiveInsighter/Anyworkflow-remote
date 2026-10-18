@@ -1,11 +1,11 @@
 // Exercise deployed assets with an isolated API; never submits real workflow work.
 import assert from 'node:assert/strict'
 import { mkdir } from 'node:fs/promises'
-const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright')
+import { chromium } from 'playwright'
 const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] })
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } })
 page.setDefaultTimeout(15000)
-const base = process.env.TEST_BASE_URL || 'http://127.0.0.1:5184'
+const base = process.env.TEST_BASE_URL || 'http://127.0.0.1:5173'
 const config = { schemaVersion: 1, browser: { replyTimeoutMinutes: 45, randomWait: { enabled: false, minSeconds: 1, maxSeconds: 10 }, deferredReply: { enabled: false, delayMinutes: 10 } } }
 const errors = [], writes = [], runs = new Map(), schedules = new Map()
 page.on('pageerror', error => errors.push(error.message))

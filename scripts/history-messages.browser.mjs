@@ -1,6 +1,6 @@
-// Run with Vite on localhost:5173 and Playwright available (or PLAYWRIGHT_MODULE set).
+// Run with npm run test:browser, or directly while npm run dev serves localhost:5173.
 import assert from 'node:assert/strict'
-const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright')
+import { chromium } from 'playwright'
 const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] })
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } })
 const errors = []

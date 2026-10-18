@@ -129,6 +129,21 @@ npm run preflight
 npm test
 ```
 
+### 浏览器回归
+
+浏览器用例位于 `scripts/*.browser.mjs`，全部使用隔离的模拟 PocketBase 接口，不访问生产数据。
+Playwright 以精确版本固定在 devDependencies 中，浏览器版本随之确定：
+
+```bash
+npm run test:browser:install         # 首次或升级 Playwright 后安装对应的 Chromium
+npm run test:browser                 # 自动启动 Vite 开发服务器并运行全部用例
+npm run test:browser -- pdf editor   # 只运行指定用例
+```
+
+可设置 `TEST_BASE_URL` 检查预览或线上部署（此时不启动本地服务器），设置 `SCREENSHOT_DIR`
+保存截图。单个用例也可在 `npm run dev` 运行时直接执行 `node scripts/<用例>.browser.mjs`。
+升级 Playwright 时保持精确版本号，并重新执行 `npm run test:browser:install`，避免库与已安装浏览器版本不一致。
+
 ## Agent 工作方式
 
 根目录 `AGENTS.md` 是本项目统一的 Agent 入口，本地 Git checkout 与云端 CI 源码产物都遵循同一套规则。
@@ -238,16 +253,7 @@ Run 详情中的消息来自 `aw_messages` 的分页记录，不使用计划消�
 消息列表仅获取元数据，点击后按记录 ID 查询正文，详情打开期间同步最新回复。
 
 `npm run preflight` 包含消息分页、稀疏序号、记录归属与详情查询回归测试。
-浏览器回归使用隔离的模拟 PocketBase 接口，不访问生产数据：
-
-```bash
-# 先启动 npm run dev；Playwright 与 Chromium 需可用
-node scripts/history-messages.browser.mjs
-# Playwright 不在项目依赖中时，可用 PLAYWRIGHT_MODULE 指定其 index.mjs 绝对路径
-```
-
-可设置 `TEST_BASE_URL` 验证预览部署，设置 `SCREENSHOT_DIR` 保存截图。
-浏览器用例覆盖终态延迟入库、0→1→2 条消息、详情更新、分页、失败重试、键盘焦点和响应式布局。
+浏览器回归：`npm run test:browser -- history-messages`，覆盖终态延迟入库、0→1→2 条消息、详情更新、分页、失败重试、键盘焦点和响应式布局。
 
 ## 编辑器操作
 
@@ -263,10 +269,8 @@ Event 队列中的消息块和轮询组支持 `}*N` 重复后缀，`N` 为 1–1
 编辑器的结构扫描位于 `source-structure.ts`，无副作用的插入和范围规划位于
 `editor-commands.ts`，CodeMirror 事务与剪贴板操作位于 `use-editor-commands.ts`。
 新增操作应复用这些模块，不再单独扫描括号。工具栏修改各自保留独立撤销记录。
-重复次数浏览器回归：`PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node scripts/queue-repeat.browser.mjs`，
-支持 `TEST_BASE_URL`（默认 `http://127.0.0.1:5197`），覆盖手机和桌面的有效次数及越界提示。
-浏览器回归：`PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node scripts/editor.browser.mjs`；
-可设置 `TEST_BASE_URL` 检查预览或线上版本，使用模拟 API，不会写入生产数据。
+浏览器回归：`npm run test:browser -- editor queue-repeat`，覆盖编辑器操作，以及手机和桌面上
+重复次数的有效值与越界提示。
 
 ## 编辑已结束的 Run
 
@@ -275,10 +279,7 @@ Event 队列中的消息块和轮询组支持 `}*N` 重复后缀，`N` 为 1–1
 保存后继续编辑该草稿使用原记录，发布时不额外创建版本。完整重跑继续使用 `rerun`。
 版本号由 PocketBase 分配，需配套部署 cloudservice 的操作语义版本规则。
 
-```bash
-# 与消息浏览器回归使用相同的 Playwright 配置
-node scripts/run-edit.browser.mjs
-```
+浏览器回归：`npm run test:browser -- run-edit`。
 
 ## 首页搜索、默认名称与版本选择
 
@@ -288,7 +289,7 @@ node scripts/run-edit.browser.mjs
 - 默认名称按账号与后端地址隔离；同浏览器支持 Web Locks 时跨标签页串行预留。跨设备同时创建不提供数据库级唯一性保证，预留名称不会创建 Run 记录。
 - 版本选择支持前后切换、名称/版本号搜索和跳转最新版本，不改变详情页 URL。
 
-浏览器回归（配置方式同上）：`node scripts/dashboard.browser.mjs`。
+浏览器回归：`npm run test:browser -- dashboard`。
 
 ## 文件转换
 
@@ -306,9 +307,7 @@ node scripts/run-edit.browser.mjs
 n8n PDF 调度工作流和 AnyWorkflow-workers 的独立 `pdf` 镜像。
 任务最迟在下一次每分钟调度时提交，GitHub 仍使用共享 Gemini 队列。
 
-验证：`npm run preflight`，以及
-`PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node scripts/pdf.browser.mjs`。
-浏览器用例使用隔离模拟接口，检查四种宽度、任务参数、状态和自定义 ZIP 下载。
+验证：`npm run preflight`，以及 `npm run test:browser -- pdf`。浏览器用例检查四种宽度、任务参数、状态和自定义 ZIP 下载。
 
 ## 远程运行配置
 
@@ -318,9 +317,7 @@ n8n PDF 调度工作流和 AnyWorkflow-workers 的独立 `pdf` 镜像。
 继续使用本地扩展参数。运行配置与计划一起保存本地草稿，并按账号和后端地址隔离。
 
 需配套部署 cloudservice 的 runtime configuration migration/hooks、scheduler 和新版扩展。
-验证：`npm run preflight`，以及 `node scripts/runtime-config.browser.mjs`；Playwright
-模块可通过 `PLAYWRIGHT_MODULE` 指定。浏览器用例使用隔离模拟 API，可设置
-`TEST_BASE_URL` 检查实际部署资产；覆盖四种宽度、配置冲突、草稿恢复竞态和单 Run 覆盖。
+验证：`npm run preflight`，以及 `npm run test:browser -- runtime-config`；覆盖四种宽度、配置冲突、草稿恢复竞态和单 Run 覆盖。
 
 ## 每天重复执行
 
@@ -336,4 +333,4 @@ UTC+08:00），保存草稿不会启动，点击“启用重复”才提交首�
 后端每分钟扫描；前一次仍在排队/运行时跳过本次，超过 15 分钟的错过时刻不补跑。
 恢复时从未来下次时刻开始，不积压补跑。时区使用固定偏移，不自动调整夏令时。
 需部署 cloudservice 的 `1791300000_recurring_runs.js` 和匹配 hooks。
-验证：`npm run preflight`；`node scripts/recurrence.browser.mjs`（Playwright 配置同上）。
+验证：`npm run preflight`；`npm run test:browser -- recurrence`。

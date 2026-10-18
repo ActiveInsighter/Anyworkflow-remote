@@ -1,9 +1,9 @@
 // Runtime configuration UI proof against an isolated API, never production records.
 import assert from 'node:assert/strict'
-const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright')
+import { chromium } from 'playwright'
 const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] })
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } })
-const base = process.env.TEST_BASE_URL || 'http://127.0.0.1:5184'
+const base = process.env.TEST_BASE_URL || 'http://127.0.0.1:5173'
 const errors = []; page.on('pageerror', error => errors.push(error.message))
 const config = (timeout = 30) => ({ schemaVersion: 1, browser: { replyTimeoutMinutes: timeout,
   randomWait: { enabled: false, minSeconds: 1, maxSeconds: 10 }, deferredReply: { enabled: false, delayMinutes: 10 } } })

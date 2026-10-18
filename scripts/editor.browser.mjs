@@ -1,8 +1,8 @@
 // Runs against Vite, a preview, or production; all API requests use an isolated mock owner.
 import assert from 'node:assert/strict'
 import { mkdir } from 'node:fs/promises'
-const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright')
-const baseUrl = process.env.TEST_BASE_URL || 'http://127.0.0.1:5184'
+import { chromium } from 'playwright'
+const baseUrl = process.env.TEST_BASE_URL || 'http://127.0.0.1:5173'
 const screenshotDir = process.env.SCREENSHOT_DIR
 if (screenshotDir) await mkdir(screenshotDir, { recursive: true })
 const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] })
