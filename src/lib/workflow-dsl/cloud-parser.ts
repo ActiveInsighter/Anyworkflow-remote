@@ -1,7 +1,7 @@
 /** Run/Task level parsing: directives, `@for` ranges and block extraction, as the cloud compiler sees them. */
 import { DiagnosticCollector } from './diagnostics.ts'
 import { UTF8_ENCODER, globalLine, lineEnd, matchingBrace, normalizeNewlines, stripQuotes, substitute } from './text.ts'
-import { WORKFLOW_DSL_LIMITS, type CloudBlock, type CloudBlockKind, type CloudConfig, type CloudLevel, type CloudLevelResult, type ParseBudget, type TemplateVars } from './types.ts'
+import { DEFAULT_START_URL, START_URL_VARIABLE, VARIABLE_DECLARATION, WORKFLOW_DSL_LIMITS, type CloudBlock, type CloudBlockKind, type CloudConfig, type CloudLevel, type CloudLevelResult, type ParseBudget, type TemplateVars } from './types.ts'
 
 export function parseRangeValues(
   args: string,
@@ -49,6 +49,24 @@ export function parseClosingLine(line: string): { braceCount: number; repeatCoun
   return { braceCount: match[1].length, repeatCount: match[2] === undefined ? null : Number(match[2]) }
 }
 
+/**
+ * An empty start_url is not an error: the Run's default link is used and the author is warned.
+ * Anything else must be an https link, matching what the cloud compiler accepts.
+ */
+function resolveStartUrl(value: string, fallback: string, collector: DiagnosticCollector, line: number): string {
+  if (value === '') {
+    collector.add(line, `${START_URL_VARIABLE} 为空，将使用默认链接 ${fallback}。`, 'warning')
+    return fallback
+  }
+  try {
+    if (new URL(value).protocol === 'https:') return value
+  } catch {
+    // Falls through to the shared error below.
+  }
+  collector.add(line, `${START_URL_VARIABLE} 必须是 https:// 链接。`)
+  return value
+}
+
 export function parseCloudDirective(
   line: string,
   config: CloudConfig,
@@ -56,6 +74,7 @@ export function parseCloudDirective(
   allowedTitleDirective: CloudLevel,
   collector: DiagnosticCollector,
   globalLineNumber: number,
+  defaultStartUrl: string = DEFAULT_START_URL,
 ): boolean {
   const title = line.match(new RegExp(`^@${allowedTitleDirective}\\s*=\\s*(.*?)\\s*$`, 'iu'))
   if (title) {
@@ -86,12 +105,15 @@ export function parseCloudDirective(
     return true
   }
 
-  const variable = line.match(/^@var\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/iu)
+  const variable = line.match(VARIABLE_DECLARATION)
   if (variable) {
+    const name = variable[1] as string
     if (allowedTitleDirective !== 'task') {
-      collector.add(globalLineNumber, '@var 只能定义在 Task 层级。')
+      collector.add(globalLineNumber, '@let 只能定义在 Task 层级。')
     } else {
-      vars[variable[1] as string] = substitute(variable[2] ?? '', vars)
+      vars[name] = name === START_URL_VARIABLE
+        ? resolveStartUrl(substitute(variable[2] ?? '', vars), defaultStartUrl, collector, globalLineNumber)
+        : substitute(variable[2] ?? '', vars)
     }
     return true
   }
@@ -111,6 +133,7 @@ export function parseCloudLevel(
     budget: ParseBudget
     collector: DiagnosticCollector
     defaultTitle?: string
+    defaultStartUrl?: string
   },
 ): CloudLevelResult {
   const vars: TemplateVars = { ...(options.inheritedVars ?? {}) }
@@ -150,7 +173,7 @@ export function parseCloudLevel(
       continue
     }
 
-    if (!seenBlock && parseCloudDirective(trimmed, config, vars, options.titleDirective, options.collector, currentLine)) {
+    if (!seenBlock && parseCloudDirective(trimmed, config, vars, options.titleDirective, options.collector, currentLine, options.defaultStartUrl)) {
       if (options.collector.items.some((item) => item.line === currentLine && item.severity === 'error')) failed = true
       cursor = next
       continue

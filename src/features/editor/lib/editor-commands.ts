@@ -17,7 +17,7 @@ export type StructuredInsertPlan =
 function availableVariableName(source: string, container: SourceBlock, at: number): string {
   const used = new Set(collectWorkflowVariables(source, at))
   const body = source.slice(container.headerEnd, container.closeAt)
-  for (const match of body.matchAll(/^\s*@var\s+([A-Za-z_][A-Za-z0-9_]*)\s*=/gimu)) used.add(match[1])
+  for (const match of body.matchAll(/^\s*@(?:let|var)\s+([A-Za-z_][A-Za-z0-9_]*)\s*=/gimu)) used.add(match[1])
   let name = 'name'
   for (let suffix = 2; used.has(name); suffix += 1) name = `name${suffix}`
   return name
@@ -47,7 +47,7 @@ function variableInsertPoint(source: string, container: SourceBlock): number {
     }
 
     const directive = /^@(task|mode|maxConcurrency)\s*=/iu.test(trimmed)
-    if (directive || /^@var\s+[A-Za-z_][A-Za-z0-9_]*\s*=/iu.test(trimmed)) {
+    if (directive || /^@(?:let|var)\s+[A-Za-z_][A-Za-z0-9_]*\s*=/iu.test(trimmed)) {
       insertAt = next
       cursor = next
       continue
@@ -91,8 +91,8 @@ export function planStructuredInsert(
     const from = variableInsertPoint(source, container)
     const indent = container.indent + '  '
     const name = availableVariableName(source, container, at)
-    const text = `${indent}@var ${name}=\n`
-    return { ok: true, from, text, cursorOffset: indent.length + '@var '.length, selectionLength: name.length }
+    const text = `${indent}@let ${name}=\n`
+    return { ok: true, from, text, cursorOffset: indent.length + '@let '.length, selectionLength: name.length }
   }
 
   const closingLineFrom = lineStartAt(source, container.closeAt)

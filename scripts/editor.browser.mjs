@@ -11,7 +11,7 @@ const message = '      {\n        hello\n      }*2\n'
 const act = `    @act {\n${message}    }\n`
 const loop = '    @for i in range(1, 3) {\n      { next %i% }\n    }\n'
 const event = `  @event E {\n${act}${loop}  }\n`
-const task = `@task First {\n  @mode=serial\n  @var name=existing\n\n${event}}\n`
+const task = `@task First {\n  @mode=serial\n  @let name=existing\n\n${event}}\n`
 const secondTask = '@task Second {\n  @mode=serial\n  @event Prompt {\n    { world }\n  }\n}\n'
 const source = `@run=Editor regression\n${task}${secondTask}`
 
@@ -65,30 +65,46 @@ try {
 
     await replace(source)
     await expectClean()
+    // An empty start_url only warns, and clicking after its `=` offers the common start links.
+    const starter = '@run=Links\n@task T {\n  @let start_url=\n  @event E {\n    <%start_url%>\n    { hello }\n  }\n}\n'
+    await replace(starter)
+    await page.locator('.aw-editor-shell').getByText(/1 警告|警告/).first().waitFor()
+    const line = page.locator('.cm-line', { hasText: '@let start_url=' })
+    const box = await line.boundingBox()
+    await page.mouse.click(box.x + box.width - 2, box.y + box.height / 2)
+    const popup = page.locator('.cm-tooltip-autocomplete')
+    await popup.waitFor()
+    for (const link of ['https://chatgpt.com/cloud', 'https://chatgpt.com/images', 'https://claude.ai/new', 'https://claude.ai/code']) {
+      await popup.getByText(link, { exact: true }).waitFor()
+    }
+    await popup.getByText('https://claude.ai/code', { exact: true }).click()
+    assert.ok((await readSource()).includes('@let start_url=https://claude.ai/code\n'), `${width}px picks a start link`)
+    await replace(source)
+    await expectClean()
     // Cursor in an Act's message must insert a valid declaration in the first Task.
     await select(source.indexOf('hello'))
     await page.getByRole('button', { name: '变量', exact: true }).click()
     const withVariable = await readSource()
-    assert.ok(withVariable.indexOf('@var name2=') < withVariable.indexOf('@event E {'))
-    assert.ok(withVariable.indexOf('@var name2=') > withVariable.indexOf('@var name=existing'))
+    assert.ok(withVariable.indexOf('@let name2=') < withVariable.indexOf('@event E {'))
+    assert.ok(withVariable.indexOf('@let name2=') > withVariable.indexOf('@let name=existing'))
     assert.equal(await selection(), 'name2', 'new valid variable name is selected for immediate editing')
     await expectClean()
     await page.keyboard.insertText('query')
-    assert.ok((await readSource()).includes('@var query='))
+    assert.ok((await readSource()).includes('@let query='))
     await expectClean()
     await page.getByRole('button', { name: '撤销', exact: true }).click()
     await page.getByRole('button', { name: '撤销', exact: true }).click()
     assert.equal(await readSource(), source, 'inserting a Task variable is one undoable transaction')
     await page.getByRole('button', { name: '重做', exact: true }).click()
-    assert.ok((await readSource()).includes('@var name2='))
+    assert.ok((await readSource()).includes('@let name2='))
 
     // The second executor owns its own declaration, with no changes to the first Task.
     await replace(source)
     await select(source.indexOf('world'))
     await page.getByRole('button', { name: '变量', exact: true }).click()
     const secondTaskEdited = await readSource()
-    assert.ok(secondTaskEdited.indexOf('@var name=\n') > secondTaskEdited.indexOf('@task Second {'))
-    assert.ok(secondTaskEdited.indexOf('@var name=\n') < secondTaskEdited.indexOf('@event Prompt {'))
+    assert.ok(secondTaskEdited.indexOf('@let name=\n') > secondTaskEdited.indexOf('@task Second {'))
+    assert.ok(secondTaskEdited.indexOf('@let name=\n') < secondTaskEdited.indexOf('@event Prompt {'))
     await expectClean()
 
     await replace(source)

@@ -1,4 +1,4 @@
-import type { ModelSite, ReasoningEffort } from '@/lib/domain/runtime-config'
+import type { ModelSurface, ReasoningEffort } from '@/lib/domain/runtime-config'
 
 export interface CatalogModel {
   /** Display name; the extension matches it against the page's visible name or stable id. */
@@ -15,11 +15,13 @@ const NO_XHIGH: readonly ReasoningEffort[] = ['low', 'medium', 'high', 'max']
  * Claude's credit-gated Fable models are left out: choosing them does nothing without credits.
  * Update this list when a picker changes; the extension still verifies every selection before a send.
  */
-export const MODEL_CATALOG: Record<ModelSite, readonly CatalogModel[]> = {
+export const MODEL_CATALOG: Record<ModelSurface, readonly CatalogModel[]> = {
   chatgpt: [
     { name: 'GPT-6', efforts: ['none', 'medium', 'high'] },
     { name: 'GPT-5.6 Sol', efforts: ['none', 'medium', 'high'] },
   ],
+  // The Codex cloud picker is not adapted yet: its models are unknown, so none can be chosen.
+  chatgptCloud: [],
   claude: [
     { name: 'Opus 5.5', efforts: FULL_RANGE },
     { name: 'Sonnet 5.5', efforts: FULL_RANGE },
@@ -50,7 +52,7 @@ export const EFFORT_LABELS: Record<ReasoningEffort, string> = {
 /** Same loose comparison the extension uses, so "claude-sonnet-5-5" and "Sonnet 5.5" are one model. */
 const nameKey = (value: string) => value.toLowerCase().replace(/^claude[\s-]*/u, '').replace(/[\s._-]+/gu, '')
 
-export function findCatalogModel(site: ModelSite, value: string | null): CatalogModel | null {
+export function findCatalogModel(site: ModelSurface, value: string | null): CatalogModel | null {
   if (!value) return null
   const key = nameKey(value)
   return MODEL_CATALOG[site].find((model) => nameKey(model.name) === key) ?? null

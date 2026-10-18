@@ -2,9 +2,27 @@ export const REASONING_EFFORTS = [
   'none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'standard', 'extended', 'heavy',
 ] as const
 export type ReasoningEffort = (typeof REASONING_EFFORTS)[number]
-export type ModelSite = 'chatgpt' | 'claude'
+/**
+ * A model-picker surface: pages whose picker has the same DOM and the same models. ChatGPT chat and
+ * image pages are one surface, the Codex cloud page another; Claude chat and Code are one.
+ */
+export const MODEL_SURFACES = ['chatgpt', 'chatgptCloud', 'claude'] as const
+export type ModelSurface = (typeof MODEL_SURFACES)[number]
+export type ModelSite = ModelSurface
 export interface SiteModelSelection { model: string | null; reasoningEffort: ReasoningEffort | null }
-export type ModelSelection = Record<ModelSite, SiteModelSelection>
+/** v2 carries `chatgpt` and `claude`; v3 adds `chatgptCloud`. */
+export type ModelSelection = Partial<Record<ModelSurface, SiteModelSelection>>
+
+/** Opened by a Task whose `start_url` is empty when the account sets no other default. */
+export const DEFAULT_START_URL = 'https://chatgpt.com/'
+// Same pattern as the backend contract (the PocketBase JS engine has no URL class).
+const START_URL_PATTERN = /^https:\/\/[A-Za-z0-9.-]+(?::\d{1,5})?(?:[/?#][^\s<>"'`\\]*)?$/
+export const isStartUrl = (value: string) => value.length <= 2048 && START_URL_PATTERN.test(value)
+
+const SURFACES_BY_VERSION: Record<2 | 3, readonly ModelSurface[]> = {
+  2: ['chatgpt', 'claude'],
+  3: ['chatgpt', 'chatgptCloud', 'claude'],
+}
 
 export interface BrowserRuntimeConfig {
   replyTimeoutMinutes: number
@@ -12,18 +30,21 @@ export interface BrowserRuntimeConfig {
   deferredReply: { enabled: boolean; delayMinutes: number }
 }
 
-/** v1 carries browser timing only; v2 also pins the model chosen per site. Mirrors the workers contract. */
+/**
+ * v1 carries browser timing only; v2 also pins the model chosen per site; v3 adds the Codex cloud
+ * surface and the default start link. Mirrors the workers contract.
+ */
 export interface RuntimeConfig {
-  schemaVersion: 1 | 2
+  schemaVersion: 1 | 2 | 3
   browser: BrowserRuntimeConfig
   modelSelection?: ModelSelection
+  defaultStartUrl?: string
 }
 
-export function defaultModelSelection(): ModelSelection {
-  return {
-    chatgpt: { model: null, reasoningEffort: null },
-    claude: { model: null, reasoningEffort: null },
-  }
+export function defaultModelSelection(version: 2 | 3 = 3): Record<ModelSurface, SiteModelSelection> {
+  return Object.fromEntries(
+    SURFACES_BY_VERSION[version].map((surface) => [surface, { model: null, reasoningEffort: null }]),
+  ) as Record<ModelSurface, SiteModelSelection>
 }
 
 export function defaultRuntimeConfig(): RuntimeConfig {
@@ -50,9 +71,9 @@ function boolean(value: unknown, path: string): boolean {
   return value
 }
 
-function modelSelection(value: unknown): ModelSelection {
-  const sites = object(value, ['chatgpt', 'claude'], 'modelSelection')
-  const site = (name: ModelSite): SiteModelSelection => {
+function modelSelection(value: unknown, surfaces: readonly ModelSurface[]): ModelSelection {
+  const sites = object(value, [...surfaces], 'modelSelection')
+  const site = (name: ModelSurface): SiteModelSelection => {
     const path = 'modelSelection.' + name
     const item = object(sites[name], ['model', 'reasoningEffort'], path)
     const { model, reasoningEffort } = item
@@ -65,14 +86,16 @@ function modelSelection(value: unknown): ModelSelection {
     }
     return { model: typeof model === 'string' ? model.trim() : null, reasoningEffort: reasoningEffort as ReasoningEffort | null }
   }
-  return { chatgpt: site('chatgpt'), claude: site('claude') }
+  return Object.fromEntries(surfaces.map((surface) => [surface, site(surface)]))
 }
 
 /** Validate network/storage input and return a detached object in checksum order. */
 export function normalizeRuntimeConfig(value: unknown): RuntimeConfig {
   const version = (value as { schemaVersion?: unknown } | null)?.schemaVersion
-  if (version !== 1 && version !== 2) throw new Error('Unsupported runtimeConfig.schemaVersion.')
-  const root = object(value, version === 1 ? ['schemaVersion', 'browser'] : ['schemaVersion', 'browser', 'modelSelection'], '')
+  if (version !== 1 && version !== 2 && version !== 3) throw new Error('Unsupported runtimeConfig.schemaVersion.')
+  const root = object(value, version === 1 ? ['schemaVersion', 'browser']
+    : version === 2 ? ['schemaVersion', 'browser', 'modelSelection']
+    : ['schemaVersion', 'browser', 'modelSelection', 'defaultStartUrl'], '')
   const browser = object(root.browser, ['replyTimeoutMinutes', 'randomWait', 'deferredReply'], 'browser')
   const wait = object(browser.randomWait, ['enabled', 'minSeconds', 'maxSeconds'], 'browser.randomWait')
   const deferred = object(browser.deferredReply, ['enabled', 'delayMinutes'], 'browser.deferredReply')
@@ -83,5 +106,12 @@ export function normalizeRuntimeConfig(value: unknown): RuntimeConfig {
     randomWait: { enabled: boolean(wait.enabled, 'browser.randomWait.enabled'), minSeconds: min, maxSeconds: max },
     deferredReply: { enabled: boolean(deferred.enabled, 'browser.deferredReply.enabled'),
       delayMinutes: integer(deferred.delayMinutes, 0, 1440, 'browser.deferredReply.delayMinutes') },
-  }, ...(version === 2 ? { modelSelection: modelSelection(root.modelSelection) } : {}) }
+  }, ...(version === 1 ? {} : { modelSelection: modelSelection(root.modelSelection, SURFACES_BY_VERSION[version]) }),
+  ...(version === 3 ? { defaultStartUrl: startUrl(root.defaultStartUrl) } : {}) }
+}
+
+function startUrl(value: unknown): string {
+  // Kept byte for byte: the checksum covers it, so no implementation may tidy the address.
+  if (typeof value !== 'string' || !isStartUrl(value)) throw new Error('Invalid runtimeConfig.defaultStartUrl.')
+  return value
 }

@@ -34,6 +34,12 @@ export const WORKFLOW_DSL_LIMITS = Object.freeze({
   maxExpansionIterations: 100_000,
 })
 
+/** Task variable naming the page a Task starts on; an empty value falls back to the Run's default link. */
+export const START_URL_VARIABLE = 'start_url'
+export const DEFAULT_START_URL = 'https://chatgpt.com/'
+/** `@let` declares a variable; `@var` is the legacy spelling with the same meaning. */
+export const VARIABLE_DECLARATION = /^@(?:let|var)\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/iu
+
 export const SELF_URL_TOKENS = new Set(['<self>', '<current>', '<here>', '<本页>', '<当前页>', '<当前页面>'])
 export const VARIABLE_TOKEN = /%([A-Za-z_][A-Za-z0-9_]*)(?::([A-Za-z0-9_]+))?%/gu
 export const BACKTICK_FENCE = '```'

@@ -25,8 +25,30 @@ try {
   assert.equal(findCatalogModel('chatgpt', 'Sonnet 5.5'), null, 'models are per site')
   assert.deepEqual(findCatalogModel('claude', 'Haiku 4.5').efforts, [])
   for (const site of ['chatgpt', 'claude']) for (const model of MODEL_CATALOG[site]) {
-    assert.doesNotThrow(() => normalizeRuntimeConfig({ ...config, schemaVersion: 2, modelSelection: { ...defaultModelSelection(), [site]: { model: model.name, reasoningEffort: model.efforts[0] ?? null } } }), model.name)
+    assert.doesNotThrow(() => normalizeRuntimeConfig({ ...config, schemaVersion: 2, modelSelection: { ...defaultModelSelection(2), [site]: { model: model.name, reasoningEffort: model.efforts[0] ?? null } } }), model.name)
   }
+  assert.deepEqual(MODEL_CATALOG.chatgptCloud, [], 'the Codex cloud picker is not adapted, so nothing can be chosen')
+  const v3 = { ...config, schemaVersion: 3, modelSelection: defaultModelSelection(3), defaultStartUrl: 'https://claude.ai/code' }
+  assert.deepEqual(Object.keys(normalizeRuntimeConfig(v3)), ['schemaVersion', 'browser', 'modelSelection', 'defaultStartUrl'])
+  assert.throws(() => normalizeRuntimeConfig({ ...v3, defaultStartUrl: 'http://claude.ai/' }), /defaultStartUrl/)
+  assert.throws(() => normalizeRuntimeConfig({ ...v3, defaultStartUrl: '' }), /defaultStartUrl/)
+  assert.throws(() => normalizeRuntimeConfig({ ...v3, modelSelection: defaultModelSelection(2) }), /fields/)
+  assert.throws(() => normalizeRuntimeConfig({ ...v3, schemaVersion: 2 }), /fields/)
+  const { composeRuntimeConfig } = await server.ssrLoadModule('/src/features/runtime-config/lib/compose-config.ts')
+  const { surfaceOfUrl, START_LINKS } = await server.ssrLoadModule('/src/lib/domain/start-links.ts')
+  assert.deepEqual(composeRuntimeConfig(config.browser, defaultModelSelection(), null), { schemaVersion: 1, browser: config.browser }, 'untouched config stays v1')
+  assert.deepEqual(composeRuntimeConfig(config.browser, defaultModelSelection(), 'https://chatgpt.com/'), { schemaVersion: 1, browser: config.browser }, 'the built-in default start link adds nothing')
+  const picked = { ...defaultModelSelection(), claude: { model: 'Opus 5.5', reasoningEffort: 'high' } }
+  assert.equal(composeRuntimeConfig(config.browser, picked, null).schemaVersion, 2, 'chat model choices stay v2 for older extensions')
+  assert.deepEqual(Object.keys(composeRuntimeConfig(config.browser, picked, null).modelSelection), ['chatgpt', 'claude'])
+  assert.equal(composeRuntimeConfig(config.browser, picked, 'https://claude.ai/code').schemaVersion, 3)
+  assert.equal(composeRuntimeConfig(config.browser, defaultModelSelection(), 'https://claude.ai/new').defaultStartUrl, 'https://claude.ai/new')
+  for (const link of START_LINKS) {
+    assert.equal(surfaceOfUrl(link.url), link.surface, `${link.label} maps to its model surface`)
+    assert.doesNotThrow(() => normalizeRuntimeConfig(composeRuntimeConfig(config.browser, defaultModelSelection(), link.url)), link.label)
+  }
+  assert.equal(surfaceOfUrl('https://evil.example/cloud'), null)
+  assert.equal(surfaceOfUrl('http://chatgpt.com/'), null)
   const plan = '@run=Example\n@task Task {\n@event Event {\n{ hello }\n}\n}'
   globalThis.fetch = async (_url, init) => {
     payload = JSON.parse(init.body)

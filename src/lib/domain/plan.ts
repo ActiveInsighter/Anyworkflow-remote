@@ -1,6 +1,6 @@
 import type { PlanMeta } from '../../types'
-import { MAX_CONCURRENCY } from './limits'
-import { readRunPlanMeta } from '../workflow-dsl'
+import { MAX_CONCURRENCY } from './limits.ts'
+import { readRunPlanMeta } from '../workflow-dsl/index.ts'
 
 const titlePattern = /^\s*@run\s*=\s*(.*?)\s*$/imu
 const modePattern = /^\s*@mode\s*=\s*(serial|parallel)\s*$/imu
@@ -47,8 +47,10 @@ export function createStarterPlan(title = ''): string {
 
 @task Task {
   @mode=serial
+  @let start_url=
 
   @event Event {
+    <%start_url%>
     {
       在这里写第一条消息
     }

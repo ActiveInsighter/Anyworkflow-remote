@@ -94,7 +94,7 @@ export function collectWorkflowVariables(source: string, at: number): string[] {
     }
 
     const context = variableContext(frames)
-    const variable = line.match(/^@var\s+([A-Za-z_][A-Za-z0-9_]*)\s*=/iu)
+    const variable = line.match(/^@(?:let|var)\s+([A-Za-z_][A-Za-z0-9_]*)\s*=/iu)
     if (variable?.[1] && (context === 'task' || ['event', 'act', 'for-queue'].includes(frames.at(-1)?.kind ?? ''))) {
       frames.at(-1)?.variables.add(variable[1])
     }

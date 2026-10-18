@@ -70,6 +70,41 @@
       "valid": false,
       "plan": "@run=Codex\n@Codex Research {\n  @event Prompt {\n    @act {\n      @event=Search\n      { search the web }\n    }\n  }\n}",
       "queue": "@task=Research\n@event=Prompt\n@act {\n      @event=Search\n      { search the web }\n    }"
+    },
+    {
+      "name": "@let declares a Task variable like @var",
+      "executor": "browser",
+      "valid": true,
+      "plan": "@run=Let\n@task T {\n  @let who=world\n  @event E {\n    { hello %who% }\n  }\n}",
+      "queue": "@task=T\n@event=E\n{ hello world }"
+    },
+    {
+      "name": "@let inside an Event queue is kept for the browser",
+      "executor": "browser",
+      "valid": true,
+      "plan": "@run=Let\n@task T {\n  @event E {\n    @let query=browser syntax\n    { find %query% }\n  }\n}",
+      "queue": "@task=T\n@event=E\n@let query=browser syntax\n    { find %query% }"
+    },
+    {
+      "name": "start_url opens the chosen page",
+      "executor": "browser",
+      "valid": true,
+      "plan": "@run=Start\n@task T {\n  @let start_url=https://claude.ai/new\n  @event E {\n    <%start_url%>\n    { hello }\n  }\n}",
+      "queue": "@task=T\n@event=E\n<https://claude.ai/new>\n    { hello }"
+    },
+    {
+      "name": "an empty start_url falls back to the default link instead of failing",
+      "executor": "browser",
+      "valid": true,
+      "plan": "@run=Start\n@task T {\n  @let start_url=\n  @event E {\n    <%start_url%>\n    { hello }\n  }\n}",
+      "queue": "@task=T\n@event=E\n<https://chatgpt.com/>\n    { hello }"
+    },
+    {
+      "name": "start_url must be an https link",
+      "executor": "browser",
+      "valid": false,
+      "plan": "@run=Start\n@task T {\n  @let start_url=chatgpt.com\n  @event E {\n    <%start_url%>\n    { hello }\n  }\n}",
+      "queue": ""
     }
   ]
 }

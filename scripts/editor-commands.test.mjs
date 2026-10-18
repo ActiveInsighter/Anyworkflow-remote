@@ -6,7 +6,7 @@ const { planStructuredInsert, planSmartDelete, planSmartCopy, validateAnyWorkflo
 const source = `@run=Editor
 @task First {
   @mode=serial
-  @var name=existing
+  @let name=existing
 
   @event E {
     @act {
@@ -27,7 +27,7 @@ const source = `@run=Editor
 for (const position of ['hello', 'next %i%', '@event E {', '@mode=serial']) {
   const plan = planStructuredInsert(source, source.indexOf(position), 'variable')
   assert.equal(plan.ok, true, `insert Task variable from ${position}`)
-  assert.ok(plan.from > source.indexOf('@var name=existing'))
+  assert.ok(plan.from > source.indexOf('@let name=existing'))
   assert.ok(plan.from < source.indexOf('@event E {'), 'declarations precede all Task children')
   const edited = source.slice(0, plan.from) + plan.text + source.slice(plan.from)
   assert.deepEqual(validateAnyWorkflowSource(edited), [], 'toolbar inserts a valid declaration immediately')

@@ -1,12 +1,14 @@
 import { useId } from 'react'
 import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
-import type { ModelSelection, ModelSite, ReasoningEffort, SiteModelSelection } from '@/lib/domain/runtime-config'
+import type { ModelSelection, ModelSurface, ReasoningEffort, SiteModelSelection } from '@/lib/domain/runtime-config'
 import { EFFORT_LABELS, MODEL_CATALOG, findCatalogModel } from '../lib/model-catalog'
 
-const SITES: readonly { id: ModelSite; label: string }[] = [
-  { id: 'chatgpt', label: 'ChatGPT' },
-  { id: 'claude', label: 'Claude' },
+/** Pages with the same picker share one group; the links they are reached from are listed in `pages`. */
+const SITES: readonly { id: ModelSurface; label: string; pages: string }[] = [
+  { id: 'chatgpt', label: 'ChatGPT', pages: '主界面、图片界面' },
+  { id: 'chatgptCloud', label: 'ChatGPT Cloud', pages: 'Cloud 界面' },
+  { id: 'claude', label: 'Claude', pages: '主界面、Code 界面' },
 ]
 
 /** Per-site model and reasoning effort. Only combinations the site's own picker offers can be chosen. */
@@ -14,8 +16,8 @@ export function ModelSelectionFields({
   value,
   onChange,
 }: {
-  value: ModelSelection
-  onChange: (site: ModelSite, patch: Partial<SiteModelSelection>) => void
+  value: Required<ModelSelection>
+  onChange: (site: ModelSurface, patch: Partial<SiteModelSelection>) => void
 }) {
   const id = useId()
   return (
@@ -26,6 +28,7 @@ export function ModelSelectionFields({
       </div>
       {SITES.map((site) => {
         const current = value[site.id]
+        const unsupported = MODEL_CATALOG[site.id].length === 0 && current.model === null
         const known = findCatalogModel(site.id, current.model)
         // A value saved earlier that the picker no longer lists stays visible instead of vanishing.
         const orphanModel = current.model && !known ? current.model : null
@@ -40,7 +43,13 @@ export function ModelSelectionFields({
         const effortLocked = known ? known.efforts.length === 0 : current.model === null || orphanModel !== null
         return (
           <FieldGroup key={site.id} className="gap-3">
-            <p className="text-sm font-medium">{site.label}</p>
+            <div>
+              <p className="text-sm font-medium">{site.label}</p>
+              <p className="text-xs text-muted-foreground">适用页面：{site.pages}</p>
+            </div>
+            {unsupported ? (
+              <FieldDescription>该页面的模型选项尚未适配，暂时保持页面当前选择。</FieldDescription>
+            ) : (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Field>
                 <FieldLabel htmlFor={`${id}-${site.id}-model`}>{site.label} 模型</FieldLabel>
@@ -93,6 +102,7 @@ export function ModelSelectionFields({
                 </NativeSelect>
               </Field>
             </div>
+            )}
           </FieldGroup>
         )
       })}

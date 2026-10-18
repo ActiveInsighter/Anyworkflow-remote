@@ -8,6 +8,11 @@ import {
   workflowContextAt,
   type WorkflowDslContext,
 } from '../../../lib/workflow-dsl/index.ts'
+import { START_LINKS } from '../../../lib/domain/start-links.ts'
+
+/** `@let start_url=` line, with the cursor (or the end of the line) after the `=`. */
+const START_URL_LINE = /^(\s*@(?:let|var)\s+start_url\s*=\s*)(\S*)$/iu
+export const isStartUrlValuePosition = (linePrefix: string) => START_URL_LINE.test(linePrefix)
 
 interface DslState {
   inFence: boolean
@@ -40,6 +45,8 @@ export const anyWorkflowLanguage = StreamLanguage.define<DslState>({
     }
 
     if (stream.match(/@[A-Za-z][A-Za-z0-9]*/)) return 'keyword'
+    // start_url is the one variable the compiler gives a meaning to, so it is drawn differently.
+    if (stream.match(/\bstart_url\b(?=\s*=)/)) return 'special'
     if (stream.match(/%[A-Za-z_][A-Za-z0-9_]*(?::[A-Za-z0-9_]+)?%/)) return 'variableName'
     if (stream.match(/<(?:https?:\/\/[^>]+|self|current|here|本页|当前页|当前页面)>/iu)) return 'link'
     if (stream.match(/\b(?:serial|parallel)\b/)) return 'atom'
@@ -56,6 +63,7 @@ export const anyWorkflowLanguage = StreamLanguage.define<DslState>({
 export const anyWorkflowHighlightStyle = HighlightStyle.define([
   { tag: tags.keyword, color: 'var(--cm-keyword)', fontWeight: '600' },
   { tag: tags.variableName, color: 'var(--cm-variable)' },
+  { tag: tags.special(tags.variableName), color: 'var(--cm-link)', fontWeight: '700' },
   { tag: tags.string, color: 'var(--cm-string)' },
   { tag: tags.link, color: 'var(--cm-link)', textDecoration: 'underline' },
   { tag: tags.atom, color: 'var(--cm-atom)' },
@@ -112,7 +120,8 @@ function directiveOptions(context: DslContext): Completion[] {
   if (context === 'task') {
     return [
       ...shared,
-      snippetCompletion('@var ${name}=${value}', { label: '@var', type: 'keyword', detail: 'Task 变量' }),
+      snippetCompletion('@let ${name}=${value}', { label: '@let', type: 'keyword', detail: 'Task 变量' }),
+      snippetCompletion('@let start_url=${}', { label: '@let start_url', type: 'keyword', detail: '起始链接' }),
       snippetCompletion('@event ${执行单元} {\n  {\n    ${消息}\n  }\n}', { label: '@event', type: 'keyword', detail: 'Event 块' }),
       snippetCompletion('@for ${i} in range(1, 3) {\n  @event ${执行单元} {\n    {\n      ${消息}\n    }\n  }\n}', { label: '@for', type: 'keyword', detail: 'Event 循环' }),
     ]
@@ -129,6 +138,16 @@ export function anyWorkflowCompletion(context: CompletionContext): CompletionRes
   const source = context.state.doc.toString()
   const line = context.state.doc.lineAt(context.pos)
   const prefix = line.text.slice(0, context.pos - line.from)
+
+  const startUrl = prefix.match(START_URL_LINE)
+  if (startUrl) {
+    const from = line.from + startUrl[1].length
+    return {
+      from,
+      options: START_LINKS.map((link) => ({ label: link.url, detail: link.label, type: 'text' })),
+      validFor: /^\S*$/u,
+    }
+  }
 
   if (/^\s*@mode\s*=\s*[A-Za-z]*$/iu.test(prefix)) {
     const word = context.matchBefore(/[A-Za-z]*$/u)

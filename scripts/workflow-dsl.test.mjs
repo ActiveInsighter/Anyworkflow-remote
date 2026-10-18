@@ -90,18 +90,8 @@ const validWithoutRunTitle = `@task Search {
 }`
 assert.equal(errors(validWithoutRunTitle).length, 0, 'missing @run is valid because the compiler supplies a default title')
 
-const editorStarterPlan = `@run=新工作流
-@mode=serial
-
-@task Task {
-  @mode=serial
-
-  @event Event {
-    {
-      在这里写第一条消息
-    }
-  }
-}`
+const { createStarterPlan } = await import('../src/lib/domain/plan.ts')
+const editorStarterPlan = createStarterPlan('新工作流')
 assert.equal(errors(editorStarterPlan).length, 0, 'the editor starter syntax is valid for a browser Run')
 
 const eventLocalVariable = `@run=Variables\n@task T {\n  @event E {\n    @var query=browser syntax\n    @act {\n      @event=Search %query%\n      { find %query% }\n    }\n  }\n}`
@@ -225,3 +215,18 @@ ${Array.from({ length: 21 }, (_, index) => `    @act {\n      { act ${index} }\n
 assertHasError(browserActOverflow, 'browser total Act limit')
 
 console.log('workflow DSL assertions passed')
+
+const warnings = (source) => validateAnyWorkflowSource(source).filter((diagnostic) => diagnostic.severity === 'warning')
+assert.match(editorStarterPlan, /@let start_url=\n/u, 'the starter plan declares start_url')
+assert.match(editorStarterPlan, /<%start_url%>/u, 'the starter plan navigates to start_url')
+assert.equal(warnings(editorStarterPlan).length, 1, 'an empty start_url only warns')
+assert.match(warnings(editorStarterPlan)[0].message, /默认链接/u)
+const withStartUrl = (value, keyword = 'let') => editorStarterPlan.replace('@let start_url=', `@${keyword} start_url=${value}`)
+assert.equal(validateAnyWorkflowSource(withStartUrl('https://claude.ai/code')).length, 0, 'a filled start_url is clean')
+assert.equal(validateAnyWorkflowSource(withStartUrl('https://claude.ai/new', 'var')).length, 0, '@var stays accepted')
+assertHasError(withStartUrl('http://chatgpt.com/'), 'non-https start_url')
+assertHasError(withStartUrl('not a link'), 'start_url that is not a link')
+assert.equal(errors(editorStarterPlan.replace('@let start_url=', '@let start_url = ')).length, 0, 'spaced empty start_url still resolves')
+const customDefault = validateAnyWorkflowSource(editorStarterPlan, { defaultStartUrl: 'https://claude.ai/new' })
+assert.match(customDefault.find((item) => item.severity === 'warning').message, /claude\.ai\/new/u, 'the configured default is reported')
+console.log('start_url assertions passed')

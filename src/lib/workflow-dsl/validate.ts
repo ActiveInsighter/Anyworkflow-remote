@@ -46,7 +46,10 @@ export function validateEvent(
  * Validate the same source in the same order as cloud orchestration: Run -> Task -> Event queue,
  * then apply the browser parser restrictions to the generated Event queue.
  */
-export function validateWorkflowSource(source: string): WorkflowDiagnostic[] {
+export function validateWorkflowSource(
+  source: string,
+  settings: { defaultStartUrl?: string } = {},
+): WorkflowDiagnostic[] {
   const normalized = normalizeNewlines(source)
   const trimmed = normalized.trim()
   const collector = new DiagnosticCollector(source)
@@ -90,6 +93,7 @@ export function validateWorkflowSource(source: string): WorkflowDiagnostic[] {
       budget: { expandedBytes: 0, iterations: 0 },
       collector,
       defaultTitle,
+      defaultStartUrl: settings.defaultStartUrl,
     })
     const taskTitle = task.config.title.trim() || 'Cloud task'
 

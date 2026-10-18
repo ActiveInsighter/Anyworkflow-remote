@@ -334,14 +334,19 @@ UTC+08:00），保存草稿不会启动，点击“启用重复”才提交首�
 需部署 AnyWorkflow-workers 的 `1791300000_recurring_runs.js` 和匹配 hooks。
 验证：`npm run preflight`；`npm run test:browser -- recurrence`。
 
-## 模型与思考程度
+## 模型、起始链接与界面绑定
 
-默认运行配置和 Run 编辑器的运行配置支持分别设置 ChatGPT、Claude 的模型与思考程度。
-模型与思考程度只能从站点实际可选的列表里选（`src/features/runtime-config/lib/model-catalog.ts`，按各站点页面实测），
-思考程度随所选模型联动，换成不支持当前思考程度的模型会自动清空；留空保持页面当前选择。站点改版后请更新该列表。
-配置按 Run 固定，已有 Run 不受账号默认值修改影响。扩展每次发送前读取并核验实际
-选择，不可用或未生效时阻止发送。Claude Chat 和 Code 均由站点适配层处理。
+默认运行配置和 Run 编辑器的运行配置按“模型选择界面”设置模型与思考程度。DOM 与可选模型相同的
+页面共用一组：ChatGPT 主界面与图片界面，Claude 主界面与 Code 界面；ChatGPT Cloud 界面单独一组
+（其选择器尚未适配，暂不能设置）。可选项来自 `src/features/runtime-config/lib/model-catalog.ts`
+（按各页面实测），思考程度随所选模型联动，换成不支持当前思考程度的模型会自动清空；留空保持页面当前选择。
+站点改版后请更新该列表。配置按 Run 固定，已有 Run 不受账号默认值修改影响。扩展每次发送前按当前页面读取并核验实际
+选择，不可用或未生效时阻止发送。
 
-选择覆盖值后配置采用 schemaVersion 2；清空全部覆盖值后回到 v1。需先部署 AnyWorkflow-workers
-的模型选择 migration/hooks 与新版 scheduler，再加载支持能力版本 2 的扩展。前端必须同时
-识别 v1 与 v2，否则遇到 v2 的 Run 时列表会整页加载失败。
+“默认起始链接”（`src/lib/domain/start-links.ts` 列出常用页面）用于 Task 的 `@let start_url=` 留空时：
+编辑器只给出警告，后端编译 Run 时填入该链接（默认 `https://chatgpt.com/`）。编辑器里点击 `start_url=`
+之后会弹出常用链接。`@var` 仍可用，`@let` 是推荐写法。
+
+配置版本只取表达所需的最低值：无覆盖为 v1；ChatGPT/Claude 模型覆盖为 v2；Cloud 界面模型或非默认起始链接
+为 v3。需先部署 AnyWorkflow-workers 的 migration/hooks 与新版 scheduler，再加载支持能力版本 3 的扩展，
+最后发布 Remote。前端必须识别 v1–v3，否则遇到新版本的 Run 时列表会整页加载失败。

@@ -3,7 +3,7 @@ import { DescriptionList } from '@/components/data-display/description-list'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import type { DispatchRunRecord } from '@/types'
 
-const SITE_LABELS = { chatgpt: 'ChatGPT', claude: 'Claude' } as const
+const SITE_LABELS = { chatgpt: 'ChatGPT', chatgptCloud: 'ChatGPT Cloud', claude: 'Claude' } as const
 
 function selectionText(selection: { model: string | null; reasoningEffort: string | null }) {
   if (!selection.model && !selection.reasoningEffort) return '站点默认'
@@ -40,10 +40,12 @@ export function RunRuntimeSummary({ run }: { run: DispatchRunRecord }) {
                 value: config.deferredReply.enabled ? `延迟 ${config.deferredReply.delayMinutes} 分钟` : '关闭',
               },
               ...(models
-                ? (Object.keys(SITE_LABELS) as (keyof typeof SITE_LABELS)[]).map((site) => ({
-                    label: `${SITE_LABELS[site]} 模型`,
-                    value: selectionText(models[site]),
-                  }))
+                ? (Object.keys(SITE_LABELS) as (keyof typeof SITE_LABELS)[]).flatMap((site) =>
+                    models[site] ? [{ label: `${SITE_LABELS[site]} 模型`, value: selectionText(models[site]) }] : [],
+                  )
+                : []),
+              ...(run.runtimeConfig?.defaultStartUrl
+                ? [{ label: '默认起始链接', value: run.runtimeConfig.defaultStartUrl }]
                 : []),
             ]}
           />

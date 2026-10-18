@@ -1,7 +1,7 @@
 /** Event queue validation for the browser executor, including expansion budgets. */
 import { parseRangeValues } from './cloud-parser.ts'
 import { fenceAt, lineEnd, matchingBrace, nextLine, normalizeNewlines } from './text.ts'
-import { BACKTICK_FENCE, SELF_URL_TOKENS, TILDE_FENCE, VARIABLE_TOKEN, WORKFLOW_DSL_LIMITS, type QueueValidationOptions } from './types.ts'
+import { BACKTICK_FENCE, SELF_URL_TOKENS, TILDE_FENCE, VARIABLE_DECLARATION, VARIABLE_TOKEN, WORKFLOW_DSL_LIMITS, type QueueValidationOptions } from './types.ts'
 
 export function queueUrlIsExecutable(value: string): boolean {
   const token = value.trim().replace(/\s+/gu, '')
@@ -75,7 +75,7 @@ export function leadingQueueRepeat(value: string): number | null {
       }
       continue
     }
-    if (/^@(task|event|start|step|var)(?:\s|=)/iu.test(line)) continue
+    if (/^@(task|event|start|step|let|var)(?:\s|=)/iu.test(line)) continue
     break
   }
   return repeat
@@ -85,7 +85,7 @@ export function collectLeadingQueueVariables(text: string, variables: Set<string
   for (const rawLine of text.split('\n')) {
     const line = rawLine.trim()
     if (!line) continue
-    const declaration = line.match(/^@var\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*.*$/iu)
+    const declaration = line.match(VARIABLE_DECLARATION)
     if (declaration?.[1]) {
       variables.add(declaration[1])
       continue
@@ -239,10 +239,10 @@ export function validateQueueBody(value: string, options: QueueValidationOptions
       continue
     }
 
-    if (leading && /^@var\b/iu.test(line)) {
-      const declaration = line.match(/^@var\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/iu)
+    if (leading && /^@(?:let|var)\b/iu.test(line)) {
+      const declaration = line.match(VARIABLE_DECLARATION)
       if (!declaration?.[1]) {
-        addQueueError(options, '包含无效的 @var 声明')
+        addQueueError(options, '包含无效的 @let 声明')
         return false
       }
       activeVariables.add(declaration[1])
