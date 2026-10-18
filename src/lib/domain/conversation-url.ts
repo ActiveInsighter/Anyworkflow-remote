@@ -10,7 +10,7 @@ interface ConversationSite {
 }
 
 const CONVERSATION_SITES: readonly ConversationSite[] = [
-  { hosts: ['chatgpt.com', 'chat.openai.com'], rootConversationPath: /^\/c\/[^/]+/u },
+  { hosts: ['chatgpt.com', 'chat.openai.com'], rootConversationPath: /^\/(?:c|local)\/[^/]+/u },
   { hosts: ['claude.ai'], rootConversationPath: /^\/chat\/[^/]+/u },
 ]
 

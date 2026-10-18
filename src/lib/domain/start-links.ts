@@ -30,7 +30,7 @@ export function surfaceOfUrl(url: string): ModelSurface | null {
   if (parsed.protocol !== 'https:') return null
   if (parsed.hostname === 'claude.ai') return 'claude'
   if (parsed.hostname === 'chatgpt.com' || parsed.hostname === 'chat.openai.com') {
-    return /^\/(?:cloud|codex)(?:\/|$)/u.test(parsed.pathname) ? 'chatgptCloud' : 'chatgpt'
+    return /^\/(?:cloud|codex|local)(?:\/|$)/u.test(parsed.pathname) ? 'chatgptCloud' : 'chatgpt'
   }
   return null
 }

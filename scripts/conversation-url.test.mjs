@@ -7,6 +7,9 @@ try {
   const claudeId = '0b4f1a52-7c1e-4f0f-9d57-0e0a1f3b9c11'
 
   assert.equal(isSafeConversationUrl('https://chatgpt.com/c/abc'), true)
+  assert.equal(isSafeConversationUrl('https://chatgpt.com/local/cloud-proof'), true)
+  assert.equal(isSafeConversationUrl('https://chatgpt.com/local/'), false)
+  assert.equal(isSafeConversationUrl('https://evil.example/local/cloud-proof'), false)
   assert.equal(isSafeConversationUrl('https://chat.openai.com/c/abc?x=1'), true)
   assert.equal(isSafeConversationUrl(`https://claude.ai/chat/${claudeId}`), true)
   assert.equal(isSafeConversationUrl(`https://CLAUDE.AI/chat/${claudeId}`), true)

@@ -54,6 +54,7 @@ try {
     assert.doesNotThrow(() => normalizeRuntimeConfig(composeRuntimeConfig(config.browser, defaultModelSelection(), link.url)), link.label)
   }
   assert.equal(surfaceOfUrl('https://evil.example/cloud'), null)
+  assert.equal(surfaceOfUrl('https://chatgpt.com/local/cloud-proof'), 'chatgptCloud')
   assert.equal(surfaceOfUrl('http://chatgpt.com/'), null)
   const plan = '@run=Example\n@task Task {\n@event Event {\n{ hello }\n}\n}'
   globalThis.fetch = async (_url, init) => {
