@@ -1,27 +1,15 @@
 import { useId } from 'react'
 import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import type { ModelSelection, ModelSite, ReasoningEffort, SiteModelSelection } from '@/lib/domain/runtime-config'
+import { EFFORT_LABELS, MODEL_CATALOG, findCatalogModel } from '../lib/model-catalog'
 
-const SITES: readonly { id: ModelSite; label: string; models: readonly string[] }[] = [
-  { id: 'chatgpt', label: 'ChatGPT', models: ['GPT-6', 'GPT-5.6 Sol'] },
-  { id: 'claude', label: 'Claude', models: ['Opus 5.5', 'Sonnet 5.5', 'Haiku 5.5', 'Fable 5.1'] },
-]
-const EFFORTS: readonly { value: ReasoningEffort; label: string }[] = [
-  { value: 'none', label: '无' },
-  { value: 'minimal', label: '最低' },
-  { value: 'low', label: '低' },
-  { value: 'medium', label: '中等' },
-  { value: 'high', label: '高' },
-  { value: 'xhigh', label: '超高' },
-  { value: 'max', label: '最高' },
-  { value: 'standard', label: '标准' },
-  { value: 'extended', label: '扩展' },
-  { value: 'heavy', label: '深度' },
+const SITES: readonly { id: ModelSite; label: string }[] = [
+  { id: 'chatgpt', label: 'ChatGPT' },
+  { id: 'claude', label: 'Claude' },
 ]
 
-/** Per-site model and reasoning effort. Empty keeps whatever the site currently has selected. */
+/** Per-site model and reasoning effort. Only combinations the site's own picker offers can be chosen. */
 export function ModelSelectionFields({
   value,
   onChange,
@@ -34,48 +22,80 @@ export function ModelSelectionFields({
     <FieldSet className="gap-4">
       <div>
         <FieldLegend variant="label" className="mb-1">模型与思考程度</FieldLegend>
-        <FieldDescription>留空保持页面当前选择；可选项以账号实际可用模型为准。</FieldDescription>
+        <FieldDescription>留空保持页面当前选择；只列出该站点实际可选的项。</FieldDescription>
       </div>
-      {SITES.map((site) => (
-        <FieldGroup key={site.id} className="gap-3">
-          <p className="text-sm font-medium">{site.label}</p>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field>
-              <FieldLabel htmlFor={`${id}-${site.id}-model`}>{site.label} 模型</FieldLabel>
-              <Input
-                id={`${id}-${site.id}-model`}
-                list={`${id}-${site.id}-models`}
-                maxLength={128}
-                placeholder="保持当前模型"
-                value={value[site.id].model ?? ''}
-                onChange={(event) => onChange(site.id, { model: event.target.value || null })}
-              />
-              <datalist id={`${id}-${site.id}-models`}>
-                {site.models.map((model) => (
-                  <option key={model} value={model} />
-                ))}
-              </datalist>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor={`${id}-${site.id}-effort`}>{site.label} 思考程度</FieldLabel>
-              <NativeSelect
-                id={`${id}-${site.id}-effort`}
-                value={value[site.id].reasoningEffort ?? ''}
-                onChange={(event) =>
-                  onChange(site.id, { reasoningEffort: (event.target.value || null) as ReasoningEffort | null })
-                }
-              >
-                <NativeSelectOption value="">保持当前思考程度</NativeSelectOption>
-                {EFFORTS.map((effort) => (
-                  <NativeSelectOption key={effort.value} value={effort.value}>
-                    {effort.label}
+      {SITES.map((site) => {
+        const current = value[site.id]
+        const known = findCatalogModel(site.id, current.model)
+        // A value saved earlier that the picker no longer lists stays visible instead of vanishing.
+        const orphanModel = current.model && !known ? current.model : null
+        const efforts: readonly ReasoningEffort[] = known
+          ? known.efforts
+          : current.reasoningEffort
+            ? [current.reasoningEffort]
+            : []
+        // Likewise an effort the chosen model does not offer is shown flagged so it can be cleared.
+        const orphanEffort =
+          current.reasoningEffort && !efforts.includes(current.reasoningEffort) ? current.reasoningEffort : null
+        const effortLocked = known ? known.efforts.length === 0 : current.model === null || orphanModel !== null
+        return (
+          <FieldGroup key={site.id} className="gap-3">
+            <p className="text-sm font-medium">{site.label}</p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor={`${id}-${site.id}-model`}>{site.label} 模型</FieldLabel>
+                <NativeSelect
+                  id={`${id}-${site.id}-model`}
+                  value={known?.name ?? orphanModel ?? ''}
+                  onChange={(event) => {
+                    const next = findCatalogModel(site.id, event.target.value) ?? null
+                    const keep = next && current.reasoningEffort && next.efforts.includes(current.reasoningEffort)
+                    onChange(site.id, {
+                      model: event.target.value || null,
+                      reasoningEffort: keep ? current.reasoningEffort : null,
+                    })
+                  }}
+                >
+                  <NativeSelectOption value="">保持当前模型</NativeSelectOption>
+                  {MODEL_CATALOG[site.id].map((model) => (
+                    <NativeSelectOption key={model.name} value={model.name}>
+                      {model.name}
+                    </NativeSelectOption>
+                  ))}
+                  {orphanModel ? <NativeSelectOption value={orphanModel}>{orphanModel}（已不在列表中）</NativeSelectOption> : null}
+                </NativeSelect>
+              </Field>
+              <Field data-disabled={effortLocked || undefined}>
+                <FieldLabel htmlFor={`${id}-${site.id}-effort`}>{site.label} 思考程度</FieldLabel>
+                <NativeSelect
+                  id={`${id}-${site.id}-effort`}
+                  disabled={effortLocked && !current.reasoningEffort}
+                  value={current.reasoningEffort ?? ''}
+                  onChange={(event) =>
+                    onChange(site.id, { reasoningEffort: (event.target.value || null) as ReasoningEffort | null })
+                  }
+                >
+                  <NativeSelectOption value="">
+                    {known && known.efforts.length === 0
+                      ? '该模型无思考程度选项'
+                      : current.model === null
+                        ? '先选择模型'
+                        : '保持当前思考程度'}
                   </NativeSelectOption>
-                ))}
-              </NativeSelect>
-            </Field>
-          </div>
-        </FieldGroup>
-      ))}
+                  {efforts.map((effort) => (
+                    <NativeSelectOption key={effort} value={effort}>
+                      {EFFORT_LABELS[effort]}
+                    </NativeSelectOption>
+                  ))}
+                  {orphanEffort ? (
+                    <NativeSelectOption value={orphanEffort}>{EFFORT_LABELS[orphanEffort]}（该模型不支持）</NativeSelectOption>
+                  ) : null}
+                </NativeSelect>
+              </Field>
+            </div>
+          </FieldGroup>
+        )
+      })}
     </FieldSet>
   )
 }

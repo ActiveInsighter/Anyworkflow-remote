@@ -19,6 +19,14 @@ try {
   assert.deepEqual(payload, { config, expectedRevision: 6 })
   globalThis.fetch = async () => Response.json({ owner: 'other', revision: 1, schemaVersion: 1, config })
   await assert.rejects(getRuntimeDefaults(), /归属/)
+  const { MODEL_CATALOG, findCatalogModel } = await server.ssrLoadModule('/src/features/runtime-config/lib/model-catalog.ts')
+  assert.equal(findCatalogModel('claude', 'claude-sonnet-5-5').name, 'Sonnet 5.5', 'stable id resolves to the listed model')
+  assert.equal(findCatalogModel('claude', 'Opus 5').name, 'Opus 5', 'Opus 5 is not confused with Opus 5.5')
+  assert.equal(findCatalogModel('chatgpt', 'Sonnet 5.5'), null, 'models are per site')
+  assert.deepEqual(findCatalogModel('claude', 'Haiku 4.5').efforts, [])
+  for (const site of ['chatgpt', 'claude']) for (const model of MODEL_CATALOG[site]) {
+    assert.doesNotThrow(() => normalizeRuntimeConfig({ ...config, schemaVersion: 2, modelSelection: { ...defaultModelSelection(), [site]: { model: model.name, reasoningEffort: model.efforts[0] ?? null } } }), model.name)
+  }
   const plan = '@run=Example\n@task Task {\n@event Event {\n{ hello }\n}\n}'
   globalThis.fetch = async (_url, init) => {
     payload = JSON.parse(init.body)
