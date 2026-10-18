@@ -27,7 +27,13 @@ try {
   for (const site of ['chatgpt', 'claude']) for (const model of MODEL_CATALOG[site]) {
     assert.doesNotThrow(() => normalizeRuntimeConfig({ ...config, schemaVersion: 2, modelSelection: { ...defaultModelSelection(2), [site]: { model: model.name, reasoningEffort: model.efforts[0] ?? null } } }), model.name)
   }
-  assert.deepEqual(MODEL_CATALOG.chatgptCloud, [], 'the Codex cloud picker is not adapted, so nothing can be chosen')
+  assert.equal(findCatalogModel('chatgptCloud', 'gpt-6.1-sol').name, 'GPT-6.1 Sol')
+  assert.equal(findCatalogModel('chatgpt', 'GPT-6.1 Sol'), null, 'Cloud models stay separate from chat models')
+  for (const model of MODEL_CATALOG.chatgptCloud) for (const effort of model.efforts) {
+    assert.doesNotThrow(() => normalizeRuntimeConfig({ ...config, schemaVersion: 3,
+      modelSelection: { ...defaultModelSelection(3), chatgptCloud: { model: model.name, reasoningEffort: effort } },
+      defaultStartUrl: 'https://chatgpt.com/cloud' }), `${model.name}/${effort}`)
+  }
   const v3 = { ...config, schemaVersion: 3, modelSelection: defaultModelSelection(3), defaultStartUrl: 'https://claude.ai/code' }
   assert.deepEqual(Object.keys(normalizeRuntimeConfig(v3)), ['schemaVersion', 'browser', 'modelSelection', 'defaultStartUrl'])
   assert.throws(() => normalizeRuntimeConfig({ ...v3, defaultStartUrl: 'http://claude.ai/' }), /defaultStartUrl/)

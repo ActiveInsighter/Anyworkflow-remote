@@ -9,6 +9,7 @@ export interface CatalogModel {
 
 const FULL_RANGE: readonly ReasoningEffort[] = ['low', 'medium', 'high', 'xhigh', 'max']
 const NO_XHIGH: readonly ReasoningEffort[] = ['low', 'medium', 'high', 'max']
+const CLOUD_RANGE: readonly ReasoningEffort[] = ['low', 'medium', 'high', 'xhigh']
 
 /**
  * What each site's model picker really lets a user choose, observed on the live pages (2026-10-18).
@@ -20,8 +21,15 @@ export const MODEL_CATALOG: Record<ModelSurface, readonly CatalogModel[]> = {
     { name: 'GPT-6', efforts: ['none', 'medium', 'high'] },
     { name: 'GPT-5.6 Sol', efforts: ['none', 'medium', 'high'] },
   ],
-  // The Codex cloud picker is not adapted yet: its models are unknown, so none can be chosen.
-  chatgptCloud: [],
+  chatgptCloud: [
+    { name: 'GPT-6.1 Sol', efforts: CLOUD_RANGE },
+    { name: 'GPT-6 Astra', efforts: CLOUD_RANGE },
+    { name: 'GPT-6 Sol', efforts: CLOUD_RANGE },
+    { name: 'GPT-6 Luna', efforts: CLOUD_RANGE },
+    { name: 'GPT-5.6 Sol', efforts: CLOUD_RANGE },
+    { name: 'GPT-5.6 Terra', efforts: CLOUD_RANGE },
+    { name: 'GPT-5.6 Luna', efforts: CLOUD_RANGE },
+  ],
   claude: [
     { name: 'Opus 5.5', efforts: FULL_RANGE },
     { name: 'Sonnet 5.5', efforts: FULL_RANGE },
