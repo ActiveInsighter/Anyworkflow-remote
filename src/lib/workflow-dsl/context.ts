@@ -37,7 +37,7 @@ export function workflowContextAt(source: string, at: number): WorkflowDslContex
       continue
     }
 
-    if (/^@(task|codex)(?:\s+.*?)?\s*\{\s*$/iu.test(line)) {
+    if (/^@(task)(?:\s+.*?)?\s*\{\s*$/iu.test(line)) {
       stack.push('task')
       continue
     }
@@ -107,7 +107,7 @@ export function collectWorkflowVariables(source: string, at: number): string[] {
       })
       continue
     }
-    if (/^@(task|codex)(?:\s+.*?)?\s*\{\s*$/iu.test(line)) {
+    if (/^@(task)(?:\s+.*?)?\s*\{\s*$/iu.test(line)) {
       frames.push({ kind: 'task', variables: new Set<string>() })
       continue
     }

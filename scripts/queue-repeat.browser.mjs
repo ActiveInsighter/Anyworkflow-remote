@@ -34,7 +34,7 @@ try {
     await page.goto(`${baseUrl}/runs/new`)
     await page.locator('.cm-content').waitFor()
 
-    for (const executor of ['@task', '@Codex']) {
+    for (const executor of ['@task']) {
       for (const count of [1, 50, 100, 0, 101]) {
         const source = `@run=循环次数验证\n${executor} T {\n@event E {\n{ 继续整理 }*${count}\n}\n}`
         await page.locator('.cm-content').click()

@@ -9,16 +9,10 @@ export function parseRangeValues(
   line: number,
   maxItems: number,
   emptyMessage?: string,
-  strictIntegerSyntax = false,
 ): number[] | null {
   const parts = args.split(',').map((part) => part.trim())
   if (parts.length < 1 || parts.length > 3 || parts.some((part) => part === '')) {
     collector.add(line, 'range 必须使用 range(stop)、range(start, stop) 或 range(start, stop, step)。')
-    return null
-  }
-
-  if (strictIntegerSyntax && parts.some((part) => !/^[+-]?\d+$/u.test(part))) {
-    collector.add(line, 'Codex 的 range 参数必须是十进制整数。')
     return null
   }
 

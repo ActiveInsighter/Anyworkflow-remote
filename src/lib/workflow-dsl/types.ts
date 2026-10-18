@@ -31,8 +31,6 @@ export const WORKFLOW_DSL_LIMITS = Object.freeze({
   maxBrowserTotalActs: 200,
   maxBrowserPollDepth: 3,
   maxBrowserTemplateActs: 10,
-  maxCodexActs: 1_000,
-  maxCodexMessagesPerAct: 1_000,
   maxExpansionIterations: 100_000,
 })
 
@@ -44,8 +42,7 @@ export const TILDE_FENCE = '~~~'
 export type TemplateValue = string | number
 export type TemplateVars = Record<string, TemplateValue>
 export type CloudLevel = 'run' | 'task'
-export type CloudBlockKind = 'task' | 'codex' | 'event'
-export type QueueFlavor = 'browser' | 'codex'
+export type CloudBlockKind = 'task' | 'event'
 
 export interface LineIndex {
   readonly original: string
@@ -78,7 +75,6 @@ export interface ParseBudget {
 }
 
 export interface QueueValidationOptions {
-  flavor: QueueFlavor
   eventTitle: string
   line: number
   collector: DiagnosticCollector
@@ -86,14 +82,8 @@ export interface QueueValidationOptions {
   depth?: number
   pollDepth?: number
   expansionBudget?: QueueExpansionBudget
-  codexPromptBudget?: QueuePromptBudget
-  codexPromptMultiplier?: number
 }
 
 export interface QueueExpansionBudget {
   acts: number
-}
-
-export interface QueuePromptBudget {
-  prompts: number
 }

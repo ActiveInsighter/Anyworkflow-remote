@@ -8,7 +8,7 @@ import {
   type SourceBlockKind,
 } from './source-structure.ts'
 
-export type StructuredInsertKind = 'task' | 'codex' | 'event' | 'act' | 'variable'
+export type StructuredInsertKind = 'task' | 'event' | 'act' | 'variable'
 
 export type StructuredInsertPlan =
   | { ok: true; from: number; text: string; cursorOffset: number; selectionLength?: number }
@@ -65,17 +65,17 @@ export function planStructuredInsert(
   kind: StructuredInsertKind,
 ): StructuredInsertPlan {
   const structure = readSourceStructure(source)
-  if (kind === 'task' || kind === 'codex') {
+  if (kind === 'task') {
     if (!structure.closed) {
-      return { ok: false, message: `当前工作流还有未闭合的结构，先补全大括号或文本块后再添加 ${kind === 'codex' ? 'Codex' : 'Task'}。` }
+      return { ok: false, message: `当前工作流还有未闭合的结构，先补全大括号或文本块后再添加 Task。` }
     }
     const separator = appendSeparator(source)
-    const directive = kind === 'codex' ? '@Codex' : '@task'
+    const directive = '@task'
     const text = `${separator}${directive}  {\n  @mode=serial\n\n}\n`
     return { ok: true, from: source.length, text, cursorOffset: separator.length + directive.length + 1 }
   }
 
-  const targetKinds: SourceBlockKind[] = kind === 'act' ? ['event'] : ['task', 'codex']
+  const targetKinds: SourceBlockKind[] = kind === 'act' ? ['event'] : ['task']
   const container = containingBlock(structure, source.length, at, targetKinds)
   if (!container) {
     const label = kind === 'event' ? 'Event' : kind === 'act' ? 'Act' : '变量'
@@ -151,7 +151,7 @@ function selectedStructuralBrace(source: string, from: number, to: number): numb
 }
 
 const BLOCK_LABELS: Record<SourceBlockKind, string> = {
-  task: 'Task', codex: 'Codex', event: 'Event', act: 'Act', for: '循环', message: '消息块',
+  task: 'Task', event: 'Event', act: 'Act', for: '循环', message: '消息块',
 }
 
 type SmartRangePlan =

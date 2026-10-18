@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { validateAnyWorkflowSource } from '../src/features/editor/lib/anyworkflow-dsl.ts'
 
-for (const executor of ['@task', '@Codex']) {
+for (const executor of ['@task']) {
   const queueBodies = (count) => [
     `{ continue }*${count}`,
     `@act {\n{ continue }*${count}\n}`,

@@ -5,7 +5,7 @@ import { readRunPlanMeta } from '../workflow-dsl'
 const titlePattern = /^\s*@run\s*=\s*(.*?)\s*$/imu
 const modePattern = /^\s*@mode\s*=\s*(serial|parallel)\s*$/imu
 const concurrencyPattern = /^\s*@maxConcurrency\s*=\s*(\d+)\s*$/imu
-const runBlockPattern = /^\s*@(task|codex)(?:\s+.*?)?\s*\{\s*$/iu
+const runBlockPattern = /^\s*@(task)(?:\s+.*?)?\s*\{\s*$/iu
 const runLoopPattern = /^\s*@for\s+[A-Za-z_][A-Za-z0-9_]*\s+in\s+range\(.*?\)\s*\{\s*$/iu
 
 export function parsePlanMeta(source: string): PlanMeta {

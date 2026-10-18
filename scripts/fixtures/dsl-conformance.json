@@ -65,9 +65,9 @@
       "queue": "@task=T\n@event=E\n@act {\n  @action=Search\n  { find the answer }\n}"
     },
     {
-      "name": "Codex Act",
+      "name": "retired Codex executor is rejected",
       "executor": "codex",
-      "valid": true,
+      "valid": false,
       "plan": "@run=Codex\n@Codex Research {\n  @event Prompt {\n    @act {\n      @event=Search\n      { search the web }\n    }\n  }\n}",
       "queue": "@task=Research\n@event=Prompt\n@act {\n      @event=Search\n      { search the web }\n    }"
     }

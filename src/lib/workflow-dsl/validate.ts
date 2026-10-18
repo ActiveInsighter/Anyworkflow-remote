@@ -3,13 +3,12 @@ import { parseCloudLevel, removeLeadingEventHeaders } from './cloud-parser.ts'
 import { DiagnosticCollector } from './diagnostics.ts'
 import { validateBrowserTemplateTokens, validateQueueBody } from './queue-validator.ts'
 import { UTF8_ENCODER, normalizeNewlines } from './text.ts'
-import { WORKFLOW_DSL_LIMITS, type CloudBlock, type QueueFlavor, type WorkflowDiagnostic } from './types.ts'
+import { WORKFLOW_DSL_LIMITS, type CloudBlock, type WorkflowDiagnostic } from './types.ts'
 
 export function validateEvent(
   block: CloudBlock,
   index: number,
   taskTitle: string,
-  flavor: QueueFlavor,
   collector: DiagnosticCollector,
 ): void {
   const extracted = removeLeadingEventHeaders(block.body)
@@ -27,31 +26,25 @@ export function validateEvent(
     collector.add(block.line, 'Event 队列不能超过 768 KiB。')
   }
 
-  if (flavor === 'browser') {
-    validateBrowserTemplateTokens(eventTitle, {
-      flavor,
-      eventTitle,
-      line: block.line,
-      collector,
-      activeVariables: new Set<string>(),
-    })
-  }
+  validateBrowserTemplateTokens(eventTitle, {
+    eventTitle,
+    line: block.line,
+    collector,
+    activeVariables: new Set<string>(),
+  })
 
   validateQueueBody(body, {
-    flavor,
     eventTitle,
     line: block.line,
     collector,
     activeVariables: new Set<string>(),
     expansionBudget: { acts: 0 },
-    codexPromptBudget: flavor === 'codex' ? { prompts: 0 } : undefined,
-    codexPromptMultiplier: 1,
   })
 }
 
 /**
  * Validate the same source in the same order as cloud orchestration: Run -> Task -> Event queue,
- * then apply the browser/Codex parser restrictions to the generated Event queue.
+ * then apply the browser parser restrictions to the generated Event queue.
  */
 export function validateWorkflowSource(source: string): WorkflowDiagnostic[] {
   const normalized = normalizeNewlines(source)
@@ -71,7 +64,7 @@ export function validateWorkflowSource(source: string): WorkflowDiagnostic[] {
   const run = parseCloudLevel(normalized, {
     level: 'run',
     titleDirective: 'run',
-    blockKinds: ['task', 'codex'],
+    blockKinds: ['task'],
     lineBase: 0,
     depth: 0,
     budget: { expandedBytes: 0, iterations: 0 },
@@ -79,7 +72,7 @@ export function validateWorkflowSource(source: string): WorkflowDiagnostic[] {
   })
 
   if (!run.failed && run.blocks.length === 0) {
-    collector.add(1, 'Run 至少需要一个 @task 或 @Codex 块。')
+    collector.add(1, 'Run 至少需要一个 @task 块。')
   }
   if (run.blocks.length > WORKFLOW_DSL_LIMITS.maxRunTasks) {
     collector.add(run.blocks[WORKFLOW_DSL_LIMITS.maxRunTasks]?.line ?? 1, 'Run 最多只能生成 256 个 Task。')
@@ -112,7 +105,6 @@ export function validateWorkflowSource(source: string): WorkflowDiagnostic[] {
         eventBlock,
         eventIndex,
         taskTitle,
-        runBlock.kind === 'codex' ? 'codex' : 'browser',
         collector,
       )
     })

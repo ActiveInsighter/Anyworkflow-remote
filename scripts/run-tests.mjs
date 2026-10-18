@@ -3,7 +3,7 @@ const testFiles = [
   'runtime-config.test.mjs',
   'pdf-api.test.mjs',
   'event-structure.test.mjs',
-  'codex-dsl.test.mjs',
+  'browser-executor.test.mjs',
   'workflow-dsl.test.mjs',
   'queue-repeat.test.mjs',
   'history-selection.test.mjs',

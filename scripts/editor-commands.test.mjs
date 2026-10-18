@@ -17,7 +17,7 @@ const source = `@run=Editor
     }
   }
 }
-@Codex Second {
+@task Second {
   @mode=serial
   @event Prompt {
     { world }
@@ -33,15 +33,15 @@ for (const position of ['hello', 'next %i%', '@event E {', '@mode=serial']) {
   assert.deepEqual(validateAnyWorkflowSource(edited), [], 'toolbar inserts a valid declaration immediately')
   assert.equal(plan.text.slice(plan.cursorOffset, plan.cursorOffset + plan.selectionLength), 'name2')
 }
-const codexVariable = planStructuredInsert(source, source.indexOf('world'), 'variable')
-assert.equal(codexVariable.ok, true)
-assert.ok(codexVariable.from > source.indexOf('@Codex Second {'))
-assert.ok(codexVariable.from < source.indexOf('@event Prompt {'))
+const secondTaskVariable = planStructuredInsert(source, source.indexOf('world'), 'variable')
+assert.equal(secondTaskVariable.ok, true)
+assert.ok(secondTaskVariable.from > source.indexOf('@task Second {'))
+assert.ok(secondTaskVariable.from < source.indexOf('@event Prompt {'))
 assert.equal(planStructuredInsert(source, 0, 'variable').ok, false, 'Run has no current Task')
 assert.equal(planStructuredInsert('@task Broken {\n@event E {\n{ hello }', 40, 'variable').ok, false)
 
 // Copy and delete must resolve the same range from either delimiter, with/without a selection.
-for (const header of ['@task First {', '@Codex Second {', '@event E {', '@act {', '@for i in range(1, 3) {', '{ hello }']) {
+for (const header of ['@task First {', '@task Second {', '@event E {', '@act {', '@for i in range(1, 3) {', '{ hello }']) {
   const openAt = source.indexOf(header) + header.indexOf('{')
   const initial = planSmartDelete(source, openAt, openAt + 1)
   assert.equal(initial.ok, true)

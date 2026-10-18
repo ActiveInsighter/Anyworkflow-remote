@@ -12,8 +12,8 @@ const act = `    @act {\n${message}    }\n`
 const loop = '    @for i in range(1, 3) {\n      { next %i% }\n    }\n'
 const event = `  @event E {\n${act}${loop}  }\n`
 const task = `@task First {\n  @mode=serial\n  @var name=existing\n\n${event}}\n`
-const codex = '@Codex Second {\n  @mode=serial\n  @event Prompt {\n    { world }\n  }\n}\n'
-const source = `@run=Editor regression\n${task}${codex}`
+const secondTask = '@task Second {\n  @mode=serial\n  @event Prompt {\n    { world }\n  }\n}\n'
+const source = `@run=Editor regression\n${task}${secondTask}`
 
 try {
   for (const width of [320, 390, 760, 1440]) {
@@ -86,14 +86,14 @@ try {
     await replace(source)
     await select(source.indexOf('world'))
     await page.getByRole('button', { name: '变量', exact: true }).click()
-    const codexEdited = await readSource()
-    assert.ok(codexEdited.indexOf('@var name=\n') > codexEdited.indexOf('@Codex Second {'))
-    assert.ok(codexEdited.indexOf('@var name=\n') < codexEdited.indexOf('@event Prompt {'))
+    const secondTaskEdited = await readSource()
+    assert.ok(secondTaskEdited.indexOf('@var name=\n') > secondTaskEdited.indexOf('@task Second {'))
+    assert.ok(secondTaskEdited.indexOf('@var name=\n') < secondTaskEdited.indexOf('@event Prompt {'))
     await expectClean()
 
     await replace(source)
     for (const [header, expected] of [
-      ['@task First {', task], ['@Codex Second {', codex], ['@event E {', event],
+      ['@task First {', task], ['@task Second {', secondTask], ['@event E {', event],
       ['@act {', act], ['@for i in range(1, 3) {', loop], ['{\n        hello', message],
     ]) {
       const openAt = source.indexOf(header) + header.indexOf('{')
@@ -148,7 +148,7 @@ try {
     if (screenshotDir) await page.screenshot({ path: `${screenshotDir}/editor-${width}.png`, fullPage: true })
     assert.deepEqual(writes, [], 'editor interactions never publish fixture data')
     assert.deepEqual(errors, [])
-    console.log(`PASS ${width}px: Task/Codex variables, selection, smart copy/delete, undo/redo, clipboard denial, fullscreen and overflow`)
+    console.log(`PASS ${width}px: Task variables, selection, smart copy/delete, undo/redo, clipboard denial, fullscreen and overflow`)
     await context.close()
   }
 } finally { await browser.close() }

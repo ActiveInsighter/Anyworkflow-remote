@@ -123,17 +123,6 @@ const localVariableInsert = planStructuredInsert(eventLocalVariable, eventLocalV
 assert.equal(localVariableInsert.ok, true, 'the variable toolbar targets the current Task even from an Event')
 if (localVariableInsert.ok) assert.ok(localVariableInsert.from < eventLocalVariable.indexOf('@event E {'))
 
-const validCodexPlan = `@run=Codex
-@Codex Research {
-  @event Prompt {
-    @act {
-      @event=Search
-      { search the web }
-    }
-  }
-}`
-assert.equal(errors(validCodexPlan).length, 0, 'valid Codex plan should pass')
-
 const validBrowserAct = `@run=Browser act
 @task T {
   @event E {
@@ -226,39 +215,6 @@ if (actInsert.ok) {
   assert.doesNotMatch(actInsert.text, /@action/u)
 }
 
-const decimalCodexLoop = `@run=Codex loop
-@Codex T {
-  @event E {
-    @for i in range(1.0, 2) {
-      { hello %i% }
-    }
-  }
-}`
-assertHasError(decimalCodexLoop, 'Codex decimal range syntax')
-
-const emptyCodexLoop = `@run=Empty Codex loop
-@Codex T {
-  @event E {
-    @for i in range(3, 1) {
-      { never runs }
-    }
-  }
-}`
-assertHasError(emptyCodexLoop, 'empty Codex range')
-
-const codexMessageOverflow = `@run=Codex messages
-@Codex T {
-  @event E {
-    @act {
-      @for i in range(1, 1000) {
-        { first %i% }
-        { second %i% }
-      }
-    }
-  }
-}`
-assertHasError(codexMessageOverflow, 'Codex messages per Act limit')
-
 const browserActOverflow = `@run=Browser acts
 @task T {
   @event E {
@@ -267,25 +223,5 @@ ${Array.from({ length: 21 }, (_, index) => `    @act {\n      { act ${index} }\n
   }
 }`
 assertHasError(browserActOverflow, 'browser total Act limit')
-
-const nestedCodexAct = `@run=Nested Codex act
-@Codex T {
-  @event E {
-    @act {
-      @act {
-        { hello }
-      }
-    }
-  }
-}`
-assertHasError(nestedCodexAct, 'nested Codex Act')
-
-const invalidCodexPlan = `@run=Codex
-@Codex Research {
-  @event Prompt {
-    plain text is not a Codex prompt
-  }
-}`
-assertHasError(invalidCodexPlan, 'unwrapped Codex prompt')
 
 console.log('workflow DSL assertions passed')

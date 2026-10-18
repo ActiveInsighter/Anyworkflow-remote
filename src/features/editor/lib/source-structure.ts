@@ -1,4 +1,4 @@
-export type SourceBlockKind = 'task' | 'codex' | 'event' | 'act' | 'for' | 'message'
+export type SourceBlockKind = 'task' | 'event' | 'act' | 'for' | 'message'
 
 export interface SourceBlock {
   kind: SourceBlockKind | null
@@ -26,8 +26,8 @@ export function lineEndAfter(source: string, at: number): number {
 }
 
 function blockKind(prefix: string): SourceBlockKind | null {
-  const directive = prefix.match(/^@(task|codex|event)(?:\s+.*?)?\s*\{$/iu)?.[1]
-  if (directive) return directive.toLowerCase() as 'task' | 'codex' | 'event'
+  const directive = prefix.match(/^@(task|event)(?:\s+.*?)?\s*\{$/iu)?.[1]
+  if (directive) return directive.toLowerCase() as 'task' | 'event'
   if (/^@act\s*\{$/iu.test(prefix)) return 'act'
   if (/^@for\s+[A-Za-z_][A-Za-z0-9_]*\s+in\s+range\(.*?\)\s*\{$/iu.test(prefix)) return 'for'
   return null

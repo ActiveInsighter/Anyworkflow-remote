@@ -106,8 +106,6 @@ function directiveOptions(context: DslContext): Completion[] {
       ...shared,
       snippetCompletion('@task ${任务名称} {\n  @mode=serial\n\n  ${}\n}', { label: '@task', type: 'keyword', detail: 'Task 块' }),
       snippetCompletion('@for ${i} in range(1, 3) {\n  @task ${任务名称} {\n    ${}\n  }\n}', { label: '@for', type: 'keyword', detail: 'Task 循环' }),
-      snippetCompletion('@Codex ${线程任务} {\n  @mode=serial\n\n  ${}\n}', { label: '@Codex', type: 'keyword', detail: 'Codex 块' }),
-      snippetCompletion('@for ${i} in range(1, 3) {\n  @Codex ${线程任务} {\n    ${}\n  }\n}', { label: '@for', type: 'keyword', detail: 'Codex 循环' }),
     ]
   }
 

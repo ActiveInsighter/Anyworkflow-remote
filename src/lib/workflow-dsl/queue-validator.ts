@@ -1,4 +1,4 @@
-/** Event queue validation for the browser executor and Codex, including expansion budgets. */
+/** Event queue validation for the browser executor, including expansion budgets. */
 import { parseRangeValues } from './cloud-parser.ts'
 import { fenceAt, lineEnd, matchingBrace, nextLine, normalizeNewlines } from './text.ts'
 import { BACKTICK_FENCE, SELF_URL_TOKENS, TILDE_FENCE, VARIABLE_TOKEN, WORKFLOW_DSL_LIMITS, type QueueValidationOptions } from './types.ts'
@@ -58,16 +58,8 @@ export function addQueueActCount(options: QueueValidationOptions, count: number)
   const budget = options.expansionBudget
   if (!budget || (options.depth ?? 0) > 0 || (options.pollDepth ?? 0) > 0 || count <= 0) return
   budget.acts += count
-  const max = options.flavor === 'browser' ? WORKFLOW_DSL_LIMITS.maxBrowserTotalActs : WORKFLOW_DSL_LIMITS.maxCodexActs
+  const max = WORKFLOW_DSL_LIMITS.maxBrowserTotalActs
   if (budget.acts > max) addQueueError(options, `展开后的 Act 数量不能超过 ${max}`)
-}
-
-export function addCodexPromptCount(options: QueueValidationOptions, count: number): void {
-  if (options.flavor !== 'codex' || !options.codexPromptBudget || count <= 0) return
-  options.codexPromptBudget.prompts += count * (options.codexPromptMultiplier ?? 1)
-  if (options.codexPromptBudget.prompts > WORKFLOW_DSL_LIMITS.maxCodexMessagesPerAct) {
-    addQueueError(options, `单个 Codex Act 的消息数量不能超过 ${WORKFLOW_DSL_LIMITS.maxCodexMessagesPerAct}`)
-  }
 }
 
 export function leadingQueueRepeat(value: string): number | null {
@@ -108,7 +100,6 @@ export function validateQueueMetadata(
   rawValue: string,
   options: QueueValidationOptions,
 ): void {
-  if (options.flavor !== 'browser') return
   const parsed = Number(rawValue.trim())
   if (!Number.isInteger(parsed)) {
     addQueueError(options, `中的 @${kind} 必须是整数`)
@@ -121,7 +112,6 @@ export function validateQueueMetadata(
 }
 
 export function validateBrowserTemplateTokens(text: string, options: QueueValidationOptions): void {
-  if (options.flavor !== 'browser') return
   const variables = options.activeVariables ?? new Set<string>()
   for (const match of text.matchAll(VARIABLE_TOKEN)) {
     const name = match[1] as string
@@ -176,7 +166,7 @@ export function validateQueueBody(value: string, options: QueueValidationOptions
     addQueueError(options, `执行块嵌套不能超过 ${WORKFLOW_DSL_LIMITS.maxNesting} 层`)
     return false
   }
-  if (options.flavor === 'browser' && pollDepth > WORKFLOW_DSL_LIMITS.maxBrowserPollDepth) {
+  if (pollDepth > WORKFLOW_DSL_LIMITS.maxBrowserPollDepth) {
     addQueueError(options, `消息轮询嵌套不能超过 ${WORKFLOW_DSL_LIMITS.maxBrowserPollDepth} 层`)
     return false
   }
@@ -207,7 +197,7 @@ export function validateQueueBody(value: string, options: QueueValidationOptions
 
     if (text[cursor] === '{') {
       const currentPollDepth = pollDepth + 1
-      if (options.flavor === 'browser' && currentPollDepth > WORKFLOW_DSL_LIMITS.maxBrowserPollDepth) {
+      if (currentPollDepth > WORKFLOW_DSL_LIMITS.maxBrowserPollDepth) {
         addQueueError(options, `消息轮询嵌套不能超过 ${WORKFLOW_DSL_LIMITS.maxBrowserPollDepth} 层`)
         return false
       }
@@ -223,8 +213,7 @@ export function validateQueueBody(value: string, options: QueueValidationOptions
       }
       validateBrowserTemplateTokens(content, { ...options, activeVariables })
       const repeat = consumeQueueRepeatSuffix(text, closeAt + 1, options)
-      addCodexPromptCount(options, repeat.repeat)
-      if (options.flavor === 'browser' && startsWithStructuredQueueToken(content)) {
+      if (startsWithStructuredQueueToken(content)) {
         validateQueueBody(content, {
           ...options,
           activeVariables,
@@ -243,11 +232,6 @@ export function validateQueueBody(value: string, options: QueueValidationOptions
     const line = rawLine.trim()
 
     if (queueUrlIsExecutable(line)) {
-      if (options.flavor === 'codex' && SELF_URL_TOKENS.has(line.toLowerCase())) {
-        addQueueError(options, '中的 Codex URL 必须使用 HTTPS')
-        return false
-      }
-      if (options.flavor === 'codex') addCodexPromptCount(options, 1)
       executable = true
       if (topLevel) topLevelLooseSeen = true
       leading = false
@@ -307,59 +291,43 @@ export function validateQueueBody(value: string, options: QueueValidationOptions
 
       if (block === 'for') {
         const loop = line.match(/^@for\s+([A-Za-z_][A-Za-z0-9_]*)\s+in\s+range\((.*?)\)\s*\{\s*$/iu)
-        const maxItems = options.flavor === 'browser'
-          ? WORKFLOW_DSL_LIMITS.maxBrowserLoopItems
-          : WORKFLOW_DSL_LIMITS.maxLoopItems
+        const maxItems = WORKFLOW_DSL_LIMITS.maxBrowserLoopItems
         const values = parseRangeValues(
           loop?.[2] ?? '',
           options.collector,
           options.line,
           maxItems,
-          options.flavor === 'browser' ? '的 range 没有生成任何消息' : undefined,
-          options.flavor === 'codex',
+          '的 range 没有生成任何消息',
         )
         if (values === null) return false
-        if (options.flavor === 'browser' && depth > 0) {
+        if (depth > 0) {
           addQueueError(options, '中的 @for 只能直接位于 Event 队列层级')
           return false
         }
         if (topLevel) {
-          const repeat = options.flavor === 'browser' ? leadingQueueRepeat(text.slice(openAt + 1, closeAt)) ?? 1 : 1
+          const repeat = leadingQueueRepeat(text.slice(openAt + 1, closeAt)) ?? 1
           addQueueActCount(options, values.length * repeat)
         }
         const loopVariables = new Set(activeVariables)
         if (loop?.[1]) loopVariables.add(loop[1])
         loopVariables.add('index')
         loopVariables.add('count')
-        const nestedPromptBudget = options.flavor === 'codex'
-          ? topLevel ? { prompts: 0 } : options.codexPromptBudget
-          : undefined
-        const nestedPromptMultiplier = options.flavor === 'codex'
-          ? topLevel ? (values.length > 0 ? 1 : 0) : (options.codexPromptMultiplier ?? 1) * values.length
-          : undefined
         const nested = validateQueueBody(text.slice(openAt + 1, closeAt), {
           ...options,
           activeVariables: loopVariables,
           depth: depth + 1,
-          codexPromptBudget: nestedPromptBudget,
-          codexPromptMultiplier: nestedPromptMultiplier,
         })
         if (nested && values.length > 0) executable = true
       } else {
         if (topLevel) {
           const bodyRepeat = leadingQueueRepeat(text.slice(openAt + 1, closeAt))
-          const repeat = options.flavor === 'browser'
-            ? bodyRepeat ?? leadingRepeat
-            : 1
+          const repeat = bodyRepeat ?? leadingRepeat
           addQueueActCount(options, repeat)
         }
-        const nestedPromptBudget = options.flavor === 'codex' ? { prompts: 0 } : undefined
         const nested = validateQueueBody(text.slice(openAt + 1, closeAt), {
           ...options,
           activeVariables: new Set(activeVariables),
           depth: depth + 1,
-          codexPromptBudget: nestedPromptBudget,
-          codexPromptMultiplier: 1,
         })
         if (nested) executable = true
       }
