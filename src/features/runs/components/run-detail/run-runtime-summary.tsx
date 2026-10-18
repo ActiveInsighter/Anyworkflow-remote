@@ -1,6 +1,8 @@
 import { ChevronRight } from 'lucide-react'
 import { DescriptionList } from '@/components/data-display/description-list'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { START_LINKS } from '@/lib/domain/start-links'
+import { resolvePageRuntimeConfig } from '@/lib/domain/runtime-config'
 import type { DispatchRunRecord } from '@/types'
 
 const SITE_LABELS = { chatgpt: 'ChatGPT', chatgptCloud: 'ChatGPT Cloud', claude: 'Claude' } as const
@@ -27,27 +29,43 @@ export function RunRuntimeSummary({ run }: { run: DispatchRunRecord }) {
         {config ? (
           <DescriptionList
             columns={3}
-            items={[
-              { label: '回复超时', value: `${config.replyTimeoutMinutes} 分钟` },
-              {
-                label: '随机等待',
-                value: config.randomWait.enabled
-                  ? `${config.randomWait.minSeconds}–${config.randomWait.maxSeconds} 秒${config.deferredReply.enabled ? '（并发期间停用）' : ''}`
-                  : '关闭',
-              },
-              {
-                label: '并发投递后回收',
-                value: config.deferredReply.enabled ? `延迟 ${config.deferredReply.delayMinutes} 分钟` : '关闭',
-              },
-              ...(models
-                ? (Object.keys(SITE_LABELS) as (keyof typeof SITE_LABELS)[]).flatMap((site) =>
-                    models[site] ? [{ label: `${SITE_LABELS[site]} 模型`, value: selectionText(models[site]) }] : [],
-                  )
-                : []),
-              ...(run.runtimeConfig?.defaultStartUrl
-                ? [{ label: '默认起始链接', value: run.runtimeConfig.defaultStartUrl }]
-                : []),
-            ]}
+            items={
+              run.runtimeConfig?.schemaVersion === 4
+                ? [
+                    { label: '默认开始链接', value: run.runtimeConfig.defaultStartUrl ?? 'https://chatgpt.com/' },
+                    ...START_LINKS.map((link) => {
+                      const page = resolvePageRuntimeConfig(run.runtimeConfig!, link.url)
+                      const browser = page.browser
+                      return {
+                        label: link.label,
+                        value: `${browser.replyTimeoutMinutes} 分钟 · ${selectionText(page.modelSelection)} · ${browser.deferredReply.enabled ? `并发回收 ${browser.deferredReply.delayMinutes} 分钟` : browser.randomWait.enabled ? `等待 ${browser.randomWait.minSeconds}–${browser.randomWait.maxSeconds} 秒` : '不等待'}`,
+                      }
+                    }),
+                  ]
+                : [
+                    { label: '回复超时', value: `${config.replyTimeoutMinutes} 分钟` },
+                    {
+                      label: '随机等待',
+                      value: config.randomWait.enabled
+                        ? `${config.randomWait.minSeconds}–${config.randomWait.maxSeconds} 秒${config.deferredReply.enabled ? '（并发期间停用）' : ''}`
+                        : '关闭',
+                    },
+                    {
+                      label: '并发投递后回收',
+                      value: config.deferredReply.enabled ? `延迟 ${config.deferredReply.delayMinutes} 分钟` : '关闭',
+                    },
+                    ...(models
+                      ? (Object.keys(SITE_LABELS) as (keyof typeof SITE_LABELS)[]).flatMap((site) =>
+                          models[site]
+                            ? [{ label: `${SITE_LABELS[site]} 模型`, value: selectionText(models[site]) }]
+                            : [],
+                        )
+                      : []),
+                    ...(run.runtimeConfig?.defaultStartUrl
+                      ? [{ label: '默认开始链接', value: run.runtimeConfig.defaultStartUrl }]
+                      : []),
+                  ]
+            }
           />
         ) : (
           <p className="text-xs text-muted-foreground">使用浏览器本地配置。</p>

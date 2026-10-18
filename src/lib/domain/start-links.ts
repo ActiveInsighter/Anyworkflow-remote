@@ -2,19 +2,19 @@
  * Pages a Task can start on. Each link belongs to one model-picker surface (see
  * `runtime-config.ts`): pages with the same DOM share a surface and therefore the same models.
  */
-import type { ModelSurface } from './runtime-config.ts'
+import type { ModelSurface, RuntimePageUrl } from './runtime-config.ts'
 
 export interface StartLink {
   id: string
   label: string
-  url: string
+  url: RuntimePageUrl
   surface: ModelSurface
 }
 
 export const START_LINKS: readonly StartLink[] = [
   { id: 'chatgpt', label: 'ChatGPT 主界面', url: 'https://chatgpt.com/', surface: 'chatgpt' },
-  { id: 'chatgpt-cloud', label: 'ChatGPT Cloud 界面', url: 'https://chatgpt.com/cloud', surface: 'chatgptCloud' },
   { id: 'chatgpt-images', label: 'ChatGPT 图片界面', url: 'https://chatgpt.com/images', surface: 'chatgpt' },
+  { id: 'chatgpt-cloud', label: 'ChatGPT Cloud 界面', url: 'https://chatgpt.com/cloud', surface: 'chatgptCloud' },
   { id: 'claude-new', label: 'Claude 主界面', url: 'https://claude.ai/new', surface: 'claude' },
   { id: 'claude-code', label: 'Claude Code 界面', url: 'https://claude.ai/code', surface: 'claude' },
 ]

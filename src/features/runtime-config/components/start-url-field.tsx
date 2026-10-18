@@ -7,11 +7,11 @@ export function StartUrlField({ id, value, onChange }: { id: string; value: stri
   const known = START_LINKS.some((link) => link.url === value)
   return (
     <Field>
-      <FieldLabel htmlFor={id}>默认起始链接</FieldLabel>
+      <FieldLabel htmlFor={id}>默认开始链接</FieldLabel>
       <NativeSelect id={id} value={value} onChange={(event) => onChange(event.target.value)}>
         {START_LINKS.map((link) => (
           <NativeSelectOption key={link.id} value={link.url}>
-            {link.label}
+            {link.label} · {link.url}
           </NativeSelectOption>
         ))}
         {known ? null : <NativeSelectOption value={value}>{value}</NativeSelectOption>}

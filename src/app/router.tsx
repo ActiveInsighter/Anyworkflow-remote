@@ -23,6 +23,8 @@ const SchedulesPage = page(() => import('@/pages/schedules-page'), 'SchedulesPag
 const LibraryPage = page(() => import('@/pages/library-page'), 'LibraryPage')
 const TemplateDetailPage = page(() => import('@/pages/template-detail-page'), 'TemplateDetailPage')
 const FileConverterPage = page(() => import('@/pages/file-converter-page'), 'FileConverterPage')
+const RuntimeSettingsPage = page(() => import('@/pages/settings-detail-page'), 'RuntimeSettingsPage')
+const SettingsDetailPage = page(() => import('@/pages/settings-detail-page'), 'SettingsDetailPage')
 const SettingsPage = page(() => import('@/pages/settings-page'), 'SettingsPage')
 
 const editorHandle: RouteHandle = { workspace: true }
@@ -48,7 +50,14 @@ export const router = createBrowserRouter([
       {
         element: <RequireSession />,
         children: [
-          { index: true, element: <RouteFallback><DashboardPage /></RouteFallback> },
+          {
+            index: true,
+            element: (
+              <RouteFallback>
+                <DashboardPage />
+              </RouteFallback>
+            ),
+          },
           route('runs/new', RunEditorPage, { handle: editorHandle }),
           route('runs/:runId/edit', RunEditorPage, { handle: editorHandle }),
           route('runs/:runId', RunDetailPage),
@@ -63,6 +72,8 @@ export const router = createBrowserRouter([
         ],
       },
       route('settings', SettingsPage),
+      route('settings/runtime/:pageId?', RuntimeSettingsPage),
+      route('settings/:section', SettingsDetailPage),
       { path: '*', element: <NotFoundPage /> },
     ],
   },

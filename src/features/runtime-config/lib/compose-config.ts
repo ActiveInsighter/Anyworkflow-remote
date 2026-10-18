@@ -34,3 +34,13 @@ export function composeRuntimeConfig(
   }
   return { schemaVersion: 1, browser }
 }
+
+/** Change the start page while retaining every independent page override. */
+export function withDefaultStartUrl(config: RuntimeConfig, url: string): RuntimeConfig {
+  return {
+    ...config,
+    schemaVersion: config.schemaVersion === 4 ? 4 : 3,
+    modelSelection: { ...defaultModelSelection(3), ...config.modelSelection },
+    defaultStartUrl: url,
+  }
+}

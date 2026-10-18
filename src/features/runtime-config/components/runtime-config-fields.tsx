@@ -1,15 +1,33 @@
-import { useId } from 'react'
-import { Field, FieldContent, FieldDescription, FieldError, FieldGroup, FieldLabel, FieldSeparator, FieldSet } from '@/components/ui/field'
+import { useId, useState } from 'react'
+import { ArrowLeft, ExternalLink } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { SettingsRow } from '@/components/navigation/settings-row'
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+  FieldSeparator,
+  FieldSet,
+} from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
-import { DEFAULT_START_URL, defaultModelSelection, type ModelSurface, type RuntimeConfig, type SiteModelSelection } from '@/lib/domain/runtime-config'
-import { composeRuntimeConfig } from '../lib/compose-config'
-import { StartUrlField } from './start-url-field'
+import {
+  DEFAULT_START_URL,
+  resolvePageRuntimeConfig,
+  withPageRuntimeConfig,
+  type RuntimeConfig,
+  type RuntimePageUrl,
+} from '@/lib/domain/runtime-config'
+import { START_LINKS } from '@/lib/domain/start-links'
 import { runtimeConfigError } from '../lib/runtime-config-error'
+import { withDefaultStartUrl } from '../lib/compose-config'
+import { StartUrlField } from './start-url-field'
 import { ModelSelectionFields } from './model-selection-fields'
 
 type BrowserConfig = RuntimeConfig['browser']
-
 const toNumber = (text: string) => (text === '' ? Number.NaN : Number(text))
 const toText = (value: number) => (Number.isNaN(value) ? '' : String(value))
 
@@ -72,33 +90,131 @@ function SwitchField({
   )
 }
 
-/** Browser executor settings for a Run or for the account defaults. */
+/** One configuration navigator for account defaults and per-Run overrides. */
 export function RuntimeConfigFields({
   value,
   onChange,
   disabled = false,
+  selectedPage,
+  onSelectPage,
+  linkForPage,
 }: {
   value: RuntimeConfig
   onChange: (config: RuntimeConfig) => void
   disabled?: boolean
+  selectedPage?: string | null
+  onSelectPage?: (id: string | null) => void
+  linkForPage?: (id: string) => string
+}) {
+  const [localPage, setLocalPage] = useState<string | null>(null)
+  const pageId = selectedPage === undefined ? localPage : selectedPage
+  const select = onSelectPage ?? setLocalPage
+  const page = START_LINKS.find((link) => link.id === pageId)
+  const id = useId()
+  const error = runtimeConfigError(value)
+  return (
+    <div className="flex min-w-0 flex-col gap-5">
+      {page ? (
+        <>
+          <Button type="button" variant="ghost" className="self-start -ml-2" onClick={() => select(null)}>
+            <ArrowLeft aria-hidden="true" />
+            返回运行配置
+          </Button>
+          <div className="min-w-0">
+            <h2 className="text-base font-semibold">{page.label}</h2>
+            <a
+              href={page.url}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-1 inline-flex max-w-full items-center gap-1 text-xs text-muted-foreground underline-offset-4 hover:underline"
+            >
+              <span className="break-all">{page.url}</span>
+              <ExternalLink className="size-3 shrink-0" aria-hidden="true" />
+              <span className="sr-only">（新窗口打开）</span>
+            </a>
+          </div>
+          <PageRuntimeFields
+            value={value}
+            url={page.url}
+            surface={page.surface}
+            disabled={disabled}
+            onChange={onChange}
+          />
+        </>
+      ) : pageId ? (
+        <>
+          <p className="text-sm text-muted-foreground">未找到此页面配置。</p>
+          <Button variant="outline" onClick={() => select(null)}>
+            返回运行配置
+          </Button>
+        </>
+      ) : (
+        <>
+          <FieldSet disabled={disabled}>
+            <StartUrlField
+              id={`${id}-start-url`}
+              value={value.defaultStartUrl ?? DEFAULT_START_URL}
+              onChange={(url) => onChange(withDefaultStartUrl(value, url))}
+            />
+          </FieldSet>
+          <div className="flex flex-col gap-3">
+            <h2 className="text-sm font-medium">页面默认配置</h2>
+            <div className="divide-y overflow-hidden rounded-lg border">
+              {START_LINKS.map((link) => {
+                const current = resolvePageRuntimeConfig(value, link.url)
+                return (
+                  <SettingsRow
+                    key={link.id}
+                    title={link.label}
+                    description={link.url}
+                    detail={`${current.browser.replyTimeoutMinutes || '—'} 分钟 · ${current.modelSelection.model ?? '保持当前模型'}`}
+                    to={linkForPage?.(link.id)}
+                    onClick={() => select(link.id)}
+                    disabled={disabled && Boolean(linkForPage)}
+                  />
+                )
+              })}
+            </div>
+          </div>
+        </>
+      )}
+      {error ? <FieldError>{error}</FieldError> : null}
+    </div>
+  )
+}
+
+function PageRuntimeFields({
+  value,
+  url,
+  surface,
+  disabled,
+  onChange,
+}: {
+  value: RuntimeConfig
+  url: RuntimePageUrl
+  surface: import('@/lib/domain/runtime-config').ModelSurface
+  disabled: boolean
+  onChange: (config: RuntimeConfig) => void
 }) {
   const id = useId()
-  const browser = value.browser
-  const update = (patch: Partial<BrowserConfig>) => onChange({ ...value, browser: { ...browser, ...patch } })
-  const randomWait = (patch: Partial<BrowserConfig['randomWait']>) => update({ randomWait: { ...browser.randomWait, ...patch } })
-  const deferred = (patch: Partial<BrowserConfig['deferredReply']>) =>
-    update({ deferredReply: { ...browser.deferredReply, ...patch } })
-  const models = { ...defaultModelSelection(), ...value.modelSelection }
-  const startUrl = value.defaultStartUrl ?? null
-  const selectModel = (surface: ModelSurface, patch: Partial<SiteModelSelection>) =>
-    onChange(composeRuntimeConfig(browser, { ...models, [surface]: { ...models[surface], ...patch } }, startUrl))
-  const selectStartUrl = (url: string) => onChange(composeRuntimeConfig(browser, models, url))
+  const page = resolvePageRuntimeConfig(value, url)
+  const browser = page.browser
+  const update = (patch: Partial<BrowserConfig>) =>
+    onChange(withPageRuntimeConfig(value, url, { ...page, browser: { ...browser, ...patch } }))
   const waitDisabled = !browser.randomWait.enabled || browser.deferredReply.enabled
-  const error = runtimeConfigError(value)
-
   return (
     <FieldSet disabled={disabled} className="min-w-0 gap-4">
       <FieldGroup className="gap-4">
+        <ModelSelectionFields
+          surface={surface}
+          value={{ chatgpt: page.modelSelection, chatgptCloud: page.modelSelection, claude: page.modelSelection }}
+          onChange={(_surface, patch) =>
+            onChange(
+              withPageRuntimeConfig(value, url, { ...page, modelSelection: { ...page.modelSelection, ...patch } }),
+            )
+          }
+        />
+        <FieldSeparator />
         <NumberField
           id={`${id}-timeout`}
           label="回复超时（分钟）"
@@ -112,7 +228,7 @@ export function RuntimeConfigFields({
           id={`${id}-random`}
           label="随机等待"
           checked={browser.randomWait.enabled}
-          onCheckedChange={(enabled) => randomWait({ enabled })}
+          onCheckedChange={(enabled) => update({ randomWait: { ...browser.randomWait, enabled } })}
         />
         <div className="grid grid-cols-2 gap-3">
           <NumberField
@@ -122,7 +238,7 @@ export function RuntimeConfigFields({
             max={86400}
             disabled={waitDisabled}
             value={browser.randomWait.minSeconds}
-            onChange={(minSeconds) => randomWait({ minSeconds })}
+            onChange={(minSeconds) => update({ randomWait: { ...browser.randomWait, minSeconds } })}
           />
           <NumberField
             id={`${id}-max`}
@@ -131,7 +247,7 @@ export function RuntimeConfigFields({
             max={86400}
             disabled={waitDisabled}
             value={browser.randomWait.maxSeconds}
-            onChange={(maxSeconds) => randomWait({ maxSeconds })}
+            onChange={(maxSeconds) => update({ randomWait: { ...browser.randomWait, maxSeconds } })}
           />
         </div>
         <FieldSeparator />
@@ -140,7 +256,7 @@ export function RuntimeConfigFields({
           label="并发投递后回收"
           description={browser.deferredReply.enabled ? '并发投递期间不使用随机等待。' : undefined}
           checked={browser.deferredReply.enabled}
-          onCheckedChange={(enabled) => deferred({ enabled })}
+          onCheckedChange={(enabled) => update({ deferredReply: { ...browser.deferredReply, enabled } })}
         />
         <NumberField
           id={`${id}-delay`}
@@ -149,14 +265,9 @@ export function RuntimeConfigFields({
           max={1440}
           disabled={!browser.deferredReply.enabled}
           value={browser.deferredReply.delayMinutes}
-          onChange={(delayMinutes) => deferred({ delayMinutes })}
+          onChange={(delayMinutes) => update({ deferredReply: { ...browser.deferredReply, delayMinutes } })}
         />
-        <FieldSeparator />
-        <StartUrlField id={`${id}-start-url`} value={startUrl ?? DEFAULT_START_URL} onChange={selectStartUrl} />
-        <FieldSeparator />
-        <ModelSelectionFields value={models} onChange={selectModel} />
       </FieldGroup>
-      {error ? <FieldError>{error}</FieldError> : null}
     </FieldSet>
   )
 }

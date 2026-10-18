@@ -26,7 +26,8 @@ export function AppTopBar() {
   const connection = session ? '已连接' : '未连接'
 
   function goBack() {
-    if (location.key && location.key !== 'default') navigate(-1)
+    if (location.pathname.startsWith('/settings/')) navigate(fallbackParent(location.pathname))
+    else if (location.key && location.key !== 'default') navigate(-1)
     else navigate(fallbackParent(location.pathname), { replace: true })
   }
 

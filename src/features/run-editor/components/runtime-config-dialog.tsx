@@ -1,7 +1,14 @@
 import { ErrorAlert } from '@/components/feedback/error-alert'
 import { LoadingState } from '@/components/feedback/loading-state'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import type { RuntimeConfig } from '@/lib/domain/runtime-config'
 import { RuntimeConfigFields } from '@/features/runtime-config/components/runtime-config-fields'
 import type { RuntimeConfigState } from '../hooks/use-runtime-config-state'
@@ -24,20 +31,22 @@ export function RuntimeConfigDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-md">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[85dvh] flex-col overflow-hidden sm:max-w-lg">
+        <DialogHeader className="shrink-0">
           <DialogTitle>运行配置</DialogTitle>
           <DialogDescription>{locked ? '重跑和恢复沿用原 Run 配置。' : '仅应用于这个 Run。'}</DialogDescription>
         </DialogHeader>
-        {runtime.loading ? (
-          <LoadingState />
-        ) : runtime.config ? (
-          <RuntimeConfigFields value={runtime.config} disabled={disabled || locked} onChange={onChange} />
-        ) : (
-          <p className="text-sm text-muted-foreground">此 Run 使用浏览器本地配置。</p>
-        )}
-        <ErrorAlert inline>{runtime.error}</ErrorAlert>
-        <DialogFooter>
+        <div className="min-h-0 overflow-y-auto px-0.5">
+          {runtime.loading ? (
+            <LoadingState />
+          ) : runtime.config ? (
+            <RuntimeConfigFields value={runtime.config} disabled={disabled || locked} onChange={onChange} />
+          ) : (
+            <p className="text-sm text-muted-foreground">此 Run 使用浏览器本地配置。</p>
+          )}
+          <ErrorAlert inline>{runtime.error}</ErrorAlert>
+        </div>
+        <DialogFooter className="shrink-0">
           {!locked ? (
             <Button variant="outline" disabled={disabled || runtime.loading} onClick={runtime.reloadDefaults}>
               使用当前默认配置

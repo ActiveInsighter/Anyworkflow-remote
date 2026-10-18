@@ -6,12 +6,22 @@ export function runtimeConfigError(config: RuntimeConfig): string {
     normalizeRuntimeConfig(config)
     return ''
   } catch {
+    for (const [url, page] of Object.entries(config.pageOverrides ?? {})) {
+      const error = runtimeConfigError({ schemaVersion: 1, browser: page.browser })
+      if (error) return url + '：' + error
+    }
     const browser = config.browser
-    if (!Number.isSafeInteger(browser.replyTimeoutMinutes) || browser.replyTimeoutMinutes < 1 || browser.replyTimeoutMinutes > 1440) {
+    if (
+      !Number.isSafeInteger(browser.replyTimeoutMinutes) ||
+      browser.replyTimeoutMinutes < 1 ||
+      browser.replyTimeoutMinutes > 1440
+    ) {
       return '回复超时需为 1–1440 的整数分钟。'
     }
     const wait = browser.randomWait
-    if (![wait.minSeconds, wait.maxSeconds].every((value) => Number.isSafeInteger(value) && value >= 0 && value <= 86400)) {
+    if (
+      ![wait.minSeconds, wait.maxSeconds].every((value) => Number.isSafeInteger(value) && value >= 0 && value <= 86400)
+    ) {
       return '随机等待需为 0–86400 的整数秒。'
     }
     if (wait.maxSeconds < wait.minSeconds) return '最长等待不能小于最短等待。'

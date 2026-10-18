@@ -21,7 +21,7 @@ export function RequireSession() {
         description="连接 AnyWorkflow 后即可访问工作流与资料库。"
         action={
           <Button asChild variant="secondary">
-            <Link to="/settings">设置连接</Link>
+            <Link to="/settings/connection">设置连接</Link>
           </Button>
         }
       />

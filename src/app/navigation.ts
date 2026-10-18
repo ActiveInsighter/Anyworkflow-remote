@@ -17,9 +17,18 @@ export const appNavigation: AppNavItem[] = [
     to: '/',
     icon: House,
     match: (pathname) =>
-      pathname === '/' || pathname.startsWith('/runs/') || pathname.startsWith('/tasks/') || pathname.startsWith('/events/'),
+      pathname === '/' ||
+      pathname.startsWith('/runs/') ||
+      pathname.startsWith('/tasks/') ||
+      pathname.startsWith('/events/'),
   },
-  { id: 'schedules', label: '重复计划', to: '/schedules', icon: CalendarClock, match: (pathname) => pathname === '/schedules' },
+  {
+    id: 'schedules',
+    label: '重复计划',
+    to: '/schedules',
+    icon: CalendarClock,
+    match: (pathname) => pathname === '/schedules',
+  },
   {
     id: 'library',
     label: '资料库',
@@ -34,5 +43,11 @@ export const appNavigation: AppNavItem[] = [
     icon: FileText,
     match: (pathname) => pathname === '/file-converter' || pathname === '/pdf-to-md',
   },
-  { id: 'settings', label: '设置', to: '/settings', icon: Settings, match: (pathname) => pathname === '/settings' },
+  {
+    id: 'settings',
+    label: '设置',
+    to: '/settings',
+    icon: Settings,
+    match: (pathname) => pathname === '/settings' || pathname.startsWith('/settings/'),
+  },
 ]

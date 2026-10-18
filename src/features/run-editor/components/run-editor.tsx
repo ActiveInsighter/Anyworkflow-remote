@@ -29,7 +29,7 @@ export function RunEditor() {
           title="未连接"
           action={
             <Button asChild variant="secondary">
-              <Link to="/settings">设置连接</Link>
+              <Link to="/settings/connection">设置连接</Link>
             </Button>
           }
         />
@@ -68,10 +68,16 @@ export function RunEditor() {
     <Page className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pt-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:px-6 sm:pt-6 sm:pb-4 lg:px-8 lg:pt-6">
       <RunEditorHeader editor={editor} />
 
-      {editor.error ? <ErrorAlert inline className="mb-2 shrink-0">{editor.error}</ErrorAlert> : null}
+      {editor.error ? (
+        <ErrorAlert inline className="mb-2 shrink-0">
+          {editor.error}
+        </ErrorAlert>
+      ) : null}
       {runtime.error ? (
         <div className="mb-2 flex shrink-0 flex-col items-start gap-2">
-          <ErrorAlert inline className="w-full">{runtime.error}</ErrorAlert>
+          <ErrorAlert inline className="w-full">
+            {runtime.error}
+          </ErrorAlert>
           <Button size="sm" variant="outline" onClick={runtime.reloadDefaults}>
             重试配置加载
           </Button>

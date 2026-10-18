@@ -15,7 +15,9 @@ const SITES: readonly { id: ModelSurface; label: string; pages: string }[] = [
 export function ModelSelectionFields({
   value,
   onChange,
+  surface,
 }: {
+  surface?: ModelSurface
   value: Required<ModelSelection>
   onChange: (site: ModelSurface, patch: Partial<SiteModelSelection>) => void
 }) {
@@ -23,10 +25,12 @@ export function ModelSelectionFields({
   return (
     <FieldSet className="gap-4">
       <div>
-        <FieldLegend variant="label" className="mb-1">模型与思考程度</FieldLegend>
+        <FieldLegend variant="label" className="mb-1">
+          模型与思考程度
+        </FieldLegend>
         <FieldDescription>留空保持页面当前选择；只列出该站点实际可选的项。</FieldDescription>
       </div>
-      {SITES.map((site) => {
+      {SITES.filter((site) => !surface || site.id === surface).map((site) => {
         const current = value[site.id]
         const unsupported = MODEL_CATALOG[site.id].length === 0 && current.model === null
         const known = findCatalogModel(site.id, current.model)
@@ -43,65 +47,71 @@ export function ModelSelectionFields({
         const effortLocked = known ? known.efforts.length === 0 : current.model === null || orphanModel !== null
         return (
           <FieldGroup key={site.id} className="gap-3">
-            <div>
-              <p className="text-sm font-medium">{site.label}</p>
-              <p className="text-xs text-muted-foreground">适用页面：{site.pages}</p>
-            </div>
+            {!surface ? (
+              <div>
+                <p className="text-sm font-medium">{site.label}</p>
+                <p className="text-xs text-muted-foreground">适用页面：{site.pages}</p>
+              </div>
+            ) : null}
             {unsupported ? (
               <FieldDescription>该页面的模型选项尚未适配，暂时保持页面当前选择。</FieldDescription>
             ) : (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Field>
-                <FieldLabel htmlFor={`${id}-${site.id}-model`}>{site.label} 模型</FieldLabel>
-                <NativeSelect
-                  id={`${id}-${site.id}-model`}
-                  value={known?.name ?? orphanModel ?? ''}
-                  onChange={(event) => {
-                    const next = findCatalogModel(site.id, event.target.value) ?? null
-                    const keep = next && current.reasoningEffort && next.efforts.includes(current.reasoningEffort)
-                    onChange(site.id, {
-                      model: event.target.value || null,
-                      reasoningEffort: keep ? current.reasoningEffort : null,
-                    })
-                  }}
-                >
-                  <NativeSelectOption value="">保持当前模型</NativeSelectOption>
-                  {MODEL_CATALOG[site.id].map((model) => (
-                    <NativeSelectOption key={model.name} value={model.name}>
-                      {model.name}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor={`${id}-${site.id}-model`}>{site.label} 模型</FieldLabel>
+                  <NativeSelect
+                    id={`${id}-${site.id}-model`}
+                    value={known?.name ?? orphanModel ?? ''}
+                    onChange={(event) => {
+                      const next = findCatalogModel(site.id, event.target.value) ?? null
+                      const keep = next && current.reasoningEffort && next.efforts.includes(current.reasoningEffort)
+                      onChange(site.id, {
+                        model: event.target.value || null,
+                        reasoningEffort: keep ? current.reasoningEffort : null,
+                      })
+                    }}
+                  >
+                    <NativeSelectOption value="">保持当前模型</NativeSelectOption>
+                    {MODEL_CATALOG[site.id].map((model) => (
+                      <NativeSelectOption key={model.name} value={model.name}>
+                        {model.name}
+                      </NativeSelectOption>
+                    ))}
+                    {orphanModel ? (
+                      <NativeSelectOption value={orphanModel}>{orphanModel}（已不在列表中）</NativeSelectOption>
+                    ) : null}
+                  </NativeSelect>
+                </Field>
+                <Field data-disabled={effortLocked || undefined}>
+                  <FieldLabel htmlFor={`${id}-${site.id}-effort`}>{site.label} 思考程度</FieldLabel>
+                  <NativeSelect
+                    id={`${id}-${site.id}-effort`}
+                    disabled={effortLocked && !current.reasoningEffort}
+                    value={current.reasoningEffort ?? ''}
+                    onChange={(event) =>
+                      onChange(site.id, { reasoningEffort: (event.target.value || null) as ReasoningEffort | null })
+                    }
+                  >
+                    <NativeSelectOption value="">
+                      {known && known.efforts.length === 0
+                        ? '该模型无思考程度选项'
+                        : current.model === null
+                          ? '先选择模型'
+                          : '保持当前思考程度'}
                     </NativeSelectOption>
-                  ))}
-                  {orphanModel ? <NativeSelectOption value={orphanModel}>{orphanModel}（已不在列表中）</NativeSelectOption> : null}
-                </NativeSelect>
-              </Field>
-              <Field data-disabled={effortLocked || undefined}>
-                <FieldLabel htmlFor={`${id}-${site.id}-effort`}>{site.label} 思考程度</FieldLabel>
-                <NativeSelect
-                  id={`${id}-${site.id}-effort`}
-                  disabled={effortLocked && !current.reasoningEffort}
-                  value={current.reasoningEffort ?? ''}
-                  onChange={(event) =>
-                    onChange(site.id, { reasoningEffort: (event.target.value || null) as ReasoningEffort | null })
-                  }
-                >
-                  <NativeSelectOption value="">
-                    {known && known.efforts.length === 0
-                      ? '该模型无思考程度选项'
-                      : current.model === null
-                        ? '先选择模型'
-                        : '保持当前思考程度'}
-                  </NativeSelectOption>
-                  {efforts.map((effort) => (
-                    <NativeSelectOption key={effort} value={effort}>
-                      {EFFORT_LABELS[effort]}
-                    </NativeSelectOption>
-                  ))}
-                  {orphanEffort ? (
-                    <NativeSelectOption value={orphanEffort}>{EFFORT_LABELS[orphanEffort]}（该模型不支持）</NativeSelectOption>
-                  ) : null}
-                </NativeSelect>
-              </Field>
-            </div>
+                    {efforts.map((effort) => (
+                      <NativeSelectOption key={effort} value={effort}>
+                        {EFFORT_LABELS[effort]}
+                      </NativeSelectOption>
+                    ))}
+                    {orphanEffort ? (
+                      <NativeSelectOption value={orphanEffort}>
+                        {EFFORT_LABELS[orphanEffort]}（该模型不支持）
+                      </NativeSelectOption>
+                    ) : null}
+                  </NativeSelect>
+                </Field>
+              </div>
             )}
           </FieldGroup>
         )
