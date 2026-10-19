@@ -1,7 +1,7 @@
 /** Cursor context and in-scope variables for completions and insertion tools. */
 import { parseClosingLine } from './cloud-parser.ts'
 import { normalizeNewlines } from './text.ts'
-import type { WorkflowDslContext } from './types.ts'
+import { LOOP_ALIAS_VARIABLES, type WorkflowDslContext } from './types.ts'
 
 /** Context used by completions and insertion tools; it recognizes the same block forms as the validator. */
 export function workflowContextAt(source: string, at: number): WorkflowDslContext {
@@ -63,7 +63,18 @@ export function workflowContextAt(source: string, at: number): WorkflowDslContex
 
 export interface VariableScope {
   kind: 'run' | 'task' | 'event' | 'act' | 'message' | 'for-task' | 'for-event' | 'for-queue'
+  /** Variables declared with `@let` / `@var` inside this scope. */
   variables: Set<string>
+  /** Name bound by `@for <name> in range(...)`; also brings the loop aliases into scope. */
+  loopVariable?: string
+}
+
+/** A variable usable at the cursor, with where it comes from so tools can label it truthfully. */
+export interface WorkflowVariable {
+  name: string
+  origin: 'declared' | 'loop' | 'loop-alias'
+  /** The loop variable an alias belongs to. */
+  loop?: string
 }
 
 export function variableContext(frames: VariableScope[]): WorkflowDslContext {
@@ -74,7 +85,7 @@ export function variableContext(frames: VariableScope[]): WorkflowDslContext {
 }
 
 /** Completion scope follows the same valid declarations as the cloud plan compiler. */
-export function collectWorkflowVariables(source: string, at: number): string[] {
+export function collectWorkflowVariableScope(source: string, at: number): WorkflowVariable[] {
   const frames: VariableScope[] = [{ kind: 'run', variables: new Set<string>() }]
   const prefix = normalizeNewlines(source.slice(0, Math.max(0, Math.min(at, source.length))))
   let inFence = false
@@ -103,7 +114,8 @@ export function collectWorkflowVariables(source: string, at: number): string[] {
     if (loop?.[1]) {
       frames.push({
         kind: context === 'run' ? 'for-task' : context === 'task' ? 'for-event' : 'for-queue',
-        variables: new Set([loop[1], 'index', 'count']),
+        variables: new Set<string>(),
+        loopVariable: loop[1],
       })
       continue
     }
@@ -119,7 +131,21 @@ export function collectWorkflowVariables(source: string, at: number): string[] {
     else if (/^\{\s*$/u.test(line)) frames.push({ kind: 'message', variables: new Set<string>() })
   }
 
-  const visible = new Set<string>()
-  for (const frame of frames) for (const name of frame.variables) visible.add(name)
-  return [...visible]
+  const visible = new Map<string, WorkflowVariable>()
+  for (const frame of frames) {
+    for (const name of frame.variables) visible.set(name, { name, origin: 'declared' })
+    if (frame.loopVariable) visible.set(frame.loopVariable, { name: frame.loopVariable, origin: 'loop' })
+  }
+  // Aliases never hide a variable the plan declared itself; the innermost loop's value wins.
+  for (const frame of [...frames].reverse()) {
+    if (!frame.loopVariable) continue
+    for (const name of LOOP_ALIAS_VARIABLES) {
+      if (!visible.has(name)) visible.set(name, { name, origin: 'loop-alias', loop: frame.loopVariable })
+    }
+  }
+  return [...visible.values()]
+}
+
+export function collectWorkflowVariables(source: string, at: number): string[] {
+  return collectWorkflowVariableScope(source, at).map((variable) => variable.name)
 }

@@ -13,6 +13,7 @@ const testFiles = [
   'session-storage.test.mjs',
   'run-family-api.test.mjs',
   'history-messages.test.mjs',
+  'execution-record.test.mjs',
   'run-edit.test.mjs',
   'dashboard-api.test.mjs',
   'run-name.test.mjs',

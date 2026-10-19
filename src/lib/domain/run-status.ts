@@ -97,6 +97,30 @@ export function historyStatusMeta(status: WorkflowHistoryStatus): StatusMeta {
   return { label: '等待执行', tone: 'neutral' }
 }
 
+/** The Event is being worked on right now, so history rows still marked `unknown` are in flight. */
+export function eventIsActive(status: DispatchEventStatus): boolean {
+  return status === 'leased' || status === 'running'
+}
+
+/**
+ * An Act stays `unknown` until the executor finalizes it: in progress while its Event runs, and
+ * simply not synced once the Event has stopped. Neither case is "waiting to run".
+ */
+export function actStatusMeta(status: WorkflowHistoryStatus, eventActive: boolean): StatusMeta {
+  if (status !== 'unknown') return historyStatusMeta(status)
+  return eventActive ? { label: '进行中', tone: 'warning' } : { label: '状态未同步', tone: 'neutral' }
+}
+
+/** A recorded message was already sent; `unknown` means its reply has not been captured yet. */
+export function messageStatusMeta(
+  message: { status: WorkflowHistoryStatus; receivedAt: string },
+  eventActive: boolean,
+): StatusMeta {
+  if (message.status !== 'unknown') return historyStatusMeta(message.status)
+  if (message.receivedAt) return { label: '已回复', tone: 'success' }
+  return eventActive ? { label: '等待回复', tone: 'warning' } : { label: '未收到回复', tone: 'neutral' }
+}
+
 export function historyStatusCompleted(status: WorkflowHistoryStatus): boolean {
   return status !== 'unknown'
 }

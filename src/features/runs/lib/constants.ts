@@ -9,4 +9,6 @@ export const POLL_MS = {
   runList: 12_000,
   runDetail: 8_000,
   hierarchy: 5_000,
+  /** Expanded records whose parent finished a while ago; history can still sync late. */
+  settled: 30_000,
 } as const

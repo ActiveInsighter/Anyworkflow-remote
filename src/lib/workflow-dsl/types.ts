@@ -34,6 +34,13 @@ export const WORKFLOW_DSL_LIMITS = Object.freeze({
   maxExpansionIterations: 100_000,
 })
 
+/**
+ * Besides its own variable, every `@for` defines these two for its body (Task, Event and queue
+ * loops alike): `index` repeats the loop variable's value (it is not a zero-based position) and
+ * `count` is the number of iterations. The runtime has always injected them, so plans may use them.
+ */
+export const LOOP_ALIAS_VARIABLES = Object.freeze(['index', 'count'] as const)
+
 /** Task variable naming the page a Task starts on; an empty value falls back to the Run's default link. */
 export const START_URL_VARIABLE = 'start_url'
 export const DEFAULT_START_URL = 'https://chatgpt.com/'

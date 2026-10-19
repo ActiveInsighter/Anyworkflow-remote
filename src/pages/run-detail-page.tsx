@@ -10,7 +10,7 @@ import { describeSchedule } from '@/lib/domain/schedule'
 import { RunHeaderActions } from '@/features/runs/components/run-detail/run-header-actions'
 import { RunScheduleBanner } from '@/features/runs/components/run-detail/run-schedule-banner'
 import { RunSummaryCard } from '@/features/runs/components/run-detail/run-summary-card'
-import { RunTaskList } from '@/features/runs/components/run-detail/run-task-list'
+import { ExecutionRecord } from '@/features/runs/components/execution/execution-record'
 import { RunVersionPicker } from '@/features/runs/components/run-detail/run-version-picker'
 import { useRunDetail } from '@/features/runs/hooks/use-run-detail'
 import { useRunDetailActions } from '@/features/runs/hooks/use-run-detail-actions'
@@ -69,7 +69,7 @@ export function RunDetailPage() {
         ) : null}
       </div>
 
-      <RunTaskList
+      <ExecutionRecord
         run={run}
         tasks={tasks}
         loading={detail.tasksLoading}

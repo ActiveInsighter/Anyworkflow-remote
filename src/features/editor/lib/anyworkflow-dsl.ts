@@ -3,10 +3,12 @@ import { HighlightStyle, StreamLanguage } from '@codemirror/language'
 import type { EditorView } from '@codemirror/view'
 import { tags } from '@lezer/highlight'
 import {
+  collectWorkflowVariableScope,
   collectWorkflowVariables,
   validateWorkflowSource,
   workflowContextAt,
   type WorkflowDslContext,
+  type WorkflowVariable,
 } from '../../../lib/workflow-dsl/index.ts'
 import { START_LINKS } from '../../../lib/domain/start-links.ts'
 
@@ -94,11 +96,20 @@ function applyVariableCompletion(
   })
 }
 
+/** What the completion list says about a variable; aliases explain themselves and sort last. */
+function variableCompletionInfo(variable: WorkflowVariable): Pick<Completion, 'detail' | 'boost'> {
+  if (variable.origin === 'loop') return { detail: '循环变量' }
+  if (variable.origin === 'declared') return { detail: '变量' }
+  return variable.name === 'index'
+    ? { detail: `循环值，同 %${variable.loop}%`, boost: -50 }
+    : { detail: '循环次数', boost: -50 }
+}
+
 function variableOptions(source: string, at: number): Completion[] {
-  return collectUsableVariables(source, at).map((name) => ({
-    label: `%${name}%`,
+  return collectWorkflowVariableScope(source, at).map((variable) => ({
+    label: `%${variable.name}%`,
     type: 'variable',
-    detail: '变量',
+    ...variableCompletionInfo(variable),
     apply: applyVariableCompletion,
   }))
 }

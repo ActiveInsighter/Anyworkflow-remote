@@ -4,12 +4,18 @@ import { LoadingState } from '@/components/feedback/loading-state'
 import { SectionHeader } from '@/components/layout/page'
 import { Pager } from '@/components/navigation/pager'
 import { Card } from '@/components/ui/card'
+import { isActiveStatus } from '@/lib/domain/run-status'
 import type { DispatchRunRecord, DispatchTaskRecord, PocketBaseListResponse } from '@/types'
 import type { RunDeepLink } from '../../hooks/use-run-detail'
-import { TaskNode } from '../hierarchy/task-node'
+import { TaskNode } from './task-node'
+
+function emptyTitle(run: DispatchRunRecord): string {
+  if (run.status === 'draft') return '草稿尚未运行'
+  return isActiveStatus(run.status) ? '等待云端编排 Task' : '暂无 Task'
+}
 
 /** The execution tree root: one page of Tasks, each expandable into Events, Acts and messages. */
-export function RunTaskList({
+export function ExecutionRecord({
   run,
   tasks,
   loading,
@@ -38,9 +44,7 @@ export function RunTaskList({
           ))}
         </Card>
       ) : null}
-      {tasks && tasks.items.length === 0 ? (
-        <EmptyState icon={ListTree} title={run.status === 'draft' ? '草稿尚未运行' : '暂无 Task'} />
-      ) : null}
+      {tasks && tasks.items.length === 0 ? <EmptyState icon={ListTree} title={emptyTitle(run)} /> : null}
       {tasks ? (
         <Pager
           label="Task 分页"

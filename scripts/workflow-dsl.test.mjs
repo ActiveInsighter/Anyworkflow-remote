@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
-const { collectUsableVariables, planStructuredInsert, validateAnyWorkflowSource } = await import('../src/features/editor/lib/anyworkflow-dsl.ts')
+const { anyWorkflowCompletion, collectUsableVariables, planStructuredInsert, validateAnyWorkflowSource } = await import('../src/features/editor/lib/anyworkflow-dsl.ts')
+const { EditorState } = await import('@codemirror/state')
 
 function errors(source) {
   return validateAnyWorkflowSource(source).filter((diagnostic) => diagnostic.severity === 'error')
@@ -98,6 +99,46 @@ const eventLocalVariable = `@run=Variables\n@task T {\n  @event E {\n    @var qu
 assert.equal(errors(eventLocalVariable).length, 0, 'Event-local variables are valid in browser queues')
 assert.ok(collectUsableVariables(eventLocalVariable, eventLocalVariable.indexOf('{ find')).includes('query'),
   'Event-local variables appear in editor completions')
+
+const { collectWorkflowVariableScope } = await import('../src/lib/workflow-dsl/index.ts')
+const loopPlan = `@run=Loop\n@task T {\n  @let file=a\n  @event E {\n    @for i in range(5, 8) {\n      { read %i% of %count% }\n    }\n  }\n}\n@for t in range(1, 2) {\n  @task L {\n    @event E {\n      { x %index% }\n    }\n  }\n}`
+assert.equal(errors(loopPlan).length, 0, 'the runtime accepts %index% and %count% inside any @for')
+const inQueueLoop = collectWorkflowVariableScope(loopPlan, loopPlan.indexOf('{ read'))
+assert.deepEqual(
+  inQueueLoop.map((variable) => [variable.name, variable.origin, variable.loop ?? '']),
+  [['file', 'declared', ''], ['i', 'loop', ''], ['index', 'loop-alias', 'i'], ['count', 'loop-alias', 'i']],
+  'loop aliases are labelled as such, belong to their loop and come after declared names',
+)
+const completionDoc = loopPlan.replace('{ read %i% of %count% }', '{ read %')
+const completionPos = completionDoc.indexOf('{ read %') + '{ read %'.length
+const completionState = EditorState.create({ doc: completionDoc })
+const completionResult = anyWorkflowCompletion({
+  state: completionState,
+  pos: completionPos,
+  explicit: true,
+  matchBefore: (expression) => {
+    const line = completionState.doc.lineAt(completionPos)
+    const match = new RegExp(expression.source).exec(line.text.slice(0, completionPos - line.from))
+    return match ? { from: line.from + match.index, to: completionPos, text: match[0] } : null
+  },
+})
+const completionDetails = Object.fromEntries(completionResult.options.map((option) => [option.label, option.detail]))
+assert.deepEqual(completionDetails, {
+  '%file%': '变量',
+  '%i%': '循环变量',
+  '%index%': '循环值，同 %i%',
+  '%count%': '循环次数',
+}, 'completions say what each loop name is instead of calling everything a plain variable')
+assert.ok(completionResult.options.filter((option) => /index|count/u.test(option.label)).every((option) => option.boost < 0),
+  'implicit aliases sort after the plan\'s own variables')
+const outsideLoop = collectWorkflowVariableScope(loopPlan, loopPlan.indexOf('@event E {'))
+assert.deepEqual(outsideLoop.map((variable) => variable.name), ['file'], 'aliases leave scope with their loop')
+const shadowed = `@task T {\n  @let index=own\n  @for i in range(2) {\n    @event E { { %index% } }\n  }\n}`
+assert.equal(
+  collectWorkflowVariableScope(shadowed, shadowed.indexOf('{ %index')).find((variable) => variable.name === 'index')?.origin,
+  'declared',
+  'a variable the plan declares itself is never reported as a loop alias',
+)
 
 const actLocalVariable = `@run=Variables\n@task T {\n  @event E {\n    @act {\n      @var query=browser syntax\n      @event=Search %query%\n      { find %query% }\n    }\n  }\n}`
 assert.equal(errors(actLocalVariable).length, 0, 'Act-local variables are valid in browser queues')

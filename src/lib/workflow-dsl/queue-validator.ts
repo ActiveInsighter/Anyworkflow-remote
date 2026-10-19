@@ -1,7 +1,7 @@
 /** Event queue validation for the browser executor, including expansion budgets. */
 import { parseRangeValues } from './cloud-parser.ts'
 import { fenceAt, lineEnd, matchingBrace, nextLine, normalizeNewlines } from './text.ts'
-import { BACKTICK_FENCE, SELF_URL_TOKENS, TILDE_FENCE, VARIABLE_DECLARATION, VARIABLE_TOKEN, WORKFLOW_DSL_LIMITS, type QueueValidationOptions } from './types.ts'
+import { BACKTICK_FENCE, LOOP_ALIAS_VARIABLES, SELF_URL_TOKENS, TILDE_FENCE, VARIABLE_DECLARATION, VARIABLE_TOKEN, WORKFLOW_DSL_LIMITS, type QueueValidationOptions } from './types.ts'
 
 export function queueUrlIsExecutable(value: string): boolean {
   const token = value.trim().replace(/\s+/gu, '')
@@ -310,8 +310,7 @@ export function validateQueueBody(value: string, options: QueueValidationOptions
         }
         const loopVariables = new Set(activeVariables)
         if (loop?.[1]) loopVariables.add(loop[1])
-        loopVariables.add('index')
-        loopVariables.add('count')
+        for (const alias of LOOP_ALIAS_VARIABLES) loopVariables.add(alias)
         const nested = validateQueueBody(text.slice(openAt + 1, closeAt), {
           ...options,
           activeVariables: loopVariables,

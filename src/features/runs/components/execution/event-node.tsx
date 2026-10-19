@@ -1,78 +1,68 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { FileText } from 'lucide-react'
 import { CodeBlock } from '@/components/data-display/code-block'
 import { ErrorAlert } from '@/components/feedback/error-alert'
-import { LoadingState } from '@/components/feedback/loading-state'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { useAsyncData } from '@/hooks/use-async-data'
-import { listHistoryActsForDispatchEvent, toErrorMessage } from '@/lib/api'
-import { deriveEventProgress } from '@/lib/domain/event-structure'
-import { eventStatusMeta } from '@/lib/domain/run-status'
+import { eventIsActive, eventStatusMeta } from '@/lib/domain/run-status'
 import { formatDateTime } from '@/lib/format'
 import type { DispatchEventRecord } from '@/types'
-import { POLL_MS } from '../../lib/constants'
-import { eventProgressSummary, eventTitle } from '../../lib/event-progress'
-import { runKeys } from '../../lib/query-keys'
-import { FallbackActNode, HistoryActNode } from './act-node'
-import { HierarchyChildren, HierarchyNode } from './hierarchy-node'
+import { useEventActs } from '../../hooks/use-event-acts'
+import { useRevealOnMount } from '../../hooks/use-reveal-on-mount'
+import { eventPendingNote, eventProgressSummary, eventTitle } from '../../lib/event-progress'
+import { executionPollMs } from '../../lib/polling'
+import { ActNode } from './act-node'
+import { InlineLoading, InlineNote, RecordChildren, RecordNode } from './record-node'
 
+/** One dispatch Event. Its Acts are the persisted history rows, and only those. */
 export function EventNode({ event, deepLinked }: { event: DispatchEventRecord; deepLinked: boolean }) {
   const [open, setOpen] = useState(deepLinked)
   const [contentOpen, setContentOpen] = useState(false)
+  const ref = useRevealOnMount<HTMLDivElement>(deepLinked)
 
   useEffect(() => {
     if (deepLinked) setOpen(true)
   }, [deepLinked])
 
-  const historyActs = useAsyncData(
-    (signal) => listHistoryActsForDispatchEvent(event, signal),
-    [event.id, event.localRunId, event.attempt],
-    {
-      enabled: open && Boolean(event.localRunId),
-      pollMs: open ? POLL_MS.hierarchy : undefined,
-      staleMs: POLL_MS.runDetail,
-      cacheKey: open && event.localRunId ? runKeys.historyActs(event.id, event.localRunId, event.attempt) : undefined,
-      errorMessage: toErrorMessage,
-    },
-  )
-  const acts = historyActs.data?.length ? historyActs.data : null
-  const plannedActs = useMemo(
-    () => deriveEventProgress(event.queueTextOverride, event.progress, event.terminalResult).acts,
-    [event.queueTextOverride, event.progress, event.terminalResult],
-  )
+  const history = useEventActs(event, open)
+  const acts = history.data ?? []
+  const active = eventIsActive(event.status)
+  const pollMs = executionPollMs({ terminal: event.status === 'terminal', updated: event.updated })
   const title = eventTitle(event)
 
   return (
-    <HierarchyNode
+    <RecordNode
+      ref={ref}
       id={`event-${event.id}`}
       size="sm"
       open={open}
       onOpenChange={setOpen}
       eyebrow={`Event ${event.eventIndex + 1}`}
       title={title}
-      meta={eventProgressSummary(event, acts)}
+      meta={eventProgressSummary(event)}
       status={eventStatusMeta(event.status, event.terminalResult)}
     >
-      <HierarchyChildren>
-        {historyActs.loading && !historyActs.data ? <LoadingState label="加载 Act…" /> : null}
-        {historyActs.error ? (
+      <RecordChildren>
+        {history.loading && !history.data ? <InlineLoading label="加载 Act…" /> : null}
+        {history.error ? (
           <ErrorAlert inline className="mb-3">
-            历史 Act 暂不可用，当前显示执行定义：{historyActs.error}
+            Act 记录加载失败：{history.error}
           </ErrorAlert>
         ) : null}
-        {acts ? (
+        {acts.length ? (
           <div className="mb-3 min-w-0 divide-y bg-card">
-            {acts.map((act) => (
-              <HistoryActNode key={act.id} act={act} />
+            {acts.map((act, index) => (
+              <ActNode
+                key={act.id}
+                act={act}
+                defaultOpen={index === acts.length - 1}
+                eventActive={active}
+                pollMs={pollMs}
+              />
             ))}
           </div>
-        ) : plannedActs.length ? (
-          <div className="mb-3 min-w-0 divide-y bg-card">
-            {plannedActs.map((act) => (
-              <FallbackActNode key={act.id} act={act} />
-            ))}
-          </div>
+        ) : !history.loading && !history.error ? (
+          <InlineNote>{eventPendingNote(event.status)}</InlineNote>
         ) : null}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-2 py-2 text-caption text-muted-foreground">
           {event.attempt > 0 ? <span>尝试 {event.attempt}</span> : null}
@@ -88,7 +78,7 @@ export function EventNode({ event, deepLinked }: { event: DispatchEventRecord; d
         <ErrorAlert inline className="mb-2">
           {event.lastError}
         </ErrorAlert>
-      </HierarchyChildren>
+      </RecordChildren>
 
       <Dialog open={contentOpen} onOpenChange={setContentOpen}>
         <DialogContent className="sm:max-w-2xl">
@@ -99,6 +89,6 @@ export function EventNode({ event, deepLinked }: { event: DispatchEventRecord; d
           <CodeBlock className="[&_pre]:max-h-[68dvh]">{event.queueTextOverride}</CodeBlock>
         </DialogContent>
       </Dialog>
-    </HierarchyNode>
+    </RecordNode>
   )
 }

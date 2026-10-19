@@ -5,7 +5,8 @@ const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] }
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } })
 const errors = []
 page.on('pageerror', error => errors.push(error.message))
-const base = { owner: 'owner-1', created: '2026-09-26T14:17:00Z', updated: '2026-09-26T14:17:00Z' }
+const now = new Date().toISOString()
+const base = { owner: 'owner-1', created: now, updated: now }
 const run = { ...base, id: 'run-1', title: '408真题总结0926', planText: '@run=408真题总结0926', familyId: 'run-1', status: 'succeeded', origin: 'initial', requestedAction: 'none', completedTasks: 1, totalTasks: 1, versionMajor: 1, versionMinor: 0, executionMode: 'serial', scheduledAt: '' }
 const task = { ...base, id: 'task-1', run: run.id, title: '整理历年真题', status: 'succeeded', requestedAction: 'none', runIndex: 0, completedEvents: 1, totalEvents: 1, compileError: '' }
 const event = { ...base, id: 'event-1', task: task.id, eventIndex: 0, localRunId: '', status: 'terminal', terminalResult: 'succeeded', attempt: 1, queueTextOverride: '@event=知识点总结\n{问题一}\n{问题二}', progress: { index: 24, total: 24 }, lastError: '' }
@@ -38,8 +39,10 @@ await page.route('https://pb.example.invalid/**', async route => {
 })
 try {
   await page.goto(`${process.env.TEST_BASE_URL || 'http://127.0.0.1:5173'}/runs/run-1?task=task-1&event=event-1`)
-  await page.getByText('暂无消息，新消息将在同步后自动显示。').first().waitFor()
+  // The queue plans 2 messages, but nothing is persisted yet: no Act or message component exists.
+  await page.getByText('暂无 Act 记录，同步后自动显示').waitFor()
   assert.equal(await page.getByRole('button', { name: /^查看消息/ }).count(), 0)
+  assert.equal(await page.locator('section[aria-label="分析与归纳"]').count(), 0, 'planned Acts are never rendered')
   // Dispatch completed before the local run/history identifiers are synchronized.
   event.localRunId = 'local-1'
   await page.getByText('0 条消息', { exact: true }).waitFor({ timeout: 15000 })
