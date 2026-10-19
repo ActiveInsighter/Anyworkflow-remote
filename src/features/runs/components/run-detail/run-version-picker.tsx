@@ -11,7 +11,8 @@ import type { DispatchRunRecord } from '@/types'
 
 /**
  * Steps through a Run's version family. Prev/next for adjacent versions; the popover searches
- * the whole family, newest first. Hidden when the family has a single version.
+ * the whole family, newest first. Hidden when the family has a single version. Borderless: it
+ * sits in the summary card's footer row.
  */
 export function RunVersionPicker({
   versions,
@@ -41,7 +42,7 @@ export function RunVersionPicker({
   }
 
   return (
-    <div role="group" aria-label="Run 版本" className="flex min-w-0 items-center gap-1 rounded-lg border bg-card p-1">
+    <div role="group" aria-label="Run 版本" className="-me-2 flex min-w-0 items-center gap-0.5">
       <Button
         size="icon-touch"
         variant="ghost"
@@ -59,19 +60,17 @@ export function RunVersionPicker({
         }}
       >
         <PopoverTrigger asChild>
-          <Button variant="ghost" size="touch" className="min-w-0 flex-1 justify-between px-2" aria-label="选择 Run 版本">
-            <span className="inline-flex min-w-0 items-center gap-2">
-              <GitBranch className="text-muted-foreground" aria-hidden="true" />
-              <span className="truncate font-mono">{runVersionLabel(current)}</span>
+          <Button variant="ghost" size="touch" className="min-w-0 gap-2 px-2" aria-label="选择 Run 版本">
+            <GitBranch className="text-muted-foreground" aria-hidden="true" />
+            <span className="truncate font-mono">{runVersionLabel(current)}</span>
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {index + 1}/{ordered.length}
             </span>
-            <span className="inline-flex items-center gap-2 text-xs text-muted-foreground tabular-nums">
-              {index + 1} / {ordered.length}
-              <ChevronDown aria-hidden="true" />
-            </span>
+            <ChevronDown className="text-muted-foreground" aria-hidden="true" />
           </Button>
         </PopoverTrigger>
         <PopoverContent
-          align="center"
+          align="end"
           className="flex max-h-(--radix-popover-content-available-height) w-[min(28rem,calc(100vw-1.5rem))] flex-col gap-2 p-2"
           onOpenAutoFocus={(event) => event.preventDefault()}
         >

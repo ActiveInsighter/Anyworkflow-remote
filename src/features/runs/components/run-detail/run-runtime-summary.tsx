@@ -1,3 +1,4 @@
+import type * as React from 'react'
 import { ChevronRight } from 'lucide-react'
 import { DescriptionList } from '@/components/data-display/description-list'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
@@ -12,20 +13,24 @@ function selectionText(selection: { model: string | null; reasoningEffort: strin
   return [selection.model ?? '默认模型', selection.reasoningEffort].filter(Boolean).join(' · ')
 }
 
-/** Browser runtime settings frozen on this Run; collapsed by default. */
-export function RunRuntimeSummary({ run }: { run: DispatchRunRecord }) {
+/** Browser runtime settings frozen on this Run; collapsed by default. `aside` shares the trigger row. */
+export function RunRuntimeSummary({ run, aside }: { run: DispatchRunRecord; aside?: React.ReactNode }) {
   const config = run.runtimeConfig?.browser
   const models = run.runtimeConfig?.modelSelection
   return (
-    <Collapsible className="group/runtime">
-      <CollapsibleTrigger className="-mx-1 flex min-h-touch items-center gap-1 rounded-md px-1 text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring sm:min-h-8">
-        <ChevronRight
-          aria-hidden="true"
-          className="size-3.5 transition-transform duration-fast group-data-[state=open]/runtime:rotate-90"
-        />
-        运行配置
-      </CollapsibleTrigger>
-      <CollapsibleContent className="pt-2 pb-1">
+    <Collapsible>
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <CollapsibleTrigger className="group/runtime -mx-1 flex min-h-touch items-center gap-1 rounded-md px-1 text-xs text-muted-foreground transition-colors duration-fast outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring sm:min-h-8">
+          <ChevronRight
+            aria-hidden="true"
+            className="size-3.5 transition-transform duration-base ease-standard group-data-[state=open]/runtime:rotate-90"
+          />
+          运行配置
+        </CollapsibleTrigger>
+        {aside}
+      </div>
+      <CollapsibleContent className="animate-disclosure">
+        <div className="pt-2 pb-1">
         {config ? (
           <DescriptionList
             columns={3}
@@ -70,6 +75,7 @@ export function RunRuntimeSummary({ run }: { run: DispatchRunRecord }) {
         ) : (
           <p className="text-xs text-muted-foreground">使用浏览器本地配置。</p>
         )}
+        </div>
       </CollapsibleContent>
     </Collapsible>
   )

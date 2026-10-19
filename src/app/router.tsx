@@ -1,17 +1,30 @@
 import { lazy, type ComponentType, type LazyExoticComponent } from 'react'
 import { createBrowserRouter, type RouteObject } from 'react-router'
+import { isChunkLoadError, reloadForNewBuild } from '@/lib/platform/chunk-reload'
 import { AppShell } from './layout/app-shell'
 import type { RouteHandle } from './route-handle'
 import { NotFoundPage } from './routes/not-found-page'
 import { RequireSession } from './routes/require-session'
+import { RouteErrorPage } from './routes/route-error-page'
 import { RouteFallback } from './routes/route-fallback'
 
-/** Code-split a named page export. */
+/**
+ * Code-split a named page export. A chunk removed by a newer deploy reloads the document instead
+ * of failing; the pending promise keeps the Suspense fallback on screen until the reload lands.
+ */
 function page<K extends string>(
   load: () => Promise<Record<K, ComponentType>>,
   name: K,
 ): LazyExoticComponent<ComponentType> {
-  return lazy(() => load().then((module) => ({ default: module[name] })))
+  return lazy(() =>
+    load().then(
+      (module) => ({ default: module[name] }),
+      (error: unknown) => {
+        if (isChunkLoadError(error) && reloadForNewBuild()) return new Promise<never>(() => {})
+        throw error
+      },
+    ),
+  )
 }
 
 const DashboardPage = page(() => import('@/pages/dashboard-page'), 'DashboardPage')
@@ -46,35 +59,42 @@ export const router = createBrowserRouter([
   {
     path: '/',
     element: <AppShell />,
+    errorElement: <RouteErrorPage />,
     children: [
       {
-        element: <RequireSession />,
+        // Page errors render inside the shell, so navigation stays usable.
+        errorElement: <RouteErrorPage />,
         children: [
           {
-            index: true,
-            element: (
-              <RouteFallback>
-                <DashboardPage />
-              </RouteFallback>
-            ),
+            element: <RequireSession />,
+            children: [
+              {
+                index: true,
+                element: (
+                  <RouteFallback>
+                    <DashboardPage />
+                  </RouteFallback>
+                ),
+              },
+              route('runs/new', RunEditorPage, { handle: editorHandle }),
+              route('runs/:runId/edit', RunEditorPage, { handle: editorHandle }),
+              route('runs/:runId', RunDetailPage),
+              // Legacy deep links: Task and Event detail now live inside the Run hierarchy.
+              route('tasks/:taskId', TaskRedirectPage),
+              route('events/:eventId', EventRedirectPage),
+              route('schedules', SchedulesPage),
+              route('library', LibraryPage),
+              route('templates/:templateId', TemplateDetailPage),
+              route('file-converter', FileConverterPage),
+              route('pdf-to-md', FileConverterPage),
+            ],
           },
-          route('runs/new', RunEditorPage, { handle: editorHandle }),
-          route('runs/:runId/edit', RunEditorPage, { handle: editorHandle }),
-          route('runs/:runId', RunDetailPage),
-          // Legacy deep links: Task and Event detail now live inside the Run hierarchy.
-          route('tasks/:taskId', TaskRedirectPage),
-          route('events/:eventId', EventRedirectPage),
-          route('schedules', SchedulesPage),
-          route('library', LibraryPage),
-          route('templates/:templateId', TemplateDetailPage),
-          route('file-converter', FileConverterPage),
-          route('pdf-to-md', FileConverterPage),
+          route('settings', SettingsPage),
+          route('settings/runtime/:pageId?', RuntimeSettingsPage),
+          route('settings/:section', SettingsDetailPage),
+          { path: '*', element: <NotFoundPage /> },
         ],
       },
-      route('settings', SettingsPage),
-      route('settings/runtime/:pageId?', RuntimeSettingsPage),
-      route('settings/:section', SettingsDetailPage),
-      { path: '*', element: <NotFoundPage /> },
     ],
   },
 ])

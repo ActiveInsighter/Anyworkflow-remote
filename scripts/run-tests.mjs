@@ -18,6 +18,7 @@ const testFiles = [
   'dashboard-api.test.mjs',
   'run-name.test.mjs',
   'conversation-url.test.mjs',
+  'chunk-reload.test.mjs',
 ]
 
 for (const file of testFiles) {

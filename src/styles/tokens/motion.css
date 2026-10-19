@@ -8,6 +8,9 @@
  *   duration-base  popovers, menus, tooltips
  *   duration-slow  drawers, sheets, dialogs, sidebar width
  *   ease-standard  default deceleration curve for entering elements
+ *
+ *   animate-disclosure  height + fade for a Radix Collapsible content panel
+ *   animate-enter       list rows entering; set `--stagger-index` for a short cascade
  */
 
 @theme {
@@ -20,6 +23,7 @@
   --duration-fast: 140ms;
   --duration-base: 200ms;
   --duration-slow: 240ms;
+  --duration-stagger: 35ms;
 }
 
 @utility duration-fast {
@@ -35,6 +39,53 @@
 @utility duration-slow {
   --tw-duration: var(--duration-slow);
   transition-duration: var(--duration-slow);
+}
+
+@keyframes disclosure-open {
+  from {
+    height: 0;
+    opacity: 0;
+  }
+  to {
+    height: var(--radix-collapsible-content-height);
+    opacity: 1;
+  }
+}
+
+@keyframes disclosure-close {
+  from {
+    height: var(--radix-collapsible-content-height);
+    opacity: 1;
+  }
+  to {
+    height: 0;
+    opacity: 0;
+  }
+}
+
+@keyframes enter-rise {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@utility animate-disclosure {
+  overflow: hidden;
+
+  &[data-state='open'] {
+    animation: disclosure-open var(--duration-slow) var(--ease-standard);
+  }
+
+  &[data-state='closed'] {
+    animation: disclosure-close var(--duration-base) var(--ease-standard);
+  }
+}
+
+@utility animate-enter {
+  animation: enter-rise var(--duration-slow) var(--ease-standard) both;
+  /* Cap the cascade so a long page of rows still settles quickly. */
+  animation-delay: calc(min(var(--stagger-index, 0), 8) * var(--duration-stagger));
 }
 
 @media (prefers-reduced-motion: reduce) {

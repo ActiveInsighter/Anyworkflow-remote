@@ -65,10 +65,25 @@ try {
   await page.getByRole('button', { name: '刷新Act 1的消息' }).waitFor()
   assert.equal(await page.getByRole('button', { name: '查看消息 1' }).count(), 2)
 
-  // A later Act appears as soon as it is persisted.
+  // Each chevron follows its own row: a closed Act inside an open Event must not read as open.
+  const actTrigger = (n) => actSections().nth(n).locator('[data-slot=collapsible-trigger]').first()
+  const chevronTransform = (n) => actTrigger(n).locator('svg').last().evaluate((el) => getComputedStyle(el).transform)
+  assert.equal(await actTrigger(1).getAttribute('aria-expanded'), 'false')
+  assert.equal(await chevronTransform(1), 'none', 'closed Act chevron is not rotated by an open ancestor')
+
+  // A later Act appears as soon as it is persisted; the open row follows it, the user's choice stays.
   acts.push(makeAct(3, 'unknown'))
   await actSections().nth(3).waitFor({ timeout: 15000 })
   assert.equal(await actSections().count(), 4)
+  await page.getByRole('button', { name: '刷新Act 4的消息' }).waitFor()
+  assert.equal(await actTrigger(0).getAttribute('aria-expanded'), 'true', 'manually opened Act survives refresh')
+  await page.getByRole('button', { name: '刷新Act 3的消息' }).waitFor({ state: 'detached' })
+
+  // Collapse everything, then jump back to the live progress.
+  await page.getByRole('button', { name: '全部收起' }).click()
+  await page.waitForFunction(() => !document.querySelector('[data-slot=collapsible-trigger][aria-expanded=true]'))
+  await page.getByRole('button', { name: '定位进度' }).click()
+  await page.getByRole('button', { name: '刷新Act 4的消息' }).waitFor()
 
   for (const width of [320, 390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 })
@@ -78,7 +93,7 @@ try {
   await page.emulateMedia({ colorScheme: 'dark' })
   if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/execution-dark.png`, fullPage: true })
   assert.deepEqual(errors, [])
-  console.log('PASS: no components for planned Acts, persisted Acts only, latest Act open, live Act arrival, 320/390/768/1440px, dark mode')
+  console.log('PASS: no components for planned Acts, persisted Acts only, latest Act open, per-row chevrons, live Act arrival keeps manual state, collapse/follow, 320/390/768/1440px, dark mode')
 } finally {
   await browser.close()
 }

@@ -1,78 +1,91 @@
 import type * as React from 'react'
-import { ChevronRight } from 'lucide-react'
-import { StatusBadge } from '@/components/data-display/status-badge'
+import { ChevronDown } from 'lucide-react'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Spinner } from '@/components/ui/spinner'
 import { cn } from '@/lib/utils'
-import type { StatusMeta } from '@/lib/domain/run-status'
 
 /**
- * One expandable level of the Task → Event → Act tree. Every level shares the same row anatomy
- * (chevron, eyebrow, title, meta line, status), so depth reads from indentation alone and touch
- * targets stay consistent.
+ * One expandable row of the execution tree. Every level shares the anatomy (leading status mark,
+ * title, meta line, trailing chevron); the level decides spacing and type weight. The chevron
+ * reads its own trigger's state, so a closed child inside an open parent always shows closed.
  */
 export function RecordNode({
   ref,
   id,
+  level,
   open,
   onOpenChange,
-  eyebrow,
+  leading,
   title,
   meta,
-  badge,
-  status,
-  size = 'default',
+  footer,
+  trailing,
   className,
   children,
 }: {
   ref?: React.Ref<HTMLDivElement>
   id?: string
+  level: 'task' | 'event' | 'act'
   open: boolean
   onOpenChange: (open: boolean) => void
-  eyebrow: React.ReactNode
+  leading?: React.ReactNode
   title: React.ReactNode
   meta?: React.ReactNode
-  badge?: React.ReactNode
-  status: StatusMeta
-  size?: 'default' | 'sm'
+  /** Extra header content under the meta line, such as a progress bar. */
+  footer?: React.ReactNode
+  trailing?: React.ReactNode
   className?: string
   children: React.ReactNode
 }) {
   return (
-    <Collapsible ref={ref} id={id} open={open} onOpenChange={onOpenChange} className={cn('group/node min-w-0 scroll-mt-20', className)}>
+    <Collapsible ref={ref} id={id} open={open} onOpenChange={onOpenChange} className={cn('min-w-0 scroll-mt-20', className)}>
       <CollapsibleTrigger
         className={cn(
-          'flex w-full items-center gap-2 px-2 py-3 text-left outline-none transition-colors hover:bg-muted/40 focus-visible:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:px-4',
-          size === 'default' ? 'min-h-16' : 'min-h-14',
+          'group/trigger flex w-full items-start text-left outline-none transition-colors duration-fast focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+          level === 'task' && 'min-h-16 gap-3 px-3 py-3 hover:bg-muted/40 sm:px-4',
+          level === 'event' && 'min-h-14 gap-2 rounded-md px-2 py-2.5 hover:bg-muted/50',
+          level === 'act' && 'min-h-12 gap-2.5 px-3 py-2.5 hover:bg-muted/40',
         )}
       >
-        <ChevronRight
-          aria-hidden="true"
-          className="size-4 shrink-0 text-muted-foreground transition-transform duration-fast group-data-[state=open]/node:rotate-90"
-        />
+        {leading}
         <span className="min-w-0 flex-1">
-          <span className="block text-caption font-medium text-muted-foreground">{eyebrow}</span>
           <span
             className={cn(
-              'mt-0.5 line-clamp-2 block text-sm break-words',
-              size === 'default' ? 'font-semibold' : 'font-medium',
+              'line-clamp-2 block break-words',
+              level === 'task' ? 'text-sm font-semibold tracking-snug' : 'text-body font-medium',
+              level === 'task' ? 'mt-px' : null,
             )}
           >
             {title}
           </span>
-          {meta ? <span className="mt-1 block text-xs text-muted-foreground tabular-nums">{meta}</span> : null}
+          {meta ? (
+            <span className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground tabular-nums">
+              {meta}
+            </span>
+          ) : null}
+          {footer}
         </span>
-        {badge}
-        <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+        {trailing}
+        <ChevronDown
+          aria-hidden="true"
+          className={cn(
+            'shrink-0 text-muted-foreground transition-transform duration-base ease-standard group-data-[state=open]/trigger:rotate-180',
+            level === 'task' ? 'mt-2 size-4' : 'mt-0.5 size-4',
+          )}
+        />
       </CollapsibleTrigger>
-      <CollapsibleContent>{children}</CollapsibleContent>
+      <CollapsibleContent className="animate-disclosure">{children}</CollapsibleContent>
     </Collapsible>
   )
 }
 
-/** Indented child rail beneath an open node. */
-export function RecordChildren({ className, ...props }: React.ComponentProps<'div'>) {
-  return <div className={cn('ms-3 min-w-0 border-s ps-2 sm:ms-5 sm:ps-3', className)} {...props} />
+/** Separator for meta-line fragments. */
+export function MetaDot() {
+  return (
+    <span aria-hidden="true" className="text-border-strong">
+      ·
+    </span>
+  )
 }
 
 /** Compact loading line for a nested level; a full LoadingState block would shift the tree. */

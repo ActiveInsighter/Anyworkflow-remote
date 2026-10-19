@@ -1,5 +1,6 @@
+import type * as React from 'react'
 import { useEffect, useState } from 'react'
-import { Bot, ChevronRight, Clock3, UserRound, type LucideIcon } from 'lucide-react'
+import { Bot, ChevronRight, Clock3, LoaderCircle, MessagesSquare, UserRound, type LucideIcon } from 'lucide-react'
 import { StatusBadge } from '@/components/data-display/status-badge'
 import { ErrorAlert } from '@/components/feedback/error-alert'
 import { LoadingState } from '@/components/feedback/loading-state'
@@ -12,6 +13,7 @@ import { formatDateTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type { WorkflowHistoryMessageSummary } from '@/types'
 import { POLL_MS } from '../../lib/constants'
+import { StatusText } from './status-glyph'
 
 function MessageBlock({
   icon: Icon,
@@ -109,11 +111,13 @@ function MessageDetail({ summary, eventActive }: { summary: WorkflowHistoryMessa
 /** A message summary row; its full record opens in a dialog. */
 export function MessageNode({
   summary,
+  index,
   actTitle,
   messageNumber,
   eventActive,
 }: {
   summary: WorkflowHistoryMessageSummary
+  index: number
   actTitle: string
   messageNumber: number
   eventActive: boolean
@@ -122,27 +126,31 @@ export function MessageNode({
   const messageTitle = `消息 ${messageNumber}`
   const status = messageStatusMeta(summary, eventActive)
   const timestamp = summary.receivedAt || summary.sentAt
+  const waiting = eventActive && status.tone === 'warning'
 
   return (
-    <li className="min-w-0">
+    <li className="min-w-0 animate-enter" style={{ '--stagger-index': index } as React.CSSProperties}>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
           <button
             type="button"
             aria-label={`查看${messageTitle}`}
-            className="flex min-h-16 w-full items-center gap-2 rounded-md px-1 py-3 text-left transition-colors outline-none hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring"
+            className="group/message flex min-h-12 w-full items-center gap-2.5 rounded-md border border-transparent bg-card px-2.5 py-2 text-left transition-colors duration-fast outline-none hover:border-border focus-visible:ring-2 focus-visible:ring-ring"
           >
             <span className="grid size-7 shrink-0 place-items-center rounded-full bg-accent text-accent-foreground">
-              <Bot className="size-4" aria-hidden="true" />
+              {waiting ? <LoaderCircle className="size-3.5 animate-spin" aria-hidden="true" /> : <MessagesSquare className="size-3.5" aria-hidden="true" />}
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-sm font-medium">{messageTitle}</span>
-              <span className="mt-1 block truncate text-xs text-muted-foreground">
-                {status.label}
+              <span className="block text-body font-medium">{messageTitle}</span>
+              <span className="mt-0.5 block truncate text-caption text-muted-foreground tabular-nums">
+                <StatusText tone={status.tone}>{status.label}</StatusText>
                 {timestamp ? ` · ${formatDateTime(timestamp)}` : ''}
               </span>
             </span>
-            <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <ChevronRight
+              className="size-4 shrink-0 text-muted-foreground transition-transform duration-fast group-hover/message:translate-x-0.5"
+              aria-hidden="true"
+            />
           </button>
         </DialogTrigger>
         <DialogContent className="gap-4 p-4 sm:max-w-2xl sm:p-6">

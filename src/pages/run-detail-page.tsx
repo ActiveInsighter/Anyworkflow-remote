@@ -61,9 +61,11 @@ export function RunDetailPage() {
           run={run}
           totalTasks={Math.max(run.totalTasks, tasks?.totalItems || 0)}
           scheduledLabel={schedule.set ? schedule.absolute : ''}
+          versionPicker={
+            <RunVersionPicker versions={detail.versions} currentId={run.id} onSelect={detail.selectVersion} />
+          }
         />
         <ErrorAlert inline>{detail.versionsError}</ErrorAlert>
-        <RunVersionPicker versions={detail.versions} currentId={run.id} onSelect={detail.selectVersion} />
         {scheduleLive ? (
           <RunScheduleBanner run={run} absolute={schedule.absolute} relative={schedule.relative} actions={actions} />
         ) : null}
