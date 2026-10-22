@@ -2,6 +2,7 @@ import { authenticate } from './auth.js'
 import { UploadError, errorResponse, methodNotAllowed } from './errors.js'
 import { abortMultipart, completeMultipart, createMultipart, uploadPart } from './multipart.js'
 import { MULTIPART_PATH, UPLOAD_PATH } from './pdf.js'
+import { RELAY_PATH, relayUpload } from './relay.js'
 import { singleUpload } from './single-upload.js'
 
 const MULTIPART_ROUTE = new RegExp(`^${MULTIPART_PATH}/([^/]+)(?:/(parts)/([^/]+)|/(complete))?$`, 'u')
@@ -11,6 +12,10 @@ async function apiRequest(request: Request, env: Env, pathname: string): Promise
     if (request.method !== 'PUT') return methodNotAllowed('PUT')
     await authenticate(request, env)
     return singleUpload(request, env)
+  }
+  if (pathname === RELAY_PATH) {
+    if (request.method !== 'PUT') return methodNotAllowed('PUT')
+    return relayUpload(request, env)
   }
   if (pathname === MULTIPART_PATH) {
     if (request.method !== 'POST') return methodNotAllowed('POST')

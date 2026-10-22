@@ -80,7 +80,7 @@ await context.route('https://pb.example.invalid/**', async route => {
      created = { ...created, id: body.id, rerunOf: body.rerunOf, status: 'queued', cancelRequested: false, file: '', githubRunId: '', created: new Date().toISOString() }
      mode = 'created'; return route.fulfill({ json: created })
    }
-   created = { ...body, outputName: body.outputName || body.title, file: '', githubRunId: '123', status: 'queued', options: { ...config.options, ...(body.startPage !== undefined ? { start_page: body.startPage } : {}), ...(body.endPage !== undefined ? { end_page: body.endPage } : {}) }, created: new Date().toISOString(), updated: new Date().toISOString() }
+   created = { ...body, outputName: body.outputName || body.title, file: '', githubRunId: '123', status: 'queued', options: { ...config.options, adjacent_pages: Boolean(body.adjacentPages), ...(body.startPage !== undefined ? { start_page: body.startPage } : {}), ...(body.endPage !== undefined ? { end_page: body.endPage } : {}) }, created: new Date().toISOString(), updated: new Date().toISOString() }
    mode = 'created'; return route.fulfill({ json: created })
  }
  if (req.method() === 'PATCH' && url.pathname.includes('/aw_pdf_to_md_jobs/records/')) {
@@ -96,12 +96,18 @@ try {
  await page.getByText('暂无转换记录', { exact: true }).waitFor()
  assert.equal(await page.getByRole('tab', { name: '链接', exact: true }).getAttribute('aria-selected'), 'true')
  if (process.env.CONFIG_LOAD_FAILURE) await page.getByText(/fixture config load failed/u).waitFor()
- else await page.getByText(/配置已加载/u).waitFor()
- await page.getByRole('button', { name: '系统提示词与高级参数', exact: true }).click()
- const imagesPerRequest = page.getByLabel('每次请求页数', { exact: true })
- await imagesPerRequest.fill('')
- await imagesPerRequest.pressSequentially('1')
- assert.equal(await imagesPerRequest.inputValue(), '1')
+ else await page.getByText(/^配置 v1 · gemini-3.5-flash-lite · 240 DPI$/u).waitFor()
+ await page.getByRole('button', { name: '转换配置', exact: true }).click()
+ const sheet = page.getByRole('dialog', { name: '转换配置' })
+ await sheet.waitFor()
+ assert.equal(await sheet.getByLabel('每次请求页数').count(), 0, 'the deprecated option is not editable')
+ for (const width of [320, 1440]) {
+   await page.setViewportSize({ width, height: 1000 })
+   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `sheet overflow ${width}`)
+   assert.ok(await sheet.evaluate(element => [...element.querySelectorAll('input, select, textarea, button')]
+     .every(control => control.getBoundingClientRect().right <= element.getBoundingClientRect().right + 0.5)), `sheet controls clipped ${width}`)
+   if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/pdf-config-${width}.png` })
+ }
  const concurrency = page.getByLabel('并发请求数', { exact: true })
  await concurrency.fill('600')
  await page.getByRole('button', { name: '保存配置', exact: true }).click()
@@ -115,11 +121,15 @@ try {
  await page.getByText(/配置已保存/u).waitFor()
  assert.equal(configPatchCount, 1)
  await concurrency.fill('80')
+ await page.keyboard.press('Escape')
+ await sheet.waitFor({ state: 'hidden' })
+ await page.getByText(/^配置 v2 · /u).waitFor()
  await page.getByLabel('任务名称', { exact: true }).fill('数学讲义')
  await page.getByLabel('PDF 源文件地址').fill('https://example.com/book.pdf')
  await page.getByLabel('产物文件名').fill('数学笔记')
  await page.getByLabel('起始页（可选）').fill('1')
  await page.getByLabel('结束页（可选）').fill('1')
+ await page.getByRole('switch', { name: '附带相邻页' }).click()
  for (const width of [320,390,760,1440]) {
    await page.setViewportSize({ width, height: 1000 })
    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `overflow ${width}`)
@@ -132,6 +142,9 @@ assert.equal(created.outputName, '数学笔记')
  assert.equal(created.configId, 'config-1')
  assert.equal(created.options.concurrency, 60)
  assert.equal(created.options.start_page, 1)
+ assert.equal(created.adjacentPages, true)
+ await page.getByText('第 1 页', { exact: true }).waitFor()
+ await page.getByText('附带相邻页', { exact: true }).last().waitFor()
  assert.equal(configPatchCount, 1)
  await page.getByRole('button', { name: '结束任务', exact: true }).click()
  await page.getByText('结束中', { exact: true }).waitFor()
@@ -154,6 +167,7 @@ assert.equal(created.outputName, '数学笔记')
 
  // Local files remain optional: only the generated URL enters the existing PB job contract.
  await page.getByRole('tab', { name: '上传文件', exact: true }).click()
+ if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/pdf-dropzone-1440.png` })
  const fileInput = page.getByLabel('选择 PDF 文件', { exact: true })
  const submit = page.getByRole('button', { name: '开始转换', exact: true })
  assert.equal(await submit.isDisabled(), true)
@@ -178,7 +192,8 @@ assert.equal(created.outputName, '数学笔记')
  assert.equal(await uploadedLink.inputValue(), 'https://ocr-files.any1.tech/fixtures/upload-2.pdf')
  heldUploads.get(1)()
  // A cancelled upload that finishes later must not replace a newer file's URL.
- await page.getByText('已上传 · 讲义.pdf', { exact: true }).waitFor()
+ await page.getByText('讲义.pdf', { exact: true }).waitFor()
+ await page.getByText(/^已上传 · \d+ B$/u).waitFor()
  assert.equal(await uploadedLink.inputValue(), 'https://ocr-files.any1.tech/fixtures/upload-2.pdf')
  await page.getByRole('button', { name: '复制上传链接', exact: true }).click()
  await page.getByText('链接已复制', { exact: true }).waitFor()

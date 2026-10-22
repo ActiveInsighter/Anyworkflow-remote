@@ -1,6 +1,6 @@
 import { Page, PageHeader } from '@/components/layout/page'
 import { useSession } from '@/lib/api/session'
-import { ConversionConfigPanel } from '@/features/file-converter/components/conversion-config-panel'
+import { ConversionConfigSheet } from '@/features/file-converter/components/conversion-config-sheet'
 import { ConversionForm } from '@/features/file-converter/components/conversion-form'
 import { ConversionJobList } from '@/features/file-converter/components/conversion-job-list'
 import { useConversionConfig } from '@/features/file-converter/hooks/use-conversion-config'
@@ -18,11 +18,14 @@ function FileConverterView() {
 
   return (
     <Page>
-      <PageHeader title="文件转换" description="使用保存的参数处理文件，当前支持 PDF → Markdown。" />
-      <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,22.5rem)_minmax(0,1fr)] lg:items-start">
-        <div className="flex min-w-0 flex-col gap-4">
+      <PageHeader
+        title="文件转换"
+        description="PDF 转 Markdown：OCR 识别后由模型逐页校对，产物打包为 ZIP。"
+        actions={<ConversionConfigSheet config={config} />}
+      />
+      <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] lg:items-start xl:gap-8">
+        <div className="min-w-0">
           <ConversionForm config={config} jobs={jobs} />
-          <ConversionConfigPanel config={config} />
         </div>
         <ConversionJobList jobs={jobs} />
       </div>

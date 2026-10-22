@@ -33,13 +33,23 @@ Worker 只向配置中的 `POCKETBASE_URL` 验证 `aw_clients` 会话，不将�
 或受保护的标准输入配置，不放入源码、浏览器或日志。生产和现有预览 Worker 已分别配置；部署其他 Worker
 时需为它单独配置。未完成分片另有 `abort-incomplete-after-1-day` 规则，一天后自动清理。
 
-## 大型扫描 PDF 的转换限制
+## 转换器分段中转
 
-2 GiB 是 R2 上传上限，并不等同于下游 OCR 的单文件上限。现用
+`PUT /api/file-conversion/relay` 供转换器（GitHub Actions）上传 OCR 分段，复用单请求上传的校验与存储：
+90 MiB 以内、`%PDF-` 文件头、随机 UUID key、一天后到期。认证使用服务端共享密钥
+`RELAY_UPLOAD_SECRET`（Worker secret，至少 32 字符），转换仓库以 `PDF_RELAY_TOKEN` secret 持有同一值；
+未配置该 secret 时接口返回 404。密钥不经过 PocketBase，也不发给浏览器。
+
 [百度 AI Studio 异步接口](https://ai.baidu.com/ai-doc/AISTUDIO/fml7mozw5)限制：URL 文件 200 MB、
-本地上传 50 MB、单次请求 1000 页。超出时转换器会退回原有切段上传或图片转写，速度可能下降。
-Runner 下载源文件采用流式写盘；它不会把 2 GiB 文件一次读入 Python 内存。
-长扫描件仍应使用页码范围分批转换，或在高级配置中选择 JPEG，控制中间图片的磁盘占用。
+本地上传 50 MB、单次请求 1000 页。百度在每次链接提交中同步下载整份文件（约 2 MB/s），
+而 GitHub Runner 直接上传到百度只有 20–25 KB/s。因此：
+
+- 40 MB 以下的源文件：百度按页码范围直接拉取原链接。
+- 40 MB 以上（含超过 200 MB 的文件）：Runner 按 25 页切段，上传到本接口，百度只拉取各段的中转链接。
+- 中转不可用时才退回 Runner 直传；扫描页先转为 150 DPI JPEG 页面以缩小体积。
+
+2026-10-22 一份 238 页、209,968,268 字节的扫描版 PDF 因超过 200 MB 链接上限，
+又在固定 60 秒提交超时后退回直传，OCR 7 分钟只完成约 30 页。上述中转用于修复这种情况。
 
 前端、Worker 和 R2 绑定在同一次 Remote 部署中发布。执行 `npm run preflight` 与
 `npm run test:browser` 后，通过原有 `deploy-cloudflare.yml` 部署；只测试本地 workerd 时

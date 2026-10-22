@@ -46,7 +46,15 @@ export function usePdfUpload() {
     }
   }
 
-  return { uploaded, uploading, progress, fileName, error, upload, cancel }
+  /** Forget the uploaded file; its temporary link still expires on its own. */
+  function clear() {
+    cancel()
+    setUploaded(null)
+    setFileName('')
+    setError('')
+  }
+
+  return { uploaded, uploading, progress, fileName, error, upload, cancel, clear }
 }
 
 export type PdfUploadState = ReturnType<typeof usePdfUpload>

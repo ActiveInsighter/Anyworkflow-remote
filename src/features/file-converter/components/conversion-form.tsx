@@ -2,10 +2,11 @@ import { useState, type FormEvent } from 'react'
 import { Play } from 'lucide-react'
 import { ErrorAlert } from '@/components/feedback/error-alert'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Field, FieldContent, FieldDescription, FieldGroup, FieldLabel, FieldSeparator } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
+import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import type { PdfJobInput, PdfPageRange } from '@/lib/api/file-conversion'
 import type { ConversionConfigState } from '../hooks/use-conversion-config'
@@ -19,9 +20,18 @@ function readPage(value: string): number | undefined {
   return value ? Number(value) : undefined
 }
 
+/** One line naming the saved configuration a new job will run with. */
+function configSummary(config: ConversionConfigState): string {
+  if (config.loading) return '正在加载转换配置…'
+  if (config.loadError || !config.config) return '转换配置未加载'
+  const { options, revision } = config.config
+  return `配置 v${revision} · ${options.model} · ${options.dpi} DPI`
+}
+
 /** New PDF → Markdown job. It always runs with the saved config, never the unsaved draft. */
 export function ConversionForm({ config, jobs }: { config: ConversionConfigState; jobs: ConversionJobsState }) {
   const [range, setRange] = useState<PdfPageRange>({})
+  const [adjacentPages, setAdjacentPages] = useState(false)
   const [error, setError] = useState('')
   const [sourceMode, setSourceMode] = useState<PdfSourceMode>('link')
   const [sourceUrl, setSourceUrl] = useState('')
@@ -65,6 +75,7 @@ export function ConversionForm({ config, jobs }: { config: ConversionConfigState
       configId: config.config.id,
       ...(range.start_page !== undefined ? { startPage: range.start_page } : {}),
       ...(range.end_page !== undefined ? { endPage: range.end_page } : {}),
+      ...(adjacentPages ? { adjacentPages: true } : {}),
     }
     await jobs.create(input, config.config.revision)
   }
@@ -73,16 +84,11 @@ export function ConversionForm({ config, jobs }: { config: ConversionConfigState
     <Card aria-labelledby="conversion-form-title">
       <CardHeader>
         <CardTitle id="conversion-form-title">新建转换</CardTitle>
-        <CardDescription>PDF → Markdown，产物打包为 ZIP。</CardDescription>
       </CardHeader>
       <form onSubmit={submit}>
         <CardContent>
           <fieldset disabled={jobs.creating || config.loading} className="min-w-0">
-            <FieldGroup className="gap-4">
-              <Field>
-                <FieldLabel htmlFor="pdf-title">任务名称</FieldLabel>
-                <Input id="pdf-title" name="title" required maxLength={200} placeholder="例如：数学讲义" />
-              </Field>
+            <FieldGroup className="gap-5">
               <ConversionSourceField
                 mode={sourceMode}
                 onModeChange={(mode) => {
@@ -95,20 +101,27 @@ export function ConversionForm({ config, jobs }: { config: ConversionConfigState
                 onSourceUrlChange={setSourceUrl}
                 upload={upload}
               />
+
+              <FieldSeparator />
+
+              <Field>
+                <FieldLabel htmlFor="pdf-title">任务名称</FieldLabel>
+                <Input id="pdf-title" name="title" required maxLength={200} placeholder="例如：数学讲义" />
+              </Field>
               <Field>
                 <FieldLabel htmlFor="pdf-output">产物文件名（可选）</FieldLabel>
                 <Input
                   id="pdf-output"
                   name="outputName"
                   maxLength={MAX_TITLE_AS_NAME}
-                  placeholder="留空时使用任务名称"
+                  placeholder="默认同任务名称"
                   aria-describedby="pdf-output-help"
                 />
-                <FieldDescription id="pdf-output-help">自动添加 .zip，包内文档使用同名 .md。</FieldDescription>
+                <FieldDescription id="pdf-output-help">生成同名 .zip，包内为同名 .md</FieldDescription>
               </Field>
-              <div className="grid grid-cols-2 gap-3">
-                <Field>
-                  <FieldLabel htmlFor="pdf-start">起始页（可选）</FieldLabel>
+              <fieldset className="min-w-0">
+                <legend className="mb-2 text-xs font-medium">页码范围（可选）</legend>
+                <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
                   <Input
                     id="pdf-start"
                     name="start_page"
@@ -118,12 +131,11 @@ export function ConversionForm({ config, jobs }: { config: ConversionConfigState
                     max={100000}
                     step={1}
                     placeholder="1"
+                    aria-label="起始页（可选）"
                     value={range.start_page ?? ''}
                     onChange={(event) => setRange((current) => ({ ...current, start_page: readPage(event.target.value) }))}
                   />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="pdf-end">结束页（可选）</FieldLabel>
+                  <span className="text-xs text-muted-foreground" aria-hidden="true">至</span>
                   <Input
                     id="pdf-end"
                     name="end_page"
@@ -133,11 +145,30 @@ export function ConversionForm({ config, jobs }: { config: ConversionConfigState
                     max={100000}
                     step={1}
                     placeholder="末页"
+                    aria-label="结束页（可选）"
                     value={range.end_page ?? ''}
                     onChange={(event) => setRange((current) => ({ ...current, end_page: readPage(event.target.value) }))}
                   />
-                </Field>
-              </div>
+                </div>
+              </fieldset>
+
+              <FieldSeparator />
+
+              <Field orientation="horizontal" className="items-start">
+                <FieldContent>
+                  <FieldLabel htmlFor="pdf-adjacent">附带相邻页</FieldLabel>
+                  <FieldDescription id="pdf-adjacent-help">
+                    同时发送上一页底部和下一页顶部，补全跨页截断的句子、公式和表格行。
+                  </FieldDescription>
+                </FieldContent>
+                <Switch
+                  id="pdf-adjacent"
+                  className="mt-0.5"
+                  checked={adjacentPages}
+                  onCheckedChange={setAdjacentPages}
+                  aria-describedby="pdf-adjacent-help"
+                />
+              </Field>
               <Field>
                 <FieldLabel htmlFor="pdf-prompt">转换要求（可选）</FieldLabel>
                 <Textarea
@@ -160,7 +191,7 @@ export function ConversionForm({ config, jobs }: { config: ConversionConfigState
             {jobs.creating ? <Spinner data-icon="inline-start" /> : <Play data-icon="inline-start" />}
             {jobs.creating ? '提交中…' : '开始转换'}
           </Button>
-          <p className="text-xs text-muted-foreground">任务使用已保存的配置；修改高级参数后请先保存。</p>
+          <p className="truncate text-center text-xs text-muted-foreground" role="status">{configSummary(config)}</p>
         </CardFooter>
       </form>
     </Card>

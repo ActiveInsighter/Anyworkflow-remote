@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "vite",
     "test": "node --experimental-strip-types scripts/run-tests.mjs && npm run test:worker",
-    "test:worker": "node scripts/upload-worker.test.mjs && node scripts/upload-worker-multipart.test.mjs",
+    "test:worker": "node scripts/upload-worker.test.mjs && node scripts/upload-worker-multipart.test.mjs && node scripts/upload-worker-relay.test.mjs",
     "test:browser": "node scripts/run-browser-tests.mjs",
     "test:browser:install": "playwright install chromium",
     "build": "npm run typecheck && vite build",

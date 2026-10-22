@@ -66,7 +66,8 @@ export type PdfPageRange = {
   end_page?: number
 }
 
-export type PdfJobOptions = PdfConversionOptions & PdfPageRange
+/** Per-job choices stored with the snapshot of the saved options. */
+export type PdfJobOptions = PdfConversionOptions & PdfPageRange & { adjacent_pages?: boolean }
 
 export interface FileConversionConfig {
   id: string
@@ -88,6 +89,8 @@ export interface PdfJobInput {
   configId: string
   startPage?: number
   endPage?: number
+  /** Send the neighbouring page edges so content cut by a page break can be checked. */
+  adjacentPages?: boolean
 }
 
 export interface PdfJob extends PdfJobInput {
@@ -105,6 +108,7 @@ export interface PdfJob extends PdfJobInput {
   error: string
   created: string
   updated: string
+  startedAt?: string
   finishedAt: string
   cancelRequested: boolean
   rerunOf: string
@@ -244,6 +248,7 @@ export async function createPdfJob(id: string, input: PdfJobInput) {
         && String(saved.configId || '') === input.configId
         && (saved.startPage ?? undefined) === (input.startPage ?? undefined)
         && (saved.endPage ?? undefined) === (input.endPage ?? undefined)
+        && Boolean(saved.options?.adjacent_pages) === Boolean(input.adjacentPages)
       ) return saved
     } catch { /* Report the original actionable create error. */ }
     throw error
