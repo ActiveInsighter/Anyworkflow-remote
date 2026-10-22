@@ -69,7 +69,10 @@ export function ConversionSourceField({ mode, onModeChange, sourceUrl, onSourceU
             aria-describedby="pdf-upload-help"
             aria-invalid={Boolean(upload.error)}
           />
-          <FieldDescription id="pdf-upload-help">最大 90 MiB。生成临时公开链接，持有链接者可访问；约 1 天后自动清理。</FieldDescription>
+          <FieldDescription id="pdf-upload-help">
+            最大 2 GiB。生成临时公开链接，持有链接者可访问；约 1 天后自动清理。
+            <span className="block">超过 200 MB 的 PDF 可能转为分段识别，耗时更长。</span>
+          </FieldDescription>
         </Field>
         {upload.uploading ? (
           <div className="space-y-2" role="status" aria-live="polite">

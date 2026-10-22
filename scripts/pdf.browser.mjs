@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict'
+import { mkdtemp, open, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { chromium } from 'playwright'
 const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] })
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } })
@@ -8,21 +11,47 @@ page.on('pageerror', e => errors.push(e.message))
 let created, config, mode = 'empty', postCount = 0, tokenCalls = 0, configPatchCount = 0, configListCalls = 0, cancelCount = 0, rerunBody
 let uploadMode = 'success', uploadCount = 0
 const heldUploads = new Map()
+const multipartUploads = new Map()
+const partSize = 32 * 1024 * 1024
+let fixtureDirectory
 const pdfFile = (name = '讲义.pdf') => ({ name, mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.7\nfixture\n') })
 await context.addInitScript(() => localStorage.setItem('anyworkflow.auth.session.v1', JSON.stringify({ token: 'fixture-token', record: { id: 'owner-1' }, baseUrl: 'https://pb.example.invalid' })))
-await context.route('**/api/file-conversion/uploads', async route => {
- const req = route.request(), current = ++uploadCount, behavior = uploadMode
- assert.equal(req.method(), 'PUT')
+await context.route('**/api/file-conversion/uploads/multipart**', async route => {
+ const req = route.request(), url = new URL(req.url())
  assert.equal(req.headers().authorization, 'Bearer fixture-token')
  assert.equal(req.headers()['x-pocketbase-url'], 'https://pb.example.invalid')
- assert.equal(req.headers()['content-type'], 'application/pdf')
- assert.equal(req.postDataBuffer().subarray(0, 5).toString(), '%PDF-')
- if (behavior === 'hold') await new Promise(resolve => heldUploads.set(current, resolve))
+ if (url.pathname.endsWith('/multipart')) {
+   assert.equal(req.method(), 'POST')
+   const current = ++uploadCount, body = req.postDataJSON()
+   const gate = uploadMode === 'hold' ? new Promise(resolve => heldUploads.set(current, resolve)) : Promise.resolve()
+   multipartUploads.set(current, { ...body, behavior: uploadMode, gate, parts: [], aborted: false })
+   return route.fulfill({ status: 201, json: { uploadId: `upload-${current}`, ticket: `ticket-${current}`, partSize } })
+ }
+ const match = url.pathname.match(/\/multipart\/upload-(\d+)(?:\/(parts\/\d+|complete))?$/u)
+ assert.ok(match)
+ const current = Number(match[1]), upload = multipartUploads.get(current)
+ assert.equal(req.headers()['x-upload-ticket'], `ticket-${current}`)
+ if (req.method() === 'DELETE') { upload.aborted = true; return route.fulfill({ status: 204 }) }
+ if (match[2]?.startsWith('parts/')) {
+   assert.equal(req.method(), 'PUT')
+   assert.equal(req.headers()['content-type'], 'application/octet-stream')
+   const partNumber = Number(match[2].slice(6)), size = req.postDataBuffer().length
+   assert.equal(size, Math.min(partSize, upload.size - (partNumber - 1) * partSize))
+   if (partNumber === 1) assert.equal(req.postDataBuffer().subarray(0, 5).toString(), '%PDF-')
+   upload.parts.push({ partNumber, size })
+   await upload.gate
+   try {
+     if (upload.behavior === 'failure') return await route.fulfill({ status: 503, json: { message: '临时存储不可用，请稍后重试' } })
+     await route.fulfill({ json: { partNumber, etag: `etag-${partNumber}` } })
+   } catch { /* The browser may already have cancelled this upload. */ }
+   return
+ }
+ assert.equal(match[2], 'complete')
+ assert.deepEqual(req.postDataJSON().parts, Array.from({ length: Math.ceil(upload.size / partSize) }, (_, index) => ({ partNumber: index + 1, etag: `etag-${index + 1}` })))
  try {
-   if (behavior === 'failure') return await route.fulfill({ status: 503, json: { message: '临时存储不可用，请稍后重试' } })
    await route.fulfill({ status: 201, json: {
      sourceUrl: `https://ocr-files.any1.tech/fixtures/upload-${current}.pdf`,
-     fileName: decodeURIComponent(req.headers()['x-file-name']), size: req.postDataBuffer().length,
+     fileName: upload.fileName, size: upload.size,
      expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
    } })
  } catch { /* The browser may already have cancelled this upload. */ }
@@ -133,7 +162,7 @@ assert.equal(created.outputName, '数学笔记')
  assert.equal(uploadCount, 0)
 
  uploadMode = 'hold'
- const firstRequest = page.waitForRequest('**/api/file-conversion/uploads')
+ const firstRequest = page.waitForRequest('**/api/file-conversion/uploads/multipart/*/parts/*')
  await fileInput.setInputFiles(pdfFile('old.pdf'))
  await firstRequest
  await page.getByRole('button', { name: '取消上传', exact: true }).waitFor()
@@ -155,7 +184,7 @@ assert.equal(created.outputName, '数学笔记')
  await page.getByText('链接已复制', { exact: true }).waitFor()
 
  uploadMode = 'hold'
- const switchingRequest = page.waitForRequest('**/api/file-conversion/uploads')
+ const switchingRequest = page.waitForRequest('**/api/file-conversion/uploads/multipart/*/parts/*')
  await fileInput.setInputFiles(pdfFile('switch.pdf'))
  await switchingRequest
  await page.getByRole('tab', { name: '链接', exact: true }).click()
@@ -188,9 +217,36 @@ assert.equal(created.outputName, '数学笔记')
  assert.equal(created.sourceUrl, 'https://ocr-files.any1.tech/fixtures/upload-5.pdf')
  assert.equal(created.configId, 'config-1')
  assert.equal('file' in created && created.file !== '', false, 'source PDFs never enter PocketBase files')
+
+ // A real sparse local file above 90 MiB proves the browser sends bounded,
+ // concurrent Blob slices rather than one request above Cloudflare's limit.
+ fixtureDirectory = await mkdtemp(join(tmpdir(), 'remote-pdf-browser-'))
+ const largePath = join(fixtureDirectory, 'large.pdf')
+ const largeFile = await open(largePath, 'w')
+ const largeSize = partSize * 3 + 17
+ await largeFile.truncate(largeSize)
+ await largeFile.write('%PDF-1.7\n')
+ await largeFile.close()
+ uploadMode = 'hold'
+ const firstThree = Promise.all([1, 2, 3].map(number => page.waitForRequest(request =>
+   request.method() === 'PUT' && new URL(request.url()).pathname.endsWith(`/multipart/upload-6/parts/${number}`))))
+ await fileInput.setInputFiles(largePath)
+ await firstThree
+ assert.equal(await submit.isDisabled(), true)
+ assert.equal(multipartUploads.get(6).parts.length, 3, 'three parts start before any response is released')
+ heldUploads.get(6)()
+ await uploadedLink.waitFor()
+ assert.equal(await uploadedLink.inputValue(), 'https://ocr-files.any1.tech/fixtures/upload-6.pdf')
+ assert.deepEqual(multipartUploads.get(6).parts.map(part => part.size), [partSize, partSize, partSize, 17])
+ const largeJobCreated = page.waitForResponse(response => response.request().method() === 'POST' && new URL(response.url()).pathname.endsWith('/aw_pdf_to_md_jobs/records'))
+ await submit.click()
+ await largeJobCreated
+ assert.equal(postCount, 6)
+ assert.equal(created.sourceUrl, 'https://ocr-files.any1.tech/fixtures/upload-6.pdf')
  assert.deepEqual(errors, [])
- console.log('PDF browser: links, upload/cancel/retry, stale requests, job URL contract and responsive themes passed')
+ console.log('PDF browser: links, multipart/cancel/retry, >90 MiB concurrent slices, job URL contract and responsive themes passed')
 } finally {
  for (const release of heldUploads.values()) release()
  await browser.close()
+ if (fixtureDirectory) await rm(fixtureDirectory, { recursive: true, force: true })
 }

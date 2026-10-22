@@ -1,12 +1,11 @@
 import assert from 'node:assert/strict'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
-import { stripTypeScriptTypes } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { convertV4MiniflareOptions, Miniflare, Response as RuntimeResponse } from 'miniflare'
+import { workerModules } from './upload-worker-harness.mjs'
 
 const config = JSON.parse(await readFile(new URL('../wrangler.jsonc', import.meta.url), 'utf8'))
-const source = await readFile(new URL('../worker/index.ts', import.meta.url), 'utf8')
 const assetDirectory = await mkdtemp(path.join(tmpdir(), 'anyworkflow-upload-assets-'))
 await writeFile(path.join(assetDirectory, 'index.html'), '<!doctype html><title>AnyWorkflow upload test</title>')
 const authRequests = []
@@ -20,7 +19,7 @@ const worker = new Miniflare(convertV4MiniflareOptions({
       path: 'upload-test-entry.js',
       // HTTP clients enforce their own Content-Length. Change only the local
       // request headers inside workerd to exercise dishonest/truncated inputs.
-      contents: `import app from './upload-worker.js';
+      contents: `import app from './worker/index.js';
         export default { async fetch(request, env) {
           request = new Request(request);
           const declared = request.headers.get('X-Test-Declared-Length');
@@ -40,7 +39,7 @@ const worker = new Miniflare(convertV4MiniflareOptions({
           return app.fetch(request, env);
         } };`,
     },
-    { type: 'ESModule', path: 'upload-worker.js', contents: stripTypeScriptTypes(source) },
+    ...await workerModules(),
   ],
   bindings: config.vars,
   r2Buckets: ['PDF_UPLOADS'],
