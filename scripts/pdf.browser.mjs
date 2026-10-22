@@ -6,7 +6,27 @@ const page = await context.newPage()
 const errors = []
 page.on('pageerror', e => errors.push(e.message))
 let created, config, mode = 'empty', postCount = 0, tokenCalls = 0, configPatchCount = 0, configListCalls = 0, cancelCount = 0, rerunBody
+let uploadMode = 'success', uploadCount = 0
+const heldUploads = new Map()
+const pdfFile = (name = '讲义.pdf') => ({ name, mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.7\nfixture\n') })
 await context.addInitScript(() => localStorage.setItem('anyworkflow.auth.session.v1', JSON.stringify({ token: 'fixture-token', record: { id: 'owner-1' }, baseUrl: 'https://pb.example.invalid' })))
+await context.route('**/api/file-conversion/uploads', async route => {
+ const req = route.request(), current = ++uploadCount, behavior = uploadMode
+ assert.equal(req.method(), 'PUT')
+ assert.equal(req.headers().authorization, 'Bearer fixture-token')
+ assert.equal(req.headers()['x-pocketbase-url'], 'https://pb.example.invalid')
+ assert.equal(req.headers()['content-type'], 'application/pdf')
+ assert.equal(req.postDataBuffer().subarray(0, 5).toString(), '%PDF-')
+ if (behavior === 'hold') await new Promise(resolve => heldUploads.set(current, resolve))
+ try {
+   if (behavior === 'failure') return await route.fulfill({ status: 503, json: { message: '临时存储不可用，请稍后重试' } })
+   await route.fulfill({ status: 201, json: {
+     sourceUrl: `https://ocr-files.any1.tech/fixtures/upload-${current}.pdf`,
+     fileName: decodeURIComponent(req.headers()['x-file-name']), size: req.postDataBuffer().length,
+     expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+   } })
+ } catch { /* The browser may already have cancelled this upload. */ }
+})
 await context.route('https://pb.example.invalid/**', async route => {
  const req = route.request(), url = new URL(req.url())
  if (url.pathname === '/api/files/token') { tokenCalls++; return route.fulfill({ json: { token: 'short-lived' } }) }
@@ -45,6 +65,7 @@ await context.route('https://pb.example.invalid/**', async route => {
 try {
  await page.goto((process.env.TEST_BASE_URL || 'http://127.0.0.1:5173') + '/file-converter')
  await page.getByText('暂无转换记录', { exact: true }).waitFor()
+ assert.equal(await page.getByRole('tab', { name: '链接', exact: true }).getAttribute('aria-selected'), 'true')
  if (process.env.CONFIG_LOAD_FAILURE) await page.getByText(/fixture config load failed/u).waitFor()
  else await page.getByText(/配置已加载/u).waitFor()
  await page.getByRole('button', { name: '系统提示词与高级参数', exact: true }).click()
@@ -101,6 +122,75 @@ assert.equal(created.outputName, '数学笔记')
  await page.getByRole('button', { name: '开始转换', exact: true }).click()
  assert.equal(postCount, 3)
  assert.equal(created.outputName, '数学讲义')
+
+ // Local files remain optional: only the generated URL enters the existing PB job contract.
+ await page.getByRole('tab', { name: '上传文件', exact: true }).click()
+ const fileInput = page.getByLabel('选择 PDF 文件', { exact: true })
+ const submit = page.getByRole('button', { name: '开始转换', exact: true })
+ assert.equal(await submit.isDisabled(), true)
+ await fileInput.setInputFiles({ name: 'book.txt', mimeType: 'text/plain', buffer: Buffer.from('not a pdf') })
+ await page.getByRole('alert').getByText('请选择 PDF 文件', { exact: true }).waitFor()
+ assert.equal(uploadCount, 0)
+
+ uploadMode = 'hold'
+ const firstRequest = page.waitForRequest('**/api/file-conversion/uploads')
+ await fileInput.setInputFiles(pdfFile('old.pdf'))
+ await firstRequest
+ await page.getByRole('button', { name: '取消上传', exact: true }).waitFor()
+ assert.equal(await submit.isDisabled(), true)
+ await page.getByRole('button', { name: '取消上传', exact: true }).click()
+ assert.equal(await submit.isDisabled(), true)
+ assert.equal(await page.getByLabel('上传文件链接', { exact: true }).count(), 0)
+
+ uploadMode = 'success'
+ await fileInput.setInputFiles(pdfFile())
+ const uploadedLink = page.getByLabel('上传文件链接', { exact: true })
+ await uploadedLink.waitFor()
+ assert.equal(await uploadedLink.inputValue(), 'https://ocr-files.any1.tech/fixtures/upload-2.pdf')
+ heldUploads.get(1)()
+ // A cancelled upload that finishes later must not replace a newer file's URL.
+ await page.getByText('已上传 · 讲义.pdf', { exact: true }).waitFor()
+ assert.equal(await uploadedLink.inputValue(), 'https://ocr-files.any1.tech/fixtures/upload-2.pdf')
+ await page.getByRole('button', { name: '复制上传链接', exact: true }).click()
+ await page.getByText('链接已复制', { exact: true }).waitFor()
+
+ uploadMode = 'hold'
+ const switchingRequest = page.waitForRequest('**/api/file-conversion/uploads')
+ await fileInput.setInputFiles(pdfFile('switch.pdf'))
+ await switchingRequest
+ await page.getByRole('tab', { name: '链接', exact: true }).click()
+ heldUploads.get(3)()
+ assert.equal(await page.getByLabel('PDF 源文件地址', { exact: true }).inputValue(), 'https://example.com/book.pdf')
+ await submit.click()
+ assert.equal(postCount, 4)
+ assert.equal(created.sourceUrl, 'https://example.com/book.pdf')
+
+ await page.getByRole('tab', { name: '上传文件', exact: true }).click()
+ uploadMode = 'failure'
+ await fileInput.setInputFiles(pdfFile())
+ await page.getByRole('alert').getByText('临时存储不可用，请稍后重试', { exact: true }).waitFor()
+ assert.equal(postCount, 4, 'upload failure cannot create a conversion job')
+ assert.equal(await submit.isDisabled(), true)
+ uploadMode = 'success'
+ await fileInput.setInputFiles(pdfFile())
+ await uploadedLink.waitFor()
+ assert.equal(await uploadedLink.inputValue(), 'https://ocr-files.any1.tech/fixtures/upload-5.pdf')
+ for (const colorScheme of ['light', 'dark']) {
+   await page.emulateMedia({ colorScheme })
+   for (const width of [320,390,760,1440]) {
+     await page.setViewportSize({ width, height: 1000 })
+     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `upload overflow ${colorScheme} ${width}`)
+     if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/pdf-upload-${colorScheme}-${width}.png`, fullPage: true })
+   }
+ }
+ await submit.click()
+ assert.equal(postCount, 5)
+ assert.equal(created.sourceUrl, 'https://ocr-files.any1.tech/fixtures/upload-5.pdf')
+ assert.equal(created.configId, 'config-1')
+ assert.equal('file' in created && created.file !== '', false, 'source PDFs never enter PocketBase files')
  assert.deepEqual(errors, [])
- console.log('PDF browser: submit, options, states, protected download and 320/390/760/1440 layouts passed')
-} finally { await browser.close() }
+ console.log('PDF browser: links, upload/cancel/retry, stale requests, job URL contract and responsive themes passed')
+} finally {
+ for (const release of heldUploads.values()) release()
+ await browser.close()
+}

@@ -10,6 +10,8 @@ import { Textarea } from '@/components/ui/textarea'
 import type { PdfJobInput, PdfPageRange } from '@/lib/api/file-conversion'
 import type { ConversionConfigState } from '../hooks/use-conversion-config'
 import type { ConversionJobsState } from '../hooks/use-conversion-jobs'
+import { usePdfUpload } from '../hooks/use-pdf-upload'
+import { ConversionSourceField, type PdfSourceMode } from './conversion-source-field'
 
 const MAX_TITLE_AS_NAME = 120
 
@@ -21,12 +23,15 @@ function readPage(value: string): number | undefined {
 export function ConversionForm({ config, jobs }: { config: ConversionConfigState; jobs: ConversionJobsState }) {
   const [range, setRange] = useState<PdfPageRange>({})
   const [error, setError] = useState('')
+  const [sourceMode, setSourceMode] = useState<PdfSourceMode>('link')
+  const [sourceUrl, setSourceUrl] = useState('')
+  const upload = usePdfUpload()
 
   const ready = Boolean(config.config) && !config.loading && !config.saving && !config.loadError
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (jobs.creating || config.loading) return
+    if (jobs.creating || config.loading || upload.uploading) return
     if (!config.config) {
       setError(config.loadError || '转换配置尚未加载，请刷新重试')
       return
@@ -41,11 +46,20 @@ export function ConversionForm({ config, jobs }: { config: ConversionConfigState
       setError('结束页不能小于起始页')
       return
     }
+    let selectedSourceUrl = text('sourceUrl')
+    if (sourceMode === 'upload') {
+      const uploaded = upload.uploaded
+      if (!uploaded || Date.parse(uploaded.expiresAt) <= Date.now()) {
+        setError(uploaded ? '上传链接已过期，请重新选择文件' : '请先上传 PDF 文件')
+        return
+      }
+      selectedSourceUrl = uploaded.sourceUrl
+    }
     setError('')
     jobs.clearCreateError()
     const input: PdfJobInput = {
       title: text('title'),
-      sourceUrl: text('sourceUrl'),
+      sourceUrl: selectedSourceUrl,
       outputName: text('outputName'),
       prompt: text('prompt'),
       configId: config.config.id,
@@ -69,21 +83,18 @@ export function ConversionForm({ config, jobs }: { config: ConversionConfigState
                 <FieldLabel htmlFor="pdf-title">任务名称</FieldLabel>
                 <Input id="pdf-title" name="title" required maxLength={200} placeholder="例如：数学讲义" />
               </Field>
-              <Field>
-                <FieldLabel htmlFor="pdf-source">PDF 源文件地址</FieldLabel>
-                <Input
-                  id="pdf-source"
-                  name="sourceUrl"
-                  type="url"
-                  required
-                  maxLength={4096}
-                  placeholder="https://…"
-                  aria-describedby="pdf-source-help"
-                />
-                <FieldDescription id="pdf-source-help">
-                  支持公开 PDF 直链或 Google Drive 分享链接，源文件不会存入文件库。
-                </FieldDescription>
-              </Field>
+              <ConversionSourceField
+                mode={sourceMode}
+                onModeChange={(mode) => {
+                  upload.cancel()
+                  setError('')
+                  jobs.clearCreateError()
+                  setSourceMode(mode)
+                }}
+                sourceUrl={sourceUrl}
+                onSourceUrlChange={setSourceUrl}
+                upload={upload}
+              />
               <Field>
                 <FieldLabel htmlFor="pdf-output">产物文件名（可选）</FieldLabel>
                 <Input
@@ -145,7 +156,7 @@ export function ConversionForm({ config, jobs }: { config: ConversionConfigState
           </ErrorAlert>
         </CardContent>
         <CardFooter className="flex-col items-stretch gap-2">
-          <Button type="submit" size="touch" className="w-full" disabled={jobs.creating || !ready}>
+          <Button type="submit" size="touch" className="w-full" disabled={jobs.creating || !ready || (sourceMode === 'upload' && (upload.uploading || !upload.uploaded))}>
             {jobs.creating ? <Spinner data-icon="inline-start" /> : <Play data-icon="inline-start" />}
             {jobs.creating ? '提交中…' : '开始转换'}
           </Button>

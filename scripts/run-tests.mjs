@@ -2,6 +2,7 @@ const testFiles = [
   'recurrence.test.mjs',
   'runtime-config.test.mjs',
   'pdf-api.test.mjs',
+  'pdf-upload-api.test.mjs',
   'event-structure.test.mjs',
   'browser-executor.test.mjs',
   'workflow-dsl.test.mjs',

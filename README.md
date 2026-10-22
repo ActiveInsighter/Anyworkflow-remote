@@ -302,7 +302,9 @@ Event 队列中的消息块和轮询组支持 `}*N` 重复后缀，`N` 为 1–1
 ## 文件转换
 
 侧边栏的 `文件转换` 页面（新路径 `/file-converter`，旧路径 `/pdf-to-md` 继续兼容）
-支持公开 PDF / Google Drive 地址、任务名称、ZIP 和合并 Markdown 文件名、页码范围、
+支持公开 PDF / Google Drive 地址，也可选择「上传文件」从本机上传 PDF（最大 90 MiB）。
+原有链接入口仍为默认；本机文件上传成功后生成 HTTPS `.pdf` 链接，复用同一任务提交与转换流程。
+页面同时支持任务名称、ZIP 和合并 Markdown 文件名、页码范围、
 提示词及转换器高级参数。当前处理器为 `pdf_to_md`，后续转换器可以复用同一页面、配置
 和任务模型。
 
@@ -310,6 +312,22 @@ Event 队列中的消息块和轮询组支持 `}*N` 重复后缀，`N` 为 1–1
 后端会把配置版本和参数快照写入 `aw_pdf_to_md_jobs`，避免排队期间修改配置影响任务。
 任务历史每 5 秒刷新，支持分页、GitHub 运行详情和受保护 ZIP 下载。
 源 PDF 不上传 PocketBase；文件库只保留最终 ZIP。
+
+本机文件通过 Remote 的同源 `PUT /api/file-conversion/uploads` 流式写入独立 R2 桶
+`anyworkflow-ocr-relay`，通过 `https://ocr-files.any1.tech` 公开读取，GitHub Runner 和百度
+均使用该源链接。上传请求须通过 `https://pb.any1.tech` 的 `aw_clients` 会话认证；服务端不接受
+任意 PocketBase 地址。Cloudflare 凭据不进入浏览器，Worker 通过 `PDF_UPLOADS` 绑定访问 R2，
+无需在转换仓库配置 R2 Access Key。
+
+上传支持进度、取消与重试。文件名使用随机 UUID；持有链接者可以访问文件，因此请仅上传适合
+通过链接分享的 PDF。R2 已启用一天后到期的清理规则；实际删除异步执行，通常在到期后 24 小时内完成，
+不承诺上传满 24 小时立即失效。`r2.dev` 保持禁用。不要为这些临时链接安排隔天才开始的转换；
+过期后的任务重跑需重新上传文件。
+
+Worker 配置位于 `wrangler.jsonc`，入口为 `worker/index.ts`。`/api/*` 先进入 Worker，
+其他地址继续使用原有静态资源与 SPA fallback。`npm run preflight` 包含 Worker 类型检查和
+本地 workerd/R2 上传回归测试，测试不会向生产 R2 写入文件。
+生产资源、部署配置与实测结果见 [PDF 上传中转](docs/r2-relay.md)。
 
 后端需先部署 AnyWorkflow-workers 中的配置 migration、`aw_pdf_to_md_jobs` 验证 hook、
 独立 `pdf` 镜像。
