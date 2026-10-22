@@ -13,7 +13,9 @@
 - Remote Worker：`anyworkflow-remote`，通过 `PDF_UPLOADS` 绑定写入
 
 上传最大 2 GiB，使用 32 MiB 分片、最多 3 片并行。每片独立重试，完成后生成原有格式的 PDF 链接。
-仅接受 PDF 扩展名与 `%PDF-` 文件头；按实际流量校验分片长度与最终文件大小。对象 key 为随机 UUID，
+仅接受 PDF 扩展名与 `%PDF-` 文件头；分片长度由 `FixedLengthStream` 原生校验，文件头从 `tee()` 分支读取前 5 字节，
+合并后再用 R2 范围读取复核。不要在分片流上加逐块 JavaScript 转换：32 MiB 分片会消耗约 1 s CPU，
+并发分片会触发 Worker CPU 限制（503）。对象 key 为随机 UUID，
 不含原文件名或用户 ID，响应和对象设置 `Cache-Control: no-store`。公开链接无需认证，
 持有链接者可以读取。一天后到期的删除由 R2 异步执行，不能作为精确的访问失效时间。
 
