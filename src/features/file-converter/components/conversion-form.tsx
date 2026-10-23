@@ -158,7 +158,7 @@ export function ConversionForm({ config, jobs }: { config: ConversionConfigState
                 <FieldContent>
                   <FieldLabel htmlFor="pdf-adjacent">附带相邻页</FieldLabel>
                   <FieldDescription id="pdf-adjacent-help">
-                    同时发送上一页底部和下一页顶部，补全跨页截断的句子、公式和表格行。
+                    附带上一页底部和下一页顶部截图，辅助辨认本页边缘内容。
                   </FieldDescription>
                 </FieldContent>
                 <Switch

@@ -61,7 +61,7 @@ export function ConversionConfigSheet({ config }: { config: ConversionConfigStat
                   aria-describedby="pdf-system-prompt-help"
                 />
                 <FieldDescription id="pdf-system-prompt-help" className="flex justify-between gap-3">
-                  <span>所有任务共用，留空保存时恢复默认</span>
+                  <span>完整转录与校对要求，保存后对新任务生效；留空恢复默认</span>
                   <span className="shrink-0 tabular-nums">
                     {config.systemPrompt.length} / {MAX_SYSTEM_PROMPT_CHARS}
                   </span>

@@ -69,7 +69,7 @@ await context.route('https://pb.example.invalid/**', async route => {
      config = { ...config, ...req.postDataJSON(), revision: config.revision + 1 }
      return route.fulfill({ json: config })
    }
-   config = config || { id: 'config-1', owner: 'owner-1', conversionType: 'pdf_to_md', name: '默认配置', revision: 1, options: { images_per_request: 1, concurrency: 5, dpi: 240, jpeg_quality: 95, verification_passes: 0, rpm_per_key: 15, rpd_per_key: 500, thinking_level: 'high', image_format: 'png', media_resolution: 'ultra_high', model: 'gemini-3.5-flash-lite' } }
+   config = config || { id: 'config-1', owner: 'owner-1', conversionType: 'pdf_to_md', name: '默认配置', revision: 1, systemPrompt: '前端保存的完整转录规则', options: { images_per_request: 1, concurrency: 5, dpi: 240, jpeg_quality: 95, verification_passes: 0, rpm_per_key: 15, rpd_per_key: 500, thinking_level: 'high', image_format: 'png', media_resolution: 'ultra_high', model: 'gemini-3.5-flash-lite' } }
    return route.fulfill({ json: { items: [config], totalItems: 1, totalPages: 1, page: 1, perPage: 20 } })
  }
  if (req.method() === 'POST' && url.pathname.includes('/aw_pdf_to_md_jobs/records')) {
@@ -80,7 +80,7 @@ await context.route('https://pb.example.invalid/**', async route => {
      created = { ...created, id: body.id, rerunOf: body.rerunOf, status: 'queued', cancelRequested: false, file: '', githubRunId: '', created: new Date().toISOString() }
      mode = 'created'; return route.fulfill({ json: created })
    }
-   created = { ...body, outputName: body.outputName || body.title, file: '', githubRunId: '123', status: 'queued', options: { ...config.options, adjacent_pages: Boolean(body.adjacentPages), ...(body.startPage !== undefined ? { start_page: body.startPage } : {}), ...(body.endPage !== undefined ? { end_page: body.endPage } : {}) }, created: new Date().toISOString(), updated: new Date().toISOString() }
+   created = { ...body, systemPrompt: config.systemPrompt, outputName: body.outputName || body.title, file: '', githubRunId: '123', status: 'queued', options: { ...config.options, adjacent_pages: Boolean(body.adjacentPages), ...(body.startPage !== undefined ? { start_page: body.startPage } : {}), ...(body.endPage !== undefined ? { end_page: body.endPage } : {}) }, created: new Date().toISOString(), updated: new Date().toISOString() }
    mode = 'created'; return route.fulfill({ json: created })
  }
  if (req.method() === 'PATCH' && url.pathname.includes('/aw_pdf_to_md_jobs/records/')) {
@@ -108,6 +108,9 @@ try {
      .every(control => control.getBoundingClientRect().right <= element.getBoundingClientRect().right + 0.5)), `sheet controls clipped ${width}`)
    if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/pdf-config-${width}.png` })
  }
+ const promptInput = sheet.getByLabel('系统提示词', { exact: true })
+ assert.equal(await promptInput.inputValue(), '前端保存的完整转录规则')
+ await promptInput.fill('按图片与 OCR 草稿转录，保留脚注和表格。')
  const concurrency = page.getByLabel('并发请求数', { exact: true })
  await concurrency.fill('600')
  await page.getByRole('button', { name: '保存配置', exact: true }).click()
@@ -120,6 +123,8 @@ try {
  await page.getByRole('button', { name: '保存配置', exact: true }).click()
  await page.getByText(/配置已保存/u).waitFor()
  assert.equal(configPatchCount, 1)
+ assert.equal(config.systemPrompt, '按图片与 OCR 草稿转录，保留脚注和表格。')
+ await promptInput.fill('这个未保存的草稿不能进入新任务')
  await concurrency.fill('80')
  await page.keyboard.press('Escape')
  await sheet.waitFor({ state: 'hidden' })
@@ -140,6 +145,7 @@ try {
  assert.equal(postCount, 1)
 assert.equal(created.outputName, '数学笔记')
  assert.equal(created.configId, 'config-1')
+ assert.equal(created.systemPrompt, '按图片与 OCR 草稿转录，保留脚注和表格。')
  assert.equal(created.options.concurrency, 60)
  assert.equal(created.options.start_page, 1)
  assert.equal(created.adjacentPages, true)
@@ -231,6 +237,7 @@ assert.equal(created.outputName, '数学笔记')
  assert.equal(postCount, 5)
  assert.equal(created.sourceUrl, 'https://ocr-files.any1.tech/fixtures/upload-5.pdf')
  assert.equal(created.configId, 'config-1')
+ assert.equal(created.systemPrompt, '按图片与 OCR 草稿转录，保留脚注和表格。')
  assert.equal('file' in created && created.file !== '', false, 'source PDFs never enter PocketBase files')
 
  // A real sparse local file above 90 MiB proves the browser sends bounded,
