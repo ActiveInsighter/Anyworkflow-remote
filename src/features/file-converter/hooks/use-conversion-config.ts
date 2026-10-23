@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { toErrorMessage } from '@/lib/api/errors'
 import {
   DEFAULT_PDF_TO_MD_OPTIONS,
+  DEFAULT_PDF_SYSTEM_PROMPT,
   getPdfConversionConfig,
   savePdfConversionConfig,
   type FileConversionConfig,
@@ -26,7 +27,7 @@ export function useConversionConfig() {
   const [config, setConfig] = useState<FileConversionConfig | null>(null)
   const [options, setOptions] = useState<PdfConversionOptions>(DEFAULT_PDF_TO_MD_OPTIONS)
   const [numberText, setNumberTextState] = useState<NumericDraft>(() => numberDrafts(DEFAULT_PDF_TO_MD_OPTIONS))
-  const [systemPrompt, setSystemPromptState] = useState('')
+  const [systemPrompt, setSystemPromptState] = useState(DEFAULT_PDF_SYSTEM_PROMPT)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [loadError, setLoadError] = useState('')

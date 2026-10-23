@@ -1,4 +1,4 @@
-import { Save, SlidersHorizontal } from 'lucide-react'
+import { RotateCcw, Save, SlidersHorizontal } from 'lucide-react'
 import { ErrorAlert } from '@/components/feedback/error-alert'
 import { Button } from '@/components/ui/button'
 import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field'
@@ -7,7 +7,7 @@ import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
-import { MAX_SYSTEM_PROMPT_CHARS, type PdfConversionOptions } from '@/lib/api/file-conversion'
+import { DEFAULT_PDF_SYSTEM_PROMPT, MAX_SYSTEM_PROMPT_CHARS, type PdfConversionOptions } from '@/lib/api/file-conversion'
 import type { ConversionConfigState } from '../hooks/use-conversion-config'
 import {
   choiceAppliesTo,
@@ -49,7 +49,13 @@ export function ConversionConfigSheet({ config }: { config: ConversionConfigStat
           <fieldset disabled={disabled} className="min-w-0">
             <FieldGroup className="gap-7">
               <Field>
-                <FieldLabel htmlFor="pdf-system-prompt">系统提示词</FieldLabel>
+                <div className="flex items-center justify-between gap-3">
+                  <FieldLabel htmlFor="pdf-system-prompt">系统提示词</FieldLabel>
+                  <Button type="button" variant="ghost" size="touch" disabled={disabled} onClick={() => config.setSystemPrompt(DEFAULT_PDF_SYSTEM_PROMPT)}>
+                    <RotateCcw data-icon="inline-start" />
+                    恢复默认
+                  </Button>
+                </div>
                 <Textarea
                   id="pdf-system-prompt"
                   name="systemPrompt"
@@ -60,9 +66,9 @@ export function ConversionConfigSheet({ config }: { config: ConversionConfigStat
                   onChange={(event) => config.setSystemPrompt(event.target.value)}
                   aria-describedby="pdf-system-prompt-help"
                 />
-                <FieldDescription id="pdf-system-prompt-help" className="flex justify-between gap-3">
-                  <span>所有任务共用，留空保存时恢复默认</span>
-                  <span className="shrink-0 tabular-nums">
+                <FieldDescription id="pdf-system-prompt-help" className="flex min-w-0 justify-between gap-3">
+                  <span className="min-w-0 flex-1">转录与校对要求均在此编辑；留空恢复默认</span>
+                  <span className="shrink-0 whitespace-nowrap tabular-nums">
                     {config.systemPrompt.length} / {MAX_SYSTEM_PROMPT_CHARS}
                   </span>
                 </FieldDescription>

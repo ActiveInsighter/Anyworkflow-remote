@@ -1,5 +1,8 @@
+import { DEFAULT_PDF_SYSTEM_PROMPT } from '../file-conversion-prompt'
 import { ApiError, assertOwner, listOwnedCollection, quoteFilter, request } from './client'
 import { requireSession } from './session'
+
+export { DEFAULT_PDF_SYSTEM_PROMPT } from '../file-conversion-prompt'
 
 export const FILE_CONVERSION_CONFIG_COLLECTION = 'aw_file_conversion_configs'
 export const FILE_CONVERSION_JOB_COLLECTION = 'aw_pdf_to_md_jobs'
@@ -163,8 +166,8 @@ function normalizeOptions(raw: unknown): PdfConversionOptions {
 }
 
 function normalizeSystemPrompt(raw: unknown): string {
-  // Older backends have no field yet: an absent value means "use the built-in
-  // prompt", which PocketBase replaces with the stored default on save.
+  // Missing values are initialized and persisted by getPdfConversionConfig
+  // before a new task can snapshot this profile.
   if (raw === undefined || raw === null || raw === '') return ''
   if (typeof raw !== 'string') throw new ApiError('转换配置返回格式无效', 502, 'INVALID_CONFIG_RESPONSE')
   const text = raw.trim()
@@ -179,6 +182,20 @@ function normalizeConfig(record: FileConversionConfig): FileConversionConfig {
   return { ...record, systemPrompt: normalizeSystemPrompt(record.systemPrompt), options: normalizeOptions(record.options) }
 }
 
+// Coalesce initialization during React StrictMode's repeated mount effects.
+const promptInitializations = new Map<string, Promise<FileConversionConfig>>()
+
+function withPersistedPrompt(config: FileConversionConfig): Promise<FileConversionConfig> {
+  if (config.systemPrompt) return Promise.resolve(config)
+  const key = `${requireSession().baseUrl}:${config.owner}:${config.id}`
+  const pending = promptInitializations.get(key)
+  if (pending) return pending
+  const saving = savePdfConversionConfig(config, config.options, DEFAULT_PDF_SYSTEM_PROMPT)
+    .finally(() => { promptInitializations.delete(key) })
+  promptInitializations.set(key, saving)
+  return saving
+}
+
 export async function getPdfConversionConfig(signal?: AbortSignal): Promise<FileConversionConfig> {
   const owner = requireSession().record.id
   const listed = await listOwnedCollection<FileConversionConfig>(FILE_CONVERSION_CONFIG_COLLECTION, {
@@ -187,19 +204,25 @@ export async function getPdfConversionConfig(signal?: AbortSignal): Promise<File
     sort: '-updated,-id',
     filter: `owner="${quoteFilter(owner)}" && conversionType="${PDF_CONVERSION_TYPE}"`,
   }, normalizeConfig, signal)
-  if (listed.items[0]) return listed.items[0]
+  if (listed.items[0]) {
+    const saved = listed.items[0]
+    // Persist the visible default before a task can snapshot this profile.
+    return withPersistedPrompt(saved)
+  }
 
   const data = {
     id: newRecordId(),
     owner,
     conversionType: PDF_CONVERSION_TYPE,
     name: '默认配置',
+    systemPrompt: DEFAULT_PDF_SYSTEM_PROMPT,
     options: DEFAULT_PDF_TO_MD_OPTIONS,
   }
   try {
-    return normalizeConfig(assertOwner(await request<FileConversionConfig>(`/api/collections/${FILE_CONVERSION_CONFIG_COLLECTION}/records`, {
+    const created = normalizeConfig(assertOwner(await request<FileConversionConfig>(`/api/collections/${FILE_CONVERSION_CONFIG_COLLECTION}/records`, {
       method: 'POST', data, signal,
     })))
+    return withPersistedPrompt(created)
   } catch (error) {
     // A second tab may have won the unique (owner, conversionType) race.
     const retry = await listOwnedCollection<FileConversionConfig>(FILE_CONVERSION_CONFIG_COLLECTION, {
@@ -208,7 +231,10 @@ export async function getPdfConversionConfig(signal?: AbortSignal): Promise<File
       sort: '-updated,-id',
       filter: `owner="${quoteFilter(owner)}" && conversionType="${PDF_CONVERSION_TYPE}"`,
     }, normalizeConfig, signal)
-    if (retry.items[0]) return retry.items[0]
+    if (retry.items[0]) {
+      const saved = retry.items[0]
+      return withPersistedPrompt(saved)
+    }
     throw error
   }
 }
@@ -217,11 +243,13 @@ export async function savePdfConversionConfig(config: FileConversionConfig, opti
   assertOwner(config)
   const normalized = normalizeOptions(options)
   if (systemPrompt.trim().length > MAX_SYSTEM_PROMPT_CHARS) throw new ApiError(`系统提示词不能超过 ${MAX_SYSTEM_PROMPT_CHARS} 个字符`, 400, 'PROMPT_TOO_LONG')
-  const prompt = normalizeSystemPrompt(systemPrompt)
-  return normalizeConfig(assertOwner(await request<FileConversionConfig>(
+  const prompt = normalizeSystemPrompt(systemPrompt) || DEFAULT_PDF_SYSTEM_PROMPT
+  const saved = normalizeConfig(assertOwner(await request<FileConversionConfig>(
     `/api/collections/${FILE_CONVERSION_CONFIG_COLLECTION}/records/${encodeURIComponent(config.id)}`,
     { method: 'PATCH', data: { options: normalized, systemPrompt: prompt } },
   )))
+  if (saved.systemPrompt !== prompt) throw new ApiError('后端未保存提示词，请更新后端文件转换配置后重试', 502, 'PROMPT_NOT_PERSISTED')
+  return saved
 }
 
 export function listPdfJobs(page: number, signal?: AbortSignal) {
