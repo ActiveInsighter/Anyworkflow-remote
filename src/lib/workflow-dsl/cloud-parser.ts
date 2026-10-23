@@ -1,6 +1,6 @@
 /** Run/Task level parsing: directives, `@for` ranges and block extraction, as the cloud compiler sees them. */
 import { DiagnosticCollector } from './diagnostics.ts'
-import { UTF8_ENCODER, globalLine, lineEnd, matchingBrace, normalizeNewlines, stripQuotes, substitute } from './text.ts'
+import { UTF8_ENCODER, globalLine, lineEnd, loopHeaderNames, matchingBrace, normalizeNewlines, stripQuotes, substitute, substituteScoped } from './text.ts'
 import { DEFAULT_START_URL, START_URL_VARIABLE, VARIABLE_DECLARATION, WORKFLOW_DSL_LIMITS, type CloudBlock, type CloudBlockKind, type CloudConfig, type CloudLevel, type CloudLevelResult, type ParseBudget, type TemplateVars } from './types.ts'
 
 export function parseRangeValues(
@@ -128,6 +128,8 @@ export function parseCloudLevel(
     titleDirective: CloudLevel
     blockKinds: CloudBlockKind[]
     inheritedVars?: TemplateVars
+    /** Names bound by the enclosing `@for` blocks of this level, innermost last. */
+    loopNames?: readonly string[]
     lineBase: number
     depth: number
     budget: ParseBudget
@@ -145,8 +147,8 @@ export function parseCloudLevel(
   const blocks: CloudBlock[] = []
   let failed = false
 
-  if (options.depth > WORKFLOW_DSL_LIMITS.maxNesting) {
-    options.collector.add(options.lineBase + 1, `工作流循环嵌套不能超过 ${WORKFLOW_DSL_LIMITS.maxNesting} 层。`)
+  if (options.depth > WORKFLOW_DSL_LIMITS.maxLoopNesting) {
+    options.collector.add(options.lineBase + 1, `@for 循环最多嵌套 ${WORKFLOW_DSL_LIMITS.maxLoopNesting} 层。`)
     return { config, vars, blocks, failed: true }
   }
 
@@ -194,7 +196,15 @@ export function parseCloudLevel(
       const body = text.slice(openAt + 1, closeAt)
       const bodyLineBase = globalLine(text, openAt, options.lineBase) - 1
       if (blockMatch) {
-        const expandedBody = substitute(body, vars)
+        // Upper levels substitute %name% across the whole body, so a nested loop reusing a name
+        // already in scope would silently see the outer value. Reject it like the compiler does.
+        const clash = loopHeaderNames(body).find((name) => Object.prototype.hasOwnProperty.call(vars, name))
+        if (clash) {
+          options.collector.add(currentLine, `@for 变量 ${clash} 已被外层 @for 或 @let 使用，请换一个名称。`)
+          failed = true
+          break
+        }
+        const expandedBody = substituteScoped(body, vars)
         budget.expandedBytes += UTF8_ENCODER.encode(expandedBody).byteLength
         if (budget.expandedBytes > WORKFLOW_DSL_LIMITS.maxExpandedPlanBytes) {
           options.collector.add(currentLine, '展开后的工作流定义超过 32 MiB。')
@@ -216,6 +226,11 @@ export function parseCloudLevel(
         }
       } else {
         const name = loopMatch?.[1] ?? ''
+        if (options.loopNames?.includes(name)) {
+          options.collector.add(currentLine, `@for 变量 ${name} 已被外层 @for 使用，请换一个名称。`)
+          failed = true
+          break
+        }
         const args = substitute(loopMatch?.[2] ?? '', vars)
         const values = parseRangeValues(args, options.collector, currentLine, WORKFLOW_DSL_LIMITS.maxLoopItems)
         if (values === null) {
@@ -235,9 +250,10 @@ export function parseCloudLevel(
             index: value,
             count: values.length,
           }
-          const nested = parseCloudLevel(substitute(body, loopVars), {
+          const nested = parseCloudLevel(substituteScoped(body, loopVars), {
             ...options,
             inheritedVars: loopVars,
+            loopNames: [...(options.loopNames ?? []), name],
             lineBase: bodyLineBase,
             depth: options.depth + 1,
           })

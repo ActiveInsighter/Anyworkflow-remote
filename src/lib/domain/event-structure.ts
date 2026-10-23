@@ -1,3 +1,5 @@
+import { loopBlockRanges } from '../workflow-dsl/text.ts'
+
 export interface EventActStructure {
   id: string
   title: string
@@ -153,6 +155,46 @@ function rangeCount(header: string): number {
   return distance < 0 ? 0 : Math.max(0, Math.floor(distance / Math.abs(step)) + 1)
 }
 
+interface LoopAct {
+  title: string
+  messageCount: number
+}
+
+/** The `@event=` title set by the directives that open a body, before any message or block. */
+function leadingEventTitle(body: string): string {
+  for (const raw of normalize(body).split('\n')) {
+    const line = raw.trim()
+    if (!line) continue
+    const match = line.match(/^@event\s*=\s*(.*?)\s*$/iu)
+    if (match) return match[1]?.trim() ?? ''
+    if (!/^@(?:task|repeat|start|step|let|var)\b/iu.test(line)) break
+  }
+  return ''
+}
+
+/**
+ * Acts produced by one `@for`, in the order the browser runs them. A body holding further loops
+ * multiplies by their acts; the innermost body supplies the messages and, unless it names itself,
+ * inherits the nearest enclosing `@event=` title.
+ */
+function loopActs(header: string, body: string, inheritedTitle: string): LoopAct[] {
+  const iterations = Math.max(1, rangeCount(header))
+  const nested = loopBlockRanges(body)
+  if (!nested.length) {
+    const act = { title: eventTitle(body, '') || inheritedTitle, messageCount: countMessages(body) }
+    return Array.from({ length: iterations }, () => act)
+  }
+
+  const title = leadingEventTitle(body) || inheritedTitle
+  const inner = nested.flatMap(([from, to]) => {
+    const block = body.slice(from, to)
+    const openAt = block.indexOf('{')
+    const headerLine = block.slice(0, openAt + 1).trim()
+    return loopActs(headerLine, block.slice(openAt + 1, block.endsWith('}') ? block.length - 1 : block.length), title)
+  })
+  return Array.from({ length: iterations }, () => inner).flat()
+}
+
 export function parseEventActs(queueText: string): EventActStructure[] {
   const text = normalize(queueText)
   const acts: EventActStructure[] = []
@@ -177,14 +219,15 @@ export function parseEventActs(queueText: string): EventActStructure[] {
     const body = text.slice(openAt + 1, bodyEnd)
     consumed.push([cursor, bodyEnd + 1])
 
-    const count = countMessages(body)
-    const instances = loop ? Math.max(1, rangeCount(line)) : 1
-    for (let index = 0; index < instances; index += 1) {
+    const generated: LoopAct[] = loop
+      ? loopActs(line, body, '')
+      : [{ title: eventTitle(body, ''), messageCount: countMessages(body) }]
+    for (const item of generated) {
       const number = acts.length + 1
       acts.push({
         id: `act-${number}`,
-        title: eventTitle(body, `Act ${number}`),
-        messageCount: count,
+        title: item.title || `Act ${number}`,
+        messageCount: item.messageCount,
       })
     }
     cursor = bodyEnd + 1

@@ -77,10 +77,18 @@ export const anyWorkflowHighlightStyle = HighlightStyle.define([
 
 type DslContext = WorkflowDslContext
 
-export { planStructuredInsert, planSmartCopy, planSmartDelete } from './editor-commands.ts'
-export type { StructuredInsertKind, StructuredInsertPlan, SmartCopyPlan, SmartDeletePlan } from './editor-commands.ts'
+import { loopScopeAt } from './editor-commands.ts'
+
+export { LOOP_VARIABLE_NAMES, loopScopeAt, planLoopInsert, planStructuredInsert, planSmartCopy, planSmartDelete } from './editor-commands.ts'
+export type { LoopInsertPlan, LoopScope, StructuredInsertKind, StructuredInsertPlan, SmartCopyPlan, SmartDeletePlan } from './editor-commands.ts'
 
 export const collectUsableVariables = collectWorkflowVariables
+
+/** Default variable for a loop inserted at `at`, or null when the nesting limit is reached. */
+function loopNameAt(source: string, at: number): string | null {
+  const scope = loopScopeAt(source, at)
+  return scope.ok ? scope.name : null
+}
 
 function applyVariableCompletion(
   view: EditorView,
@@ -114,7 +122,7 @@ function variableOptions(source: string, at: number): Completion[] {
   }))
 }
 
-function directiveOptions(context: DslContext): Completion[] {
+function directiveOptions(context: DslContext, loopName: string | null): Completion[] {
   const shared: Completion[] = [
     { label: '@mode', type: 'keyword', detail: 'serial | parallel', apply: '@mode=serial' },
     { label: '@maxConcurrency', type: 'keyword', detail: '1–16', apply: '@maxConcurrency=2' },
@@ -124,7 +132,9 @@ function directiveOptions(context: DslContext): Completion[] {
     return [
       ...shared,
       snippetCompletion('@task ${任务名称} {\n  @mode=serial\n\n  ${}\n}', { label: '@task', type: 'keyword', detail: 'Task 块' }),
-      snippetCompletion('@for ${i} in range(1, 3) {\n  @task ${任务名称} {\n    ${}\n  }\n}', { label: '@for', type: 'keyword', detail: 'Task 循环' }),
+      ...(loopName
+        ? [snippetCompletion('@for ${' + loopName + '} in range(1, 3) {\n  @task ${任务名称} {\n    ${}\n  }\n}', { label: '@for', type: 'keyword', detail: 'Task 循环' })]
+        : []),
     ]
   }
 
@@ -134,12 +144,17 @@ function directiveOptions(context: DslContext): Completion[] {
       snippetCompletion('@let ${name}=${value}', { label: '@let', type: 'keyword', detail: 'Task 变量' }),
       snippetCompletion('@let start_url=${}', { label: '@let start_url', type: 'keyword', detail: '起始链接' }),
       snippetCompletion('@event ${执行单元} {\n  {\n    ${消息}\n  }\n}', { label: '@event', type: 'keyword', detail: 'Event 块' }),
-      snippetCompletion('@for ${i} in range(1, 3) {\n  @event ${执行单元} {\n    {\n      ${消息}\n    }\n  }\n}', { label: '@for', type: 'keyword', detail: 'Event 循环' }),
+      ...(loopName
+        ? [snippetCompletion('@for ${' + loopName + '} in range(1, 3) {\n  @event ${执行单元} {\n    {\n      ${消息}\n    }\n  }\n}', { label: '@for', type: 'keyword', detail: 'Event 循环' })]
+        : []),
     ]
   }
 
   return [
     snippetCompletion('@act {\n  @event=${事件名称}\n  {\n    ${消息}\n  }\n}', { label: '@act', type: 'keyword', detail: 'Act 块' }),
+    ...(loopName
+      ? [snippetCompletion('@for ${' + loopName + '} in range(1, 3) {\n  {\n    ${消息}\n  }\n}', { label: '@for', type: 'keyword', detail: '消息循环' })]
+      : []),
     snippetCompletion('{\n  ${消息}\n}', { label: '{ message }', type: 'text', detail: '消息块' }),
     snippetCompletion('<${链接}>', { label: '<链接>', type: 'text', detail: '打开页面' }),
   ]
@@ -181,10 +196,10 @@ export function anyWorkflowCompletion(context: CompletionContext): CompletionRes
 
   const directive = context.matchBefore(/@[A-Za-z]*$/u)
   if (directive) {
-    return { from: directive.from, options: directiveOptions(workflowContextAt(source, context.pos)), validFor: /^@[A-Za-z]*$/u }
+    return { from: directive.from, options: directiveOptions(workflowContextAt(source, context.pos), loopNameAt(source, directive.from)), validFor: /^@[A-Za-z]*$/u }
   }
 
-  if (context.explicit) return { from: context.pos, options: directiveOptions(workflowContextAt(source, context.pos)) }
+  if (context.explicit) return { from: context.pos, options: directiveOptions(workflowContextAt(source, context.pos), loopNameAt(source, context.pos)) }
   return null
 }
 

@@ -96,6 +96,7 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
           insertStructured: commands.insertStructured,
           insert: commands.insert,
           insertVariable: commands.insertVariableReference,
+          insertLoop: commands.insertLoop,
           smartDelete: commands.runSmartDelete,
           undo: commands.runUndo,
           redo: commands.runRedo,

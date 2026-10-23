@@ -29,6 +29,7 @@ export interface EditorToolbarActions {
   insertStructured: (kind: StructuredInsertKind) => void
   insert: (text: string, cursorOffset?: number, selectionLength?: number) => void
   insertVariable: () => void
+  insertLoop: () => void
   smartDelete: () => void
   undo: () => void
   redo: () => void
@@ -52,7 +53,7 @@ const INSERT_TOOLS: ToolItem[] = [
   { icon: Braces, label: 'Task', hint: '追加到 Run 最外层', run: (a) => a.insertStructured('task') },
   { icon: Zap, label: 'Event', hint: '添加到光标所在 Task', run: (a) => a.insertStructured('event') },
   { icon: ListTree, label: 'Act', hint: '添加到光标所在 Event', run: (a) => a.insertStructured('act') },
-  { icon: Repeat, label: '循环', hint: '插入循环', run: (a) => a.insert('@for i in range(1, 3) {\n  \n}\n', 5, 1) },
+  { icon: Repeat, label: '循环', hint: '插入循环，嵌套时变量依次为 i、j、k，最多 3 层', run: (a) => a.insertLoop() },
   { icon: Variable, label: '变量', hint: '添加到光标所在 Task 的变量区', run: (a) => a.insertStructured('variable') },
   { icon: Percent, label: '使用变量', hint: '插入 %% 并选择当前位置可用变量', run: (a) => a.insertVariable() },
   { icon: Braces, label: '消息块', hint: '插入 { }', run: (a) => a.insert('{\n\n}', 2) },

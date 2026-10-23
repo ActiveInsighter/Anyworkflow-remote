@@ -1,4 +1,4 @@
-import { collectWorkflowVariables } from '../../../lib/workflow-dsl/index.ts'
+import { WORKFLOW_DSL_LIMITS, collectWorkflowVariables } from '../../../lib/workflow-dsl/index.ts'
 import {
   containingBlock,
   lineEndAfter,
@@ -9,6 +9,76 @@ import {
 } from './source-structure.ts'
 
 export type StructuredInsertKind = 'task' | 'event' | 'act' | 'variable'
+
+/** Default names for nested loops, outermost first; later ones are taken when these are in scope. */
+export const LOOP_VARIABLE_NAMES = ['i', 'j', 'k'] as const
+
+export type LoopScope = { ok: true; depth: number; name: string } | { ok: false; message: string }
+
+function firstFreeLoopName(used: ReadonlySet<string>): string {
+  for (let suffix = 1; ; suffix += 1) {
+    for (const base of LOOP_VARIABLE_NAMES) {
+      const name = suffix === 1 ? base : `${base}${suffix}`
+      if (!used.has(name)) return name
+    }
+  }
+}
+
+/**
+ * Where a new `@for` may go and what to call it. Nesting is counted per level (Run, Task, Event
+ * queue), the way the compiler limits it; the name is the first of i, j, k not already in scope
+ * anywhere above the cursor, because an upper level would otherwise substitute it first.
+ */
+export function loopScopeAt(source: string, at: number): LoopScope {
+  const point = Math.max(0, Math.min(at, source.length))
+  const enclosing = readSourceStructure(source).blocks.filter((block) =>
+    block.kind !== null && block.openAt < point && (block.closeAt < 0 || point <= block.closeAt),
+  )
+  const innermost = enclosing.at(-1)
+  if (innermost?.kind === 'message') return { ok: false, message: '消息块里不能放循环，请把光标移到消息块外。' }
+  if (innermost?.kind === 'act') return { ok: false, message: 'Act 里不能放循环，请把循环放在 Act 外，或在循环里写消息。' }
+
+  const container = [...enclosing].reverse().find((block) => block.kind === 'task' || block.kind === 'event')
+  const depth = enclosing.filter((block) => block.kind === 'for' && block.openAt > (container?.openAt ?? -1)).length
+  const max = WORKFLOW_DSL_LIMITS.maxLoopNesting
+  if (depth >= max) return { ok: false, message: `循环最多嵌套 ${max} 层。` }
+  return { ok: true, depth, name: firstFreeLoopName(new Set(collectWorkflowVariables(source, point))) }
+}
+
+export type LoopInsertPlan =
+  | { ok: true; from: number; text: string; cursorOffset: number; selectionLength: number }
+  | { ok: false; message: string }
+
+/**
+ * Inserts an empty loop on its own lines, indented like the line it lands beside. A cursor in the
+ * middle of a line drops the loop on the next line (inside the block when that line opens one), so
+ * existing text is never split or replaced.
+ */
+export function planLoopInsert(source: string, at: number): LoopInsertPlan {
+  const point = Math.max(0, Math.min(at, source.length))
+  const scope = loopScopeAt(source, point)
+  if (!scope.ok) return scope
+
+  const lineFrom = lineStartAt(source, point)
+  const prefix = source.slice(lineFrom, point)
+  const atLineStart = prefix.trim() === ''
+  const line = source.slice(lineFrom, lineEndAfter(source, point)).replace(/\r?\n$/u, '')
+  const lineIndent = line.match(/^[ \t]*/u)?.[0] ?? ''
+  const indent = atLineStart ? prefix : lineIndent + (line.trimEnd().endsWith('{') ? '  ' : '')
+
+  const from = atLineStart ? point : lineEndAfter(source, point)
+  const separator = !atLineStart && !source.endsWith('\n') && from === source.length ? '\n' : ''
+  // At a line start the indentation already in the document leads the first line.
+  const firstIndent = atLineStart ? '' : indent
+  const text = `${separator}${firstIndent}@for ${scope.name} in range(1, 3) {\n${indent}  \n${indent}}\n`
+  return {
+    ok: true,
+    from,
+    text,
+    cursorOffset: separator.length + firstIndent.length + '@for '.length,
+    selectionLength: scope.name.length,
+  }
+}
 
 export type StructuredInsertPlan =
   | { ok: true; from: number; text: string; cursorOffset: number; selectionLength?: number }

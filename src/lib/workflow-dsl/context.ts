@@ -136,11 +136,12 @@ export function collectWorkflowVariableScope(source: string, at: number): Workfl
     for (const name of frame.variables) visible.set(name, { name, origin: 'declared' })
     if (frame.loopVariable) visible.set(frame.loopVariable, { name: frame.loopVariable, origin: 'loop' })
   }
-  // Aliases never hide a variable the plan declared itself; the innermost loop's value wins.
-  for (const frame of [...frames].reverse()) {
-    if (!frame.loopVariable) continue
+  // Inside a loop the aliases belong to the innermost loop and win over a same-named declaration,
+  // exactly as the compiler and the browser bind them.
+  const innermost = [...frames].reverse().find((frame) => frame.loopVariable)
+  if (innermost?.loopVariable) {
     for (const name of LOOP_ALIAS_VARIABLES) {
-      if (!visible.has(name)) visible.set(name, { name, origin: 'loop-alias', loop: frame.loopVariable })
+      visible.set(name, { name, origin: 'loop-alias', loop: innermost.loopVariable })
     }
   }
   return [...visible.values()]

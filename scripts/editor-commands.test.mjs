@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 
-const { planStructuredInsert, planSmartDelete, planSmartCopy, validateAnyWorkflowSource } =
+const { loopScopeAt, planLoopInsert, planStructuredInsert, planSmartDelete, planSmartCopy, validateAnyWorkflowSource } =
   await import('../src/features/editor/lib/anyworkflow-dsl.ts')
 
 const source = `@run=Editor
@@ -106,5 +106,82 @@ assert.equal(siblingEvent.ok, true)
 const filledEvent = siblingEvent.text.replace('@event  {', '@event Second {').replace('      \n', '      next\n')
 assert.deepEqual(validateAnyWorkflowSource(sharedClosers.slice(0, siblingEvent.from) + filledEvent + sharedClosers.slice(siblingEvent.from)), [],
   'adding a sibling Event handles Task/Event closing braces on the same line')
+
+// Nested loops are ordinary blocks for copy and delete, from either delimiter.
+const nestedLoops = '@task T {\n  @event E {\n    @for i in range(1, 2) {\n      @for j in range(1, 2) {\n        @for k in range(1, 2) {\n          { %i%%j%%k% }\n        }\n      }\n    }\n    { after }\n  }\n}'
+assert.deepEqual(validateAnyWorkflowSource(nestedLoops), [])
+for (const header of ['@for i in range(1, 2) {', '@for j in range(1, 2) {', '@for k in range(1, 2) {']) {
+  const from = nestedLoops.lastIndexOf('\n', nestedLoops.indexOf(header)) + 1
+  const closeAt = (() => {
+    let depth = 0
+    for (let index = nestedLoops.indexOf(header) + header.length - 1; index < nestedLoops.length; index += 1) {
+      if (nestedLoops[index] === '{') depth += 1
+      if (nestedLoops[index] === '}' && --depth === 0) return index
+    }
+    return -1
+  })()
+  const expected = nestedLoops.slice(from, nestedLoops.indexOf('\n', closeAt) + 1)
+  const openAt = nestedLoops.indexOf(header) + header.indexOf('{')
+  for (const braceAt of [openAt, closeAt]) {
+    assert.equal(planSmartCopy(nestedLoops, braceAt, braceAt + 1).text, expected, `copy ${header} from either brace`)
+    const deletion = planSmartDelete(nestedLoops, braceAt, braceAt)
+    assert.equal(nestedLoops.slice(deletion.from, deletion.to), expected, `delete ${header} from either brace`)
+  }
+}
+const withoutInnerLoop = (() => {
+  const plan = planSmartDelete(nestedLoops, nestedLoops.indexOf('@for k') + 15, nestedLoops.indexOf('@for k') + 16)
+  return nestedLoops.slice(0, plan.from) + nestedLoops.slice(plan.to)
+})()
+assert.ok(!withoutInnerLoop.includes('@for k'), 'deleting the innermost loop leaves its parents')
+assert.ok(withoutInnerLoop.includes('@for j') && withoutInnerLoop.includes('{ after }'))
+
+// The toolbar names nested loops i, j, k by what is already in scope and stops at three levels.
+const loopQueue = (inner) => `@task T {\n  @event E {\n${inner}\n  }\n}`
+const emptyEvent = loopQueue('    ')
+const firstLoop = planLoopInsert(emptyEvent, emptyEvent.indexOf('    \n') + 4)
+assert.equal(firstLoop.ok, true)
+assert.equal(firstLoop.text.slice(firstLoop.cursorOffset, firstLoop.cursorOffset + firstLoop.selectionLength), 'i', 'first loop is i')
+assert.equal(firstLoop.text, '@for i in range(1, 3) {\n      \n    }\n', 'the cursor sits after the line indent, so later lines follow it')
+assert.deepEqual(validateAnyWorkflowSource(emptyEvent.slice(0, firstLoop.from) + firstLoop.text.replace('      \n', '      { hello }\n') + emptyEvent.slice(firstLoop.from)), [])
+
+const insertIntoBody = (source, marker) => {
+  const at = source.indexOf(marker) + marker.length
+  const plan = planLoopInsert(source, at)
+  assert.equal(plan.ok, true, `insert after ${marker}`)
+  const name = plan.text.slice(plan.cursorOffset, plan.cursorOffset + plan.selectionLength)
+  return { plan, name, edited: source.slice(0, plan.from) + plan.text + source.slice(plan.from) }
+}
+const second = insertIntoBody(firstLoop.text.length && (emptyEvent.slice(0, firstLoop.from) + firstLoop.text + emptyEvent.slice(firstLoop.from)), '@for i in range(1, 3) {')
+assert.equal(second.name, 'j', 'a loop inside i is j')
+assert.match(second.plan.text, /^ {6}@for j in range\(1, 3\) \{\n {8}\n {6}\}\n$/u, 'a cursor at the end of a block opener nests inside it, one level deeper')
+const third = insertIntoBody(second.edited, '@for j in range(1, 3) {')
+assert.equal(third.name, 'k', 'a loop inside i and j is k')
+const fourth = planLoopInsert(third.edited, third.edited.indexOf('@for k in range(1, 3) {') + '@for k in range(1, 3) {'.length)
+assert.equal(fourth.ok, false, 'a fourth level is refused')
+assert.match(fourth.message, /最多嵌套 3 层/u)
+assert.equal(planLoopInsert(third.edited, third.edited.indexOf('  @event E {') + 1).ok, true, 'a sibling above the nest is fine')
+const siblingAfter = planLoopInsert(third.edited, third.edited.indexOf('\n  }\n}') )
+assert.equal(siblingAfter.ok, true)
+assert.equal(siblingAfter.text.slice(siblingAfter.cursorOffset, siblingAfter.cursorOffset + 1), 'i', 'closed loops free their names again')
+
+const taskLevel = '@task T {\n  @let i=1\n  \n}'
+const taskLoop = planLoopInsert(taskLevel, taskLevel.indexOf('  \n}') + 2)
+assert.equal(taskLoop.text.slice(taskLoop.cursorOffset, taskLoop.cursorOffset + taskLoop.selectionLength), 'j', 'a declared variable keeps its name')
+const runLoop = loopScopeAt('@for i in range(1, 2) {\n  @task T {\n    @event E {\n      \n    }\n  }\n}', 52)
+assert.equal(runLoop.ok && runLoop.name, 'j', 'a queue loop under a Run loop skips the Run loop name')
+assert.equal(runLoop.ok && runLoop.depth, 0, 'nesting is counted per level')
+assert.equal(loopScopeAt('@task T {\n  @event E {\n    {\n      \n    }\n  }\n}', 33).ok, false, 'no loops inside a message block')
+assert.equal(loopScopeAt('@task T {\n  @event E {\n    @act {\n      \n    }\n  }\n}', 38).ok, false, 'no loops inside an Act')
+const midLine = loopQueue('    { hello }')
+const midPlan = planLoopInsert(midLine, midLine.indexOf('hello'))
+assert.equal(midPlan.ok, false, 'inside a message the cursor is refused')
+const afterEventHeader = '@task T {\n  @event E {\n  }\n}'
+const headerPlan = planLoopInsert(afterEventHeader, afterEventHeader.indexOf('E {') + 3)
+assert.equal(headerPlan.ok, true)
+assert.equal(headerPlan.from, afterEventHeader.indexOf('\n  }') + 1, 'a mid-line cursor inserts on the next line')
+assert.ok(headerPlan.text.startsWith('    @for i'), 'after an opener line the loop lands inside it, one indent deeper')
+const noTrailingNewline = planLoopInsert('@task T {\n  @event E {', '@task T {\n  @event E {'.length)
+assert.equal(noTrailingNewline.ok, true)
+assert.ok(noTrailingNewline.text.startsWith('\n'), 'a missing final newline is added first')
 
 console.log('editor command assertions passed')

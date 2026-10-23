@@ -23,7 +23,8 @@ export const WORKFLOW_DSL_LIMITS = Object.freeze({
   maxRunTasks: 256,
   maxTaskEvents: 1_000,
   maxLoopItems: 1_000,
-  maxNesting: 8,
+  /** Most `@for` blocks that may nest inside each other at the Run, Task and Event queue levels. */
+  maxLoopNesting: 3,
   maxEventQueueBytes: 768 * 1024,
   maxExpandedPlanBytes: 32 * 1024 * 1024,
   maxQueueRepeat: 100,
@@ -87,6 +88,9 @@ export interface ParseBudget {
   iterations: number
 }
 
+/** Where a queue body sits: directly in the Event queue, inside an `@act`, or inside a `@for`. */
+export type QueueContainer = 'queue' | 'act' | 'for'
+
 export interface QueueValidationOptions {
   eventTitle: string
   line: number
@@ -95,8 +99,16 @@ export interface QueueValidationOptions {
   depth?: number
   pollDepth?: number
   expansionBudget?: QueueExpansionBudget
+  container?: QueueContainer
+  /** Names bound by the enclosing `@for` blocks, innermost last. */
+  loopNames?: readonly string[]
+  /** Product of the iteration counts of every enclosing `@for`. */
+  multiplier?: number
+  /** `@repeat` value a body starts with before its own leading `@repeat`. */
+  inheritedRepeat?: number
 }
 
 export interface QueueExpansionBudget {
   acts: number
+  exceeded?: boolean
 }

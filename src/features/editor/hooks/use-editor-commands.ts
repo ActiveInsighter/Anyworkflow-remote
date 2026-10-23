@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import { toast } from 'sonner'
 import { readClipboard, writeClipboard } from '@/lib/platform/clipboard'
 import { collectUsableVariables, formatAnyWorkflowSource } from '../lib/anyworkflow-dsl'
-import { planSmartCopy, planSmartDelete, planStructuredInsert, type StructuredInsertKind } from '../lib/editor-commands'
+import { planLoopInsert, planSmartCopy, planSmartDelete, planStructuredInsert, type StructuredInsertKind } from '../lib/editor-commands'
 import { offsetForLineColumn } from '../lib/editor-helpers'
 
 /** CodeMirror transactions and clipboard effects stay separate from the React editor shell. */
@@ -48,6 +48,26 @@ export function useEditorCommands(viewRef: RefObject<EditorView | null>) {
       changes: { from: plan.from, insert: plan.text },
       annotations: isolateHistory.of('full'),
       selection: { anchor, head: anchor + (plan.selectionLength ?? 0) },
+      scrollIntoView: true,
+    })
+    view.focus()
+  }, [])
+
+  const insertLoop = useCallback(() => {
+    const view = viewRef.current
+    if (!view || view.state.readOnly) return
+    const plan = planLoopInsert(view.state.doc.toString(), view.state.selection.main.head)
+    if (!plan.ok) {
+      toast.info(plan.message)
+      view.focus()
+      return
+    }
+
+    const anchor = plan.from + plan.cursorOffset
+    view.dispatch({
+      changes: { from: plan.from, insert: plan.text },
+      annotations: isolateHistory.of('full'),
+      selection: { anchor, head: anchor + plan.selectionLength },
       scrollIntoView: true,
     })
     view.focus()
@@ -172,5 +192,5 @@ export function useEditorCommands(viewRef: RefObject<EditorView | null>) {
     startCompletion(view)
   }, [])
 
-  return { insert, insertStructured, runSmartDelete, runUndo, runRedo, runFormat, runCopy, runPaste, insertVariableReference, copied }
+  return { insert, insertStructured, insertLoop, runSmartDelete, runUndo, runRedo, runFormat, runCopy, runPaste, insertVariableReference, copied }
 }
