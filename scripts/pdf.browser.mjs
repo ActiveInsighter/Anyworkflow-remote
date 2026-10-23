@@ -96,12 +96,13 @@ try {
  await page.goto((process.env.TEST_BASE_URL || 'http://127.0.0.1:5173') + '/file-converter')
  await page.getByText('暂无转换记录', { exact: true }).waitFor()
  assert.equal(await page.getByRole('tab', { name: '链接', exact: true }).getAttribute('aria-selected'), 'true')
- if (process.env.CONFIG_LOAD_FAILURE) await page.getByText(/fixture config load failed/u).waitFor()
+ if (process.env.CONFIG_LOAD_FAILURE) await page.getByText('转换配置未加载', { exact: true }).waitFor()
  else await page.getByText(/^配置 v2 · gemini-3.5-flash-lite · 240 DPI$/u).waitFor()
  await page.getByRole('button', { name: '转换配置', exact: true }).click()
  const sheet = page.getByRole('dialog', { name: '转换配置' })
  await sheet.waitFor()
  await sheet.evaluate(element => Promise.all(element.getAnimations().map(animation => animation.finished.catch(() => {}))))
+ if (process.env.CONFIG_LOAD_FAILURE) await sheet.getByText(/fixture config load failed/u).waitFor()
  assert.equal(await sheet.getByLabel('每次请求页数').count(), 0, 'the deprecated option is not editable')
  const initialPatchCount = configPatchCount
  for (const width of [320, 1440]) {
