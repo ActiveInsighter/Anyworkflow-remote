@@ -60,9 +60,9 @@ export function ConversionConfigSheet({ config }: { config: ConversionConfigStat
                   onChange={(event) => config.setSystemPrompt(event.target.value)}
                   aria-describedby="pdf-system-prompt-help"
                 />
-                <FieldDescription id="pdf-system-prompt-help" className="flex justify-between gap-3">
-                  <span>完整转录与校对要求，保存后对新任务生效；留空恢复默认</span>
-                  <span className="shrink-0 tabular-nums">
+                <FieldDescription id="pdf-system-prompt-help" className="flex min-w-0 justify-between gap-3">
+                  <span className="min-w-0 flex-1">转录与校对要求均在此编辑；留空恢复默认</span>
+                  <span className="shrink-0 whitespace-nowrap tabular-nums">
                     {config.systemPrompt.length} / {MAX_SYSTEM_PROMPT_CHARS}
                   </span>
                 </FieldDescription>

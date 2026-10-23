@@ -100,12 +100,15 @@ try {
  await page.getByRole('button', { name: '转换配置', exact: true }).click()
  const sheet = page.getByRole('dialog', { name: '转换配置' })
  await sheet.waitFor()
+ await sheet.evaluate(element => Promise.all(element.getAnimations().map(animation => animation.finished.catch(() => {}))))
  assert.equal(await sheet.getByLabel('每次请求页数').count(), 0, 'the deprecated option is not editable')
  for (const width of [320, 1440]) {
    await page.setViewportSize({ width, height: 1000 })
+   assert.ok(await sheet.evaluate(element => element.getBoundingClientRect().right <= innerWidth + 0.5), `sheet outside viewport ${width}`)
    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `sheet overflow ${width}`)
    assert.ok(await sheet.evaluate(element => [...element.querySelectorAll('input, select, textarea, button')]
      .every(control => control.getBoundingClientRect().right <= element.getBoundingClientRect().right + 0.5)), `sheet controls clipped ${width}`)
+   assert.ok(await page.locator('#pdf-system-prompt-help').evaluate(element => element.scrollWidth <= element.clientWidth), `prompt help clipped ${width}`)
    if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/pdf-config-${width}.png` })
  }
  const promptInput = sheet.getByLabel('系统提示词', { exact: true })
