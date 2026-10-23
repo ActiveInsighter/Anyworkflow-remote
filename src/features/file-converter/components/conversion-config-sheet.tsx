@@ -1,4 +1,4 @@
-import { Save, SlidersHorizontal } from 'lucide-react'
+import { RotateCcw, Save, SlidersHorizontal } from 'lucide-react'
 import { ErrorAlert } from '@/components/feedback/error-alert'
 import { Button } from '@/components/ui/button'
 import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field'
@@ -7,7 +7,7 @@ import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
-import { MAX_SYSTEM_PROMPT_CHARS, type PdfConversionOptions } from '@/lib/api/file-conversion'
+import { DEFAULT_PDF_SYSTEM_PROMPT, MAX_SYSTEM_PROMPT_CHARS, type PdfConversionOptions } from '@/lib/api/file-conversion'
 import type { ConversionConfigState } from '../hooks/use-conversion-config'
 import {
   choiceAppliesTo,
@@ -49,7 +49,13 @@ export function ConversionConfigSheet({ config }: { config: ConversionConfigStat
           <fieldset disabled={disabled} className="min-w-0">
             <FieldGroup className="gap-7">
               <Field>
-                <FieldLabel htmlFor="pdf-system-prompt">系统提示词</FieldLabel>
+                <div className="flex items-center justify-between gap-3">
+                  <FieldLabel htmlFor="pdf-system-prompt">系统提示词</FieldLabel>
+                  <Button type="button" variant="ghost" size="touch" disabled={disabled} onClick={() => config.setSystemPrompt(DEFAULT_PDF_SYSTEM_PROMPT)}>
+                    <RotateCcw data-icon="inline-start" />
+                    恢复默认
+                  </Button>
+                </div>
                 <Textarea
                   id="pdf-system-prompt"
                   name="systemPrompt"

@@ -3,6 +3,7 @@ import { mkdtemp, open, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { chromium } from 'playwright'
+import { DEFAULT_PDF_SYSTEM_PROMPT } from '../src/lib/file-conversion-prompt.ts'
 const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] })
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } })
 const page = await context.newPage()
@@ -69,7 +70,7 @@ await context.route('https://pb.example.invalid/**', async route => {
      config = { ...config, ...req.postDataJSON(), revision: config.revision + 1 }
      return route.fulfill({ json: config })
    }
-   config = config || { id: 'config-1', owner: 'owner-1', conversionType: 'pdf_to_md', name: '默认配置', revision: 1, systemPrompt: '前端保存的完整转录规则', options: { images_per_request: 1, concurrency: 5, dpi: 240, jpeg_quality: 95, verification_passes: 0, rpm_per_key: 15, rpd_per_key: 500, thinking_level: 'high', image_format: 'png', media_resolution: 'ultra_high', model: 'gemini-3.5-flash-lite' } }
+   config = config || { id: 'config-1', owner: 'owner-1', conversionType: 'pdf_to_md', name: '默认配置', revision: 1, options: { images_per_request: 1, concurrency: 5, dpi: 240, jpeg_quality: 95, verification_passes: 0, rpm_per_key: 15, rpd_per_key: 500, thinking_level: 'high', image_format: 'png', media_resolution: 'ultra_high', model: 'gemini-3.5-flash-lite' } }
    return route.fulfill({ json: { items: [config], totalItems: 1, totalPages: 1, page: 1, perPage: 20 } })
  }
  if (req.method() === 'POST' && url.pathname.includes('/aw_pdf_to_md_jobs/records')) {
@@ -96,12 +97,13 @@ try {
  await page.getByText('暂无转换记录', { exact: true }).waitFor()
  assert.equal(await page.getByRole('tab', { name: '链接', exact: true }).getAttribute('aria-selected'), 'true')
  if (process.env.CONFIG_LOAD_FAILURE) await page.getByText(/fixture config load failed/u).waitFor()
- else await page.getByText(/^配置 v1 · gemini-3.5-flash-lite · 240 DPI$/u).waitFor()
+ else await page.getByText(/^配置 v2 · gemini-3.5-flash-lite · 240 DPI$/u).waitFor()
  await page.getByRole('button', { name: '转换配置', exact: true }).click()
  const sheet = page.getByRole('dialog', { name: '转换配置' })
  await sheet.waitFor()
  await sheet.evaluate(element => Promise.all(element.getAnimations().map(animation => animation.finished.catch(() => {}))))
  assert.equal(await sheet.getByLabel('每次请求页数').count(), 0, 'the deprecated option is not editable')
+ const initialPatchCount = configPatchCount
  for (const width of [320, 1440]) {
    await page.setViewportSize({ width, height: 1000 })
    assert.ok(await sheet.evaluate(element => element.getBoundingClientRect().right <= innerWidth + 0.5), `sheet outside viewport ${width}`)
@@ -112,26 +114,29 @@ try {
    if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/pdf-config-${width}.png` })
  }
  const promptInput = sheet.getByLabel('系统提示词', { exact: true })
- assert.equal(await promptInput.inputValue(), '前端保存的完整转录规则')
+ assert.equal(await promptInput.inputValue(), DEFAULT_PDF_SYSTEM_PROMPT)
+ await promptInput.fill('临时草稿')
+ await sheet.getByRole('button', { name: '恢复默认', exact: true }).click()
+ assert.equal(await promptInput.inputValue(), DEFAULT_PDF_SYSTEM_PROMPT)
  await promptInput.fill('按图片与 OCR 草稿转录，保留脚注和表格。')
  const concurrency = page.getByLabel('并发请求数', { exact: true })
  await concurrency.fill('600')
  await page.getByRole('button', { name: '保存配置', exact: true }).click()
  await page.getByRole('alert').getByText(/并发请求数需填写 1–100 的整数/u).waitFor()
- assert.equal(configPatchCount, 0)
+ assert.equal(configPatchCount, initialPatchCount)
  await concurrency.fill('')
  await concurrency.pressSequentially('60')
  assert.equal(await concurrency.inputValue(), '60')
  assert.equal(await page.getByRole('button', { name: '保存配置', exact: true }).isDisabled(), false)
  await page.getByRole('button', { name: '保存配置', exact: true }).click()
  await page.getByText(/配置已保存/u).waitFor()
- assert.equal(configPatchCount, 1)
+ assert.equal(configPatchCount, 2)
  assert.equal(config.systemPrompt, '按图片与 OCR 草稿转录，保留脚注和表格。')
  await promptInput.fill('这个未保存的草稿不能进入新任务')
  await concurrency.fill('80')
  await page.keyboard.press('Escape')
  await sheet.waitFor({ state: 'hidden' })
- await page.getByText(/^配置 v2 · /u).waitFor()
+ await page.getByText(/^配置 v3 · /u).waitFor()
  await page.getByLabel('任务名称', { exact: true }).fill('数学讲义')
  await page.getByLabel('PDF 源文件地址').fill('https://example.com/book.pdf')
  await page.getByLabel('产物文件名').fill('数学笔记')
@@ -154,7 +159,7 @@ assert.equal(created.outputName, '数学笔记')
  assert.equal(created.adjacentPages, true)
  await page.getByText('第 1 页', { exact: true }).waitFor()
  await page.getByText('附带相邻页', { exact: true }).last().waitFor()
- assert.equal(configPatchCount, 1)
+ assert.equal(configPatchCount, 2)
  await page.getByRole('button', { name: '结束任务', exact: true }).click()
  await page.getByText('结束中', { exact: true }).waitFor()
  assert.equal(cancelCount, 1)
