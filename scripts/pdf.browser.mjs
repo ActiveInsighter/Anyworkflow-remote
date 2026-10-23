@@ -236,7 +236,9 @@ assert.equal(created.outputName, '数学笔记')
      if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/pdf-upload-${colorScheme}-${width}.png`, fullPage: true })
    }
  }
+ const uploadedJobCreated = page.waitForResponse(response => response.request().method() === 'POST' && new URL(response.url()).pathname.endsWith('/aw_pdf_to_md_jobs/records'))
  await submit.click()
+ await uploadedJobCreated
  assert.equal(postCount, 5)
  assert.equal(created.sourceUrl, 'https://ocr-files.any1.tech/fixtures/upload-5.pdf')
  assert.equal(created.configId, 'config-1')
