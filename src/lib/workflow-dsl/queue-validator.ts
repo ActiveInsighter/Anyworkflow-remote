@@ -170,6 +170,8 @@ export function validateQueueBody(value: string, options: QueueValidationOptions
   collectLeadingQueueVariables(text, activeVariables)
   let looseSeen = false
   let hasNestedLoop = false
+  // A nested body that fails has already reported why; do not add a second "nothing to run".
+  let nestedFailed = false
   let perActDirective = false
   let leadingRepeat = options.inheritedRepeat ?? 1
 
@@ -338,6 +340,7 @@ export function validateQueueBody(value: string, options: QueueValidationOptions
           inheritedRepeat: 1,
         })
         if (nested && values.length > 0) executable = true
+        if (!nested) nestedFailed = true
       } else {
         const nested = validateQueueBody(innerBody, {
           ...options,
@@ -348,6 +351,7 @@ export function validateQueueBody(value: string, options: QueueValidationOptions
           inheritedRepeat: leadingRepeat,
         })
         if (nested) executable = true
+        else nestedFailed = true
       }
       leading = false
       cursor = closeAt + 1
@@ -358,7 +362,7 @@ export function validateQueueBody(value: string, options: QueueValidationOptions
     return false
   }
 
-  if (!executable) addQueueError(options, '没有可执行消息')
+  if (!executable && !nestedFailed) addQueueError(options, '没有可执行消息')
   if (hasNestedLoop && looseSeen) {
     addQueueError(options, '中包含嵌套 @for 的循环体不能同时包含消息，请把消息放进最内层循环')
   }
