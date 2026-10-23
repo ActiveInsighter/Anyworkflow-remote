@@ -139,6 +139,42 @@ try {
     await copyButton().click()
     assert.equal(await copiedText(), source, 'select-all still copies the complete workflow')
 
+    // The loop button names nested loops i, j, k, validates cleanly and refuses a fourth level.
+    const loopButton = () => page.getByRole('button', { name: '循环', exact: true })
+    await replace('@run=Loops\n@task T {\n  @event E {\n    \n  }\n}\n')
+    const loopSource = await readSource()
+    await select(loopSource.indexOf('    \n') + 4)
+    await loopButton().click()
+    assert.equal(await selection(), 'i', `${width}px first loop is i`)
+    await select((await readSource()).indexOf('@for i in range(1, 3) {') + '@for i in range(1, 3) {'.length)
+    await loopButton().click()
+    assert.equal(await selection(), 'j', 'a loop inside i is j')
+    await select((await readSource()).indexOf('@for j in range(1, 3) {') + '@for j in range(1, 3) {'.length)
+    await loopButton().click()
+    assert.equal(await selection(), 'k', 'a loop inside i and j is k')
+    const threeDeep = await readSource()
+    await select(threeDeep.indexOf('@for k in range(1, 3) {') + '@for k in range(1, 3) {'.length)
+    await loopButton().click()
+    await page.getByText('循环最多嵌套 3 层。', { exact: true }).waitFor()
+    assert.equal(await readSource(), threeDeep, 'the refused fourth loop changes nothing')
+    await select(threeDeep.indexOf('@for k in range(1, 3) {') + '@for k in range(1, 3) {'.length + 1)
+    await page.keyboard.press('End')
+    await page.keyboard.insertText('\n{ %i%%j%%k% }')
+    await expectClean()
+    const nestedLoopSource = await readSource()
+    const jOpen = nestedLoopSource.indexOf('@for j in range(1, 3) {') + '@for j in range(1, 3) {'.indexOf('{')
+    await select(jOpen, jOpen + 1)
+    await copyButton().click()
+    const copiedLoop = await copiedText()
+    assert.ok(copiedLoop.trimStart().startsWith('@for j in range(1, 3) {') && copiedLoop.includes('@for k in') && copiedLoop.trimEnd().endsWith('}'),
+      'copying the middle loop takes its nested loop with it')
+    await page.getByRole('button', { name: '智能删除', exact: true }).click()
+    assert.ok(!(await readSource()).includes('@for j') && (await readSource()).includes('@for i'), 'deleting the middle loop keeps its parent')
+    await page.getByRole('button', { name: '撤销', exact: true }).click()
+    assert.equal(await readSource(), nestedLoopSource)
+    await replace(source)
+    await expectClean()
+
     // A denied clipboard must leave the source untouched and show a clear failure.
     await page.evaluate(() => {
       window.fixtureWriteText = navigator.clipboard.writeText
@@ -164,7 +200,7 @@ try {
     if (screenshotDir) await page.screenshot({ path: `${screenshotDir}/editor-${width}.png`, fullPage: true })
     assert.deepEqual(writes, [], 'editor interactions never publish fixture data')
     assert.deepEqual(errors, [])
-    console.log(`PASS ${width}px: Task variables, selection, smart copy/delete, undo/redo, clipboard denial, fullscreen and overflow`)
+    console.log(`PASS ${width}px: Task variables, nested loop insertion, selection, smart copy/delete, undo/redo, clipboard denial, fullscreen and overflow`)
     await context.close()
   }
 } finally { await browser.close() }

@@ -105,6 +105,83 @@
       "valid": false,
       "plan": "@run=Start\n@task T {\n  @let start_url=chatgpt.com\n  @event E {\n    <%start_url%>\n    { hello }\n  }\n}",
       "queue": ""
+    },
+    {
+      "name": "nested two level browser loop",
+      "executor": "browser",
+      "valid": true,
+      "plan": "@run=Loops\n@task T {\n  @event E {\n    @for i in range(1, 2) {\n      @for j in range(1, 3) {\n        { find %i% %j% }\n      }\n    }\n  }\n}",
+      "queue": "@task=T\n@event=E\n@for i in range(1, 2) {\n      @for j in range(1, 3) {\n        { find %i% %j% }\n      }\n    }"
+    },
+    {
+      "name": "nested three level browser loop",
+      "executor": "browser",
+      "valid": true,
+      "plan": "@run=Loops\n@task T {\n  @event E {\n    @for i in range(1, 2) {\n      @for j in range(1, 2) {\n        @for k in range(1, 2) {\n          @event=Cell %i%-%j%-%k%\n          { find %i% %j% %k% }\n        }\n      }\n    }\n  }\n}",
+      "queue": "@task=T\n@event=E\n@for i in range(1, 2) {\n      @for j in range(1, 2) {\n        @for k in range(1, 2) {\n          @event=Cell %i%-%j%-%k%\n          { find %i% %j% %k% }\n        }\n      }\n    }"
+    },
+    {
+      "name": "nested loop directives and innermost repeat",
+      "executor": "browser",
+      "valid": true,
+      "plan": "@run=Loops\n@task T {\n  @event E {\n    @for i in range(1, 2) {\n      @let book=Vol\n      @for j in range(1, 2) {\n        @repeat=2\n        { %book% %j% }\n      }\n    }\n  }\n}",
+      "queue": "@task=T\n@event=E\n@for i in range(1, 2) {\n      @let book=Vol\n      @for j in range(1, 2) {\n        @repeat=2\n        { %book% %j% }\n      }\n    }"
+    },
+    {
+      "name": "four level browser loop is rejected",
+      "executor": "browser",
+      "valid": false,
+      "plan": "@run=Loops\n@task T {\n  @event E {\n    @for a in range(1, 2) {\n      @for b in range(1, 2) {\n        @for c in range(1, 2) {\n          @for d in range(1, 2) {\n            { %a%%b%%c%%d% }\n          }\n        }\n      }\n    }\n  }\n}",
+      "queue": ""
+    },
+    {
+      "name": "nested loop product over 200 acts is rejected",
+      "executor": "browser",
+      "valid": false,
+      "plan": "@run=Loops\n@task T {\n  @event E {\n    @for i in range(1, 15) {\n      @for j in range(1, 15) {\n        { %i% %j% }\n      }\n    }\n  }\n}",
+      "queue": ""
+    },
+    {
+      "name": "nested loop reusing a variable is rejected",
+      "executor": "browser",
+      "valid": false,
+      "plan": "@run=Loops\n@task T {\n  @event E {\n    @for i in range(1, 2) {\n      @for i in range(1, 2) {\n        { %i% }\n      }\n    }\n  }\n}",
+      "queue": ""
+    },
+    {
+      "name": "Act inside a browser loop is rejected",
+      "executor": "browser",
+      "valid": false,
+      "plan": "@run=Loops\n@task T {\n  @event E {\n    @for i in range(1, 2) {\n      @act {\n        { %i% }\n      }\n    }\n  }\n}",
+      "queue": ""
+    },
+    {
+      "name": "messages beside a nested loop are rejected",
+      "executor": "browser",
+      "valid": false,
+      "plan": "@run=Loops\n@task T {\n  @event E {\n    @for i in range(1, 2) {\n      { intro }\n      @for j in range(1, 2) {\n        { %j% }\n      }\n    }\n  }\n}",
+      "queue": ""
+    },
+    {
+      "name": "@repeat beside a nested loop is rejected",
+      "executor": "browser",
+      "valid": false,
+      "plan": "@run=Loops\n@task T {\n  @event E {\n    @for i in range(1, 2) {\n      @repeat=2\n      @for j in range(1, 2) {\n        { %j% }\n      }\n    }\n  }\n}",
+      "queue": ""
+    },
+    {
+      "name": "queue loop reusing a Task variable is rejected",
+      "executor": "browser",
+      "valid": false,
+      "plan": "@run=Loops\n@task T {\n  @let i=5\n  @event E {\n    @for i in range(1, 2) {\n      { %i% }\n    }\n  }\n}",
+      "queue": ""
+    },
+    {
+      "name": "queue loop keeps its own %index% and %count% under a Task loop",
+      "executor": "browser",
+      "valid": true,
+      "plan": "@run=Loops\n@task T {\n  @for c in range(1, 1) {\n    @event E {\n      @for i in range(1, 2) {\n        { %c% %i% %index% %count% }\n      }\n    }\n  }\n}",
+      "queue": "@task=T\n@event=E\n@for i in range(1, 2) {\n        { 1 %i% %index% %count% }\n      }"
     }
   ]
 }

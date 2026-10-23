@@ -54,12 +54,19 @@ export function addQueueError(options: QueueValidationOptions, detail: string): 
   options.collector.add(options.line, `Event ${options.eventTitle || '未命名'} 队列${detail}。`)
 }
 
+/**
+ * Charges generated acts against the browser's total. The first overflow reports once and marks
+ * the budget so nested loops are rejected from their product rather than walked iteration by iteration.
+ */
 export function addQueueActCount(options: QueueValidationOptions, count: number): void {
   const budget = options.expansionBudget
-  if (!budget || (options.depth ?? 0) > 0 || (options.pollDepth ?? 0) > 0 || count <= 0) return
+  if (!budget || (options.pollDepth ?? 0) > 0 || count <= 0) return
   budget.acts += count
   const max = WORKFLOW_DSL_LIMITS.maxBrowserTotalActs
-  if (budget.acts > max) addQueueError(options, `展开后的 Act 数量不能超过 ${max}`)
+  if (budget.acts > max && !budget.exceeded) {
+    budget.exceeded = true
+    addQueueError(options, `展开后的 Act 数量不能超过 ${max}`)
+  }
 }
 
 export function leadingQueueRepeat(value: string): number | null {
@@ -156,16 +163,16 @@ export function validateQueueBody(value: string, options: QueueValidationOptions
   let executable = false
   const depth = options.depth ?? 0
   const pollDepth = options.pollDepth ?? 0
+  const container = options.container ?? 'queue'
+  const loopNames = options.loopNames ?? []
+  const multiplier = options.multiplier ?? 1
   const activeVariables = new Set(options.activeVariables ?? [])
   collectLeadingQueueVariables(text, activeVariables)
-  const topLevel = depth === 0 && pollDepth === 0
-  let topLevelLooseSeen = false
-  let leadingRepeat = 1
+  let looseSeen = false
+  let hasNestedLoop = false
+  let perActDirective = false
+  let leadingRepeat = options.inheritedRepeat ?? 1
 
-  if (depth > WORKFLOW_DSL_LIMITS.maxNesting) {
-    addQueueError(options, `执行块嵌套不能超过 ${WORKFLOW_DSL_LIMITS.maxNesting} 层`)
-    return false
-  }
   if (pollDepth > WORKFLOW_DSL_LIMITS.maxBrowserPollDepth) {
     addQueueError(options, `消息轮询嵌套不能超过 ${WORKFLOW_DSL_LIMITS.maxBrowserPollDepth} 层`)
     return false
@@ -189,7 +196,7 @@ export function validateQueueBody(value: string, options: QueueValidationOptions
       }
       validateBrowserTemplateTokens(content, { ...options, activeVariables })
       executable = true
-      if (topLevel) topLevelLooseSeen = true
+      looseSeen = true
       leading = false
       cursor = fenced.next
       continue
@@ -221,7 +228,7 @@ export function validateQueueBody(value: string, options: QueueValidationOptions
         })
       }
       executable = true
-      if (topLevel) topLevelLooseSeen = true
+      looseSeen = true
       leading = false
       cursor = repeat.next
       continue
@@ -233,7 +240,7 @@ export function validateQueueBody(value: string, options: QueueValidationOptions
 
     if (queueUrlIsExecutable(line)) {
       executable = true
-      if (topLevel) topLevelLooseSeen = true
+      looseSeen = true
       leading = false
       cursor = end < text.length ? end + 1 : end
       continue
@@ -264,7 +271,8 @@ export function validateQueueBody(value: string, options: QueueValidationOptions
       if (metadata === 'repeat' || metadata === 'start' || metadata === 'step') {
         const rawValue = line.replace(/^@[^=]+=\s*/u, '')
         validateQueueMetadata(metadata, rawValue, options)
-        if (metadata === 'repeat' && leading) {
+        perActDirective = true
+        if (metadata === 'repeat') {
           const parsed = Number(rawValue.trim())
           if (Number.isSafeInteger(parsed) && parsed >= 1 && parsed <= WORKFLOW_DSL_LIMITS.maxBrowserTemplateActs) {
             leadingRepeat = parsed
@@ -284,49 +292,60 @@ export function validateQueueBody(value: string, options: QueueValidationOptions
         return false
       }
 
-      if (block === 'act' && depth > 0) {
-        addQueueError(options, '中的 @act 只能直接位于 Event 队列层级')
+      // Only the Event queue holds @act; loops nest inside the queue or another loop.
+      if (pollDepth > 0 || container === 'act' || (block === 'act' && container !== 'queue')) {
+        addQueueError(options, `中的 @${block} 只能直接位于 Event 队列层级`)
         return false
       }
 
+      const innerBody = text.slice(openAt + 1, closeAt)
       if (block === 'for') {
         const loop = line.match(/^@for\s+([A-Za-z_][A-Za-z0-9_]*)\s+in\s+range\((.*?)\)\s*\{\s*$/iu)
-        const maxItems = WORKFLOW_DSL_LIMITS.maxBrowserLoopItems
+        const loopName = loop?.[1] ?? ''
         const values = parseRangeValues(
           loop?.[2] ?? '',
           options.collector,
           options.line,
-          maxItems,
+          WORKFLOW_DSL_LIMITS.maxBrowserLoopItems,
           '的 range 没有生成任何消息',
         )
         if (values === null) return false
-        if (depth > 0) {
-          addQueueError(options, '中的 @for 只能直接位于 Event 队列层级')
+        if (loopNames.length >= WORKFLOW_DSL_LIMITS.maxLoopNesting) {
+          addQueueError(options, `中的 @for 最多嵌套 ${WORKFLOW_DSL_LIMITS.maxLoopNesting} 层`)
           return false
         }
-        if (topLevel) {
-          const repeat = leadingQueueRepeat(text.slice(openAt + 1, closeAt)) ?? 1
-          addQueueActCount(options, values.length * repeat)
+        if (loopNames.includes(loopName)) {
+          addQueueError(options, `中的 @for 变量 ${loopName} 已被外层 @for 使用，请换一个名称`)
+          return false
+        }
+        if (container === 'for') {
+          hasNestedLoop = true
+          if (perActDirective) {
+            addQueueError(options, '中包含嵌套 @for 的循环体不能设置 @repeat、@start 或 @step，请写在最内层循环里')
+            return false
+          }
         }
         const loopVariables = new Set(activeVariables)
-        if (loop?.[1]) loopVariables.add(loop[1])
+        loopVariables.add(loopName)
         for (const alias of LOOP_ALIAS_VARIABLES) loopVariables.add(alias)
-        const nested = validateQueueBody(text.slice(openAt + 1, closeAt), {
+        const nested = validateQueueBody(innerBody, {
           ...options,
           activeVariables: loopVariables,
           depth: depth + 1,
+          container: 'for',
+          loopNames: [...loopNames, loopName],
+          multiplier: multiplier * Math.max(1, values.length),
+          inheritedRepeat: 1,
         })
         if (nested && values.length > 0) executable = true
       } else {
-        if (topLevel) {
-          const bodyRepeat = leadingQueueRepeat(text.slice(openAt + 1, closeAt))
-          const repeat = bodyRepeat ?? leadingRepeat
-          addQueueActCount(options, repeat)
-        }
-        const nested = validateQueueBody(text.slice(openAt + 1, closeAt), {
+        const nested = validateQueueBody(innerBody, {
           ...options,
           activeVariables: new Set(activeVariables),
           depth: depth + 1,
+          container: 'act',
+          multiplier,
+          inheritedRepeat: leadingRepeat,
         })
         if (nested) executable = true
       }
@@ -340,6 +359,9 @@ export function validateQueueBody(value: string, options: QueueValidationOptions
   }
 
   if (!executable) addQueueError(options, '没有可执行消息')
-  if (topLevel && topLevelLooseSeen) addQueueActCount(options, leadingRepeat)
+  if (hasNestedLoop && looseSeen) {
+    addQueueError(options, '中包含嵌套 @for 的循环体不能同时包含消息，请把消息放进最内层循环')
+  }
+  if (looseSeen) addQueueActCount(options, multiplier * leadingRepeat)
   return executable
 }

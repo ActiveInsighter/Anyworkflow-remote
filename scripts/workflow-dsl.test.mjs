@@ -136,8 +136,19 @@ assert.deepEqual(outsideLoop.map((variable) => variable.name), ['file'], 'aliase
 const shadowed = `@task T {\n  @let index=own\n  @for i in range(2) {\n    @event E { { %index% } }\n  }\n}`
 assert.equal(
   collectWorkflowVariableScope(shadowed, shadowed.indexOf('{ %index')).find((variable) => variable.name === 'index')?.origin,
+  'loop-alias',
+  'inside a loop %index% is the loop\'s, whatever the plan declared',
+)
+assert.equal(
+  collectWorkflowVariableScope(shadowed, shadowed.indexOf('@for')).find((variable) => variable.name === 'index')?.origin,
   'declared',
-  'a variable the plan declares itself is never reported as a loop alias',
+  'outside a loop the declaration is a plain variable',
+)
+const nestedAliases = `@task T {\n  @event E {\n    @for i in range(1, 2) {\n      @for j in range(1, 2) {\n        { %i%%j% }\n      }\n    }\n  }\n}`
+assert.deepEqual(
+  collectWorkflowVariableScope(nestedAliases, nestedAliases.indexOf('{ %i%')).map((variable) => [variable.name, variable.origin, variable.loop ?? '']),
+  [['i', 'loop', ''], ['j', 'loop', ''], ['index', 'loop-alias', 'j'], ['count', 'loop-alias', 'j']],
+  'every enclosing loop variable is in scope and the aliases follow the innermost loop',
 )
 
 const actLocalVariable = `@run=Variables\n@task T {\n  @event E {\n    @act {\n      @var query=browser syntax\n      @event=Search %query%\n      { find %query% }\n    }\n  }\n}`
@@ -254,6 +265,59 @@ ${Array.from({ length: 21 }, (_, index) => `    @act {\n      { act ${index} }\n
   }
 }`
 assertHasError(browserActOverflow, 'browser total Act limit')
+
+const queueLoops = (queue) => `@run=Nested\n@task T {\n  @event E {\n${queue}\n  }\n}`
+const nestedLoopPlan = (names) => {
+  let body = '{ hello %' + names.at(-1) + '% }'
+  for (let index = names.length - 1; index >= 0; index -= 1) body = `@for ${names[index]} in range(1, 2) {\n${body}\n}`
+  return queueLoops(body)
+}
+assert.equal(errors(nestedLoopPlan(['i'])).length, 0, 'one loop level')
+assert.equal(errors(nestedLoopPlan(['i', 'j'])).length, 0, 'two loop levels')
+assert.equal(errors(nestedLoopPlan(['i', 'j', 'k'])).length, 0, 'three loop levels pass')
+assert.ok(
+  errors(nestedLoopPlan(['i', 'j', 'k', 'l'])).some((item) => item.message.includes('最多嵌套 3 层')),
+  'a fourth loop level is rejected with its limit',
+)
+assert.equal(
+  errors(queueLoops('@for i in range(1, 2) {\n@for j in range(1, 2) {\n@for k in range(1, 2) {\n{ %i%%j%%k% %index% %count% }\n}\n}\n}')).length,
+  0,
+  'every enclosing loop variable and the aliases are in scope in the innermost body',
+)
+assertHasError(
+  queueLoops('@for i in range(1, 2) {\n@for j in range(1, 2) {\n{ %k% }\n}\n}'),
+  'a variable of a loop that does not enclose the body',
+)
+assertHasError(queueLoops('@for i in range(1, 2) {\n@for i in range(1, 2) {\n{ %i% }\n}\n}'), 'inner loop reusing an enclosing name')
+assertHasError(queueLoops('@for i in range(1, 2) {\n@act {\n{ x }\n}\n}'), 'Act inside a loop')
+assertHasError(queueLoops('@act {\n@for i in range(1, 2) {\n{ x }\n}\n}'), 'loop inside an Act')
+assertHasError(queueLoops('@for i in range(1, 2) {\n{ intro }\n@for j in range(1, 2) {\n{ %j% }\n}\n}'), 'messages beside a nested loop')
+assertHasError(queueLoops('@for i in range(1, 2) {\n@repeat=2\n@for j in range(1, 2) {\n{ %j% }\n}\n}'), '@repeat beside a nested loop')
+assert.equal(errors(queueLoops('@for i in range(1, 2) {\n@let book=Vol\n@event=%book% %i%\n@for j in range(1, 2) {\n@repeat=2\n{ %book% %j% }\n}\n}')).length, 0,
+  'directives before a nested loop and @repeat in the innermost body are fine')
+assertHasError(queueLoops('{\n<https://chatgpt.com/>\n@for i in range(1, 2) {\n{ x }\n}\n}'), 'loop header inside a polling group')
+const nestedLoopBudget = (a, b, c, repeat = '') =>
+  queueLoops(`@for i in range(1, ${a}) {\n@for j in range(1, ${b}) {\n@for k in range(1, ${c}) {\n${repeat}{ %i%%j%%k% }\n}\n}\n}`)
+assert.equal(errors(nestedLoopBudget(5, 5, 8)).length, 0, '5 x 5 x 8 is exactly the 200 act limit')
+assertHasError(nestedLoopBudget(5, 5, 9), 'nested product over 200 acts')
+assertHasError(nestedLoopBudget(200, 200, 200), 'huge nested product is rejected without walking it')
+assertHasError(nestedLoopBudget(5, 5, 4, '@repeat=3\n'), '@repeat multiplies the nested product')
+assert.equal(errors(nestedLoopBudget(5, 5, 4, '@repeat=2\n')).length, 0, '5 x 5 x 4 x 2 stays within 200')
+assert.equal(errors(`@run=Aliases\n@task T {\n  @event E {\n    @for a in range(1, 2) {\n      @for b in range(1, 2) {\n        { %a%%b% %index% %count% }\n      }\n    }\n  }\n}`).length, 0)
+assert.equal(
+  errors('@for c in range(1, 2) {\n@task T {\n@event E {\n@for i in range(1, 2) {\n{ %c% %i% %index% %count% }\n}\n}\n}\n}').length,
+  0,
+  'a queue loop inside a Run loop keeps its own aliases',
+)
+assertHasError(
+  '@for i in range(1, 2) {\n@task T {\n@event E {\n@for i in range(1, 2) {\n{ %i% }\n}\n}\n}\n}',
+  'queue loop reusing a Run loop variable',
+)
+assertHasError('@task T {\n@let i=5\n@event E {\n@for i in range(1, 2) {\n{ %i% }\n}\n}\n}', 'queue loop reusing a Task variable')
+assert.equal(errors('@task T {\n@event E {\n@for a in range(1, 2) {\n{ x }\n}\n@for a in range(1, 2) {\n{ y }\n}\n}\n}').length, 0, 'sibling loops may share a name')
+assertHasError('@for a in range(1, 2) {\n@for b in range(1, 2) {\n@for c in range(1, 2) {\n@for d in range(1, 2) {\n@task T%a%%b%%c%%d% {\n@event E {\n{ x }\n}\n}\n}\n}\n}\n}', 'four Run level loops')
+assert.equal(errors('@for a in range(1, 2) {\n@for b in range(1, 2) {\n@for c in range(1, 2) {\n@task T%a%%b%%c% {\n@event E {\n{ x }\n}\n}\n}\n}\n}').length, 0, 'three Run level loops')
+assertHasError('@task T {\n@for a in range(1, 2) {\n@for b in range(1, 2) {\n@for c in range(1, 2) {\n@for d in range(1, 2) {\n@event E%a%%b%%c%%d% {\n{ x }\n}\n}\n}\n}\n}\n}', 'four Task level loops')
 
 console.log('workflow DSL assertions passed')
 
