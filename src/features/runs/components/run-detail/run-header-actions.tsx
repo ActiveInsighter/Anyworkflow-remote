@@ -1,5 +1,6 @@
-import { Bookmark, BookmarkCheck, Copy, MoreHorizontal, Pause, Pencil, Play, RotateCcw, Save, Trash2, XCircle } from 'lucide-react'
+import { Archive, Bookmark, BookmarkCheck, Copy, MoreHorizontal, Pause, Pencil, Play, RotateCcw, Save, Trash2, XCircle } from 'lucide-react'
 import { Link } from 'react-router'
+import type { Ref } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -26,12 +27,16 @@ export function RunHeaderActions({
   schedulePending,
   actions,
   onDelete,
+  onExport,
+  menuTriggerRef,
 }: {
   run: DispatchRunRecord
   favorited: boolean
   schedulePending: boolean
   actions: RunDetailActions
   onDelete: () => void
+  onExport: () => void
+  menuTriggerRef?: Ref<HTMLButtonElement>
 }) {
   const { canPause, canResume, canCancel } = runControls(run)
   const terminal = isTerminalStatus(run.status)
@@ -104,12 +109,16 @@ export function RunHeaderActions({
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon-touch" aria-label="更多操作">
+          <Button ref={menuTriggerRef} variant="ghost" size="icon-touch" aria-label="更多操作">
             <MoreHorizontal />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuGroup>
+            <DropdownMenuItem onSelect={onExport}>
+              <Archive />
+              导出 AI 对话
+            </DropdownMenuItem>
             <DropdownMenuItem disabled={busy || !hasPlan} onSelect={actions.saveTemplate}>
               <Save />
               存为模板

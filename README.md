@@ -20,6 +20,7 @@ AnyWorkflow 的响应式 Web 控制端。项目参考 `Anyworkflow-wechat` 的�
 - Run 新建、草稿编辑、发布、复制、重跑、删除
 - Run 暂停、继续、取消命令
 - Run → Task → Event 层级详情与运行时状态展示
+- Run 详情「更多操作 → 导出 AI 对话」：完整对话/仅 AI 回复、后台生成 Markdown ZIP、进度与历史下载
 - Event 执行内容按需查看
 - 进行中数据自动轮询刷新与有界跨页缓存
 - 收藏、模板与层级资料库目录
@@ -43,6 +44,8 @@ AnyWorkflow 的响应式 Web 控制端。项目参考 `Anyworkflow-wechat` 的�
 Run 控制仍使用 `requestedAction + commandVersion + 1`。Run DSL 仍写入 `planText`，云端继续负责 Task/Event 展开。
 `@task` 交给浏览器扩展执行，保留 Run → Task → Event → Act → Message 数据层级。Codex 执行已移除，新计划会拒绝 `@Codex`，旧记录仍可查看。
 
+Run 对话导出需要 AnyWorkflow-workers 的 `1792677600_run_exports.js` 迁移、对应 hooks 和独立 export 服务。先升级后端再发布本前端。导出按当前 Run 版本收集已同步历史，ZIP 按 Task/Event/Act 包含 Markdown、README 和 manifest；文件受所属用户权限保护，保留 7 天。运行中和历史未同步完整的结果在导出说明中标注，图片和附件不下载打包。
+
 ## 前端结构
 
 依赖方向自上而下，下层不得引用上层：
@@ -54,6 +57,7 @@ src/
 ├── pages/                路由页面，只负责组合 feature，不写业务逻辑
 ├── features/<领域>/       业务模块：components/ hooks/ lib/
 │   ├── runs/             工作流列表、Run 详情与 Task → Event → Act → Message 层级
+│   ├── run-exports/      Run 对话导出、处理进度、结果下载
 │   ├── run-editor/       新建/编辑 Run：草稿、执行计划、运行配置、保存与运行
 │   ├── editor/           CodeMirror DSL 编辑器、工具栏与命令
 │   ├── library/          收藏、模板与目录
