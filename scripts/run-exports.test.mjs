@@ -5,6 +5,12 @@ const originalFetch = globalThis.fetch
 try {
   const { setSession, getSession } = await server.ssrLoadModule('/src/lib/api/session.ts')
   const api = await server.ssrLoadModule('/src/lib/api/run-exports.ts')
+  const { runExportFilename } = await server.ssrLoadModule('/src/features/run-exports/lib/filename.ts')
+  assert.equal(runExportFilename('数学解题方法'), '数学解题方法.zip')
+  assert.equal(runExportFilename(' ../CON:数学/第一章 '), '_CON_数学_第一章.zip')
+  assert.equal(runExportFilename('CON'), '_CON.zip')
+  assert.equal(runExportFilename(''), 'Run 对话.zip')
+  assert.ok(new TextEncoder().encode(runExportFilename('长'.repeat(200))).length <= 184)
   const session = { token: 'fixture-token', record: { id: 'owner' }, baseUrl: 'https://pb.example.invalid' }
   setSession(session)
   const job = { id: 'export000000001', owner: 'owner', run: 'run', title: 'test', contentMode: 'conversation', status: 'queued', progress: 0, messageCount: 0, documentCount: 0, file: '', fileSize: 0, warnings: null, expiresAt: '', created: new Date().toISOString() }

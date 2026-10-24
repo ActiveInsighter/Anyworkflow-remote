@@ -36,7 +36,7 @@ export function RunExportDialog({ run, open, onOpenChange, returnFocus }: {
                 <NativeSelectOption value="conversation">完整对话（提问和 AI 回复）</NativeSelectOption>
                 <NativeSelectOption value="assistant">仅 AI 回复</NativeSelectOption>
               </NativeSelect>
-              <FieldDescription>按 Task、Event、Act 整理，保留原会话链接。下载文件保留 7 天。</FieldDescription>
+              <FieldDescription>按 Task、Event、Act 命名，省略单项目录。保留原会话链接，文件保存 7 天。</FieldDescription>
             </Field>
           </FieldGroup>
           {!terminal ? <p className="text-xs text-muted-foreground">Run 尚未结束，将导出当前已同步的内容。</p> : null}

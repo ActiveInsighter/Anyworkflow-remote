@@ -69,7 +69,7 @@ try {
   await page.getByRole('button', { name: '下载 ZIP', exact: true }).waitFor()
   const downloaded = page.waitForEvent('download')
   await page.getByRole('button', { name: '下载 ZIP', exact: true }).click()
-  assert.equal((await downloaded).suggestedFilename(), '中文对话.zip')
+  assert.equal((await downloaded).suggestedFilename(), `${run.title}.zip`)
   await page.getByText('包含 1 条导出说明，请查看 ZIP 中的 README.md。').waitFor()
   if (process.env.SCREENSHOT_DIR) await mkdir(process.env.SCREENSHOT_DIR, { recursive: true })
   for (const scheme of ['light', 'dark']) {

@@ -4,6 +4,7 @@ import { useAsyncData } from '@/hooks/use-async-data'
 import { createRunExport, downloadRunExport, isRunExportActive, listRunExports } from '@/lib/api/run-exports'
 import { saveBlob } from '@/lib/platform/download'
 import type { RunExportContent, RunExportRecord } from '@/types/run-export'
+import { runExportFilename } from '../lib/filename'
 
 export function useRunExports(runId: string, open: boolean) {
   const [page, setPage] = useState(1)
@@ -37,7 +38,7 @@ export function useRunExports(runId: string, open: boolean) {
       controller.current = current
       const blob = await downloadRunExport(job, current.signal)
       current.signal.throwIfAborted()
-      saveBlob(blob, job.file)
+      saveBlob(blob, runExportFilename(job.title))
     }, { failure: false })
   }
 
