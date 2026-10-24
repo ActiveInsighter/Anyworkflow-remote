@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useParams } from 'react-router'
 import { ConfirmDeleteDialog } from '@/components/feedback/confirm-dialog'
 import { ErrorAlert } from '@/components/feedback/error-alert'
@@ -14,6 +14,7 @@ import { ExecutionRecord } from '@/features/runs/components/execution/execution-
 import { RunVersionPicker } from '@/features/runs/components/run-detail/run-version-picker'
 import { useRunDetail } from '@/features/runs/hooks/use-run-detail'
 import { useRunDetailActions } from '@/features/runs/hooks/use-run-detail-actions'
+import { RunExportDialog } from '@/features/run-exports/components/run-export-dialog'
 
 export function RunDetailPage() {
   const { runId = '' } = useParams()
@@ -26,6 +27,8 @@ export function RunDetailPage() {
     selectVersion: detail.selectVersion,
   })
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
+  const menuTriggerRef = useRef<HTMLButtonElement>(null)
   const now = useNow()
 
   if (!run) {
@@ -48,6 +51,8 @@ export function RunDetailPage() {
             schedulePending={schedule.pending}
             actions={actions}
             onDelete={() => setConfirmDeleteOpen(true)}
+            onExport={() => setExportOpen(true)}
+            menuTriggerRef={menuTriggerRef}
           />
         }
       />
@@ -79,6 +84,8 @@ export function RunDetailPage() {
         onPageChange={detail.setTaskPage}
         deepLink={detail.deepLink}
       />
+
+      <RunExportDialog key={run.id} run={run} open={exportOpen} onOpenChange={setExportOpen} returnFocus={() => menuTriggerRef.current?.focus()} />
 
       <ConfirmDeleteDialog
         open={confirmDeleteOpen}
