@@ -12,6 +12,7 @@ const modules = await Promise.all((await readdir(new URL('../converter-worker/',
     contents: stripTypeScriptTypes(await readFile(new URL(`../converter-worker/${name}`, import.meta.url), 'utf8')),
   })))
 const rows = [], dispatches = [], uploads = [], cancellations = []
+let runReads = 0
 let uncertainDispatch = false, completed = false, conclusion = 'success', archiveAvailable = true
 const zip = new Uint8Array([80, 75, 3, 4, 10, 20, 30, 40])
 const pb = config.vars.POCKETBASE_URL
@@ -31,7 +32,7 @@ async function outbound(request) {
     const id = url.pathname.split('/records/')[1]
     if (!id) {
       const filter = url.searchParams.get('filter')
-      return Response.json({ items: rows.filter(item => filter.includes(`status="${item.status}"`)) })
+      return Response.json({ items: rows.filter(item => filter.includes(`status="${item.status}"`)).slice(0, 10) })
     }
     const item = rows.find(item => item.id === id)
     assert.ok(item)
@@ -70,6 +71,7 @@ async function outbound(request) {
   if (url.pathname.endsWith('/artifacts')) return Response.json({ artifacts: archiveAvailable ? [{ id: 1, name: `file-converter-pdf-to-md-${url.pathname.split('/').at(-2)}`, size_in_bytes: zip.length }] : [] })
   if (url.pathname.endsWith('/zip')) return new Response(null, { status: 302, headers: { location: 'https://test.blob.core.windows.net/signed' } })
   if (url.pathname.endsWith('/runs')) return Response.json({ workflow_runs: [{ id: 102, display_title: `file-converter-pdf-to-md-${rows[1].id}`, status: 'in_progress' }] })
+  runReads++
   return Response.json({ id: 101, status: completed ? 'completed' : 'in_progress', conclusion, head_branch: 'main', head_sha: 'a'.repeat(40) })
 }
 const mainModules = await workerModules()
@@ -163,6 +165,14 @@ try {
   archiveAvailable = true
   await tick()
   assert.equal(rows[2].status, 'succeeded')
+  // PocketBase bounds each list page: queued records must never hide the active run.
+  rows.length = 0
+  rows.push(...Array.from({ length: 12 }, (_, i) => row(`queue${String(i).padStart(10, '0')}`)), { ...row('ddddddddddddddd', 'running'), githubRunId: '999' })
+  completed = false
+  const previousReads = runReads
+  await tick()
+  assert.equal(runReads, previousReads + 1, 'a backlog larger than one page still advances the running job')
+  assert.equal(dispatches.length, 2, 'backlog cannot create overlapping Actions runs')
   console.log('converter-worker: real alarm, authenticated service wake, main ref, single dispatch, restart recovery, cancellation and streaming ZIP sync passed')
 } finally {
   await mf.dispose()

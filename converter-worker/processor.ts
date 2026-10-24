@@ -92,7 +92,9 @@ export function createPdfProcessor({ store, github, now = () => new Date(), maxA
 
   return {
     async runOnce() {
-      const rows = await store.list(ACTIVE)
+      // A long queue must not push the running job outside the bounded list page.
+      const [activeRows, queuedRows] = await Promise.all([store.list(IN_FLIGHT), store.list(['queued'])])
+      const rows = [...activeRows, ...queuedRows]
       let errors = 0
       const advance = async (row: ConversionJob) => {
         try {

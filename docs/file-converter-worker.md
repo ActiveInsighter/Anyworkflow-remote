@@ -19,6 +19,7 @@ Remote Worker 使用固定 PocketBase 验证当前会话，再通过私有 `FILE
 的任务也可以运行。生产与现有共享预览都使用同一 PocketBase，唤醒的是同一队列。
 
 单个 SQLite Durable Object 协调共享模型配额池，最多同时运行一个转换。
+活跃任务和等待任务分开读取，等待队列超过一页也不会阻塞当前 Actions 的状态同步。
 只有 alarm 执行状态机；HTTP 与 cron 只设置 alarm。活跃时每 30 秒核对 Actions，
 空闲时关闭 alarm。PocketBase 仍是任务唯一数据源，DO 仅持有 alarm 和最近一次检查摘要。
 发送前先持久化 dispatch intent；请求结果不确定时按 request_id 对账，15 分钟未确认则报错，
@@ -48,6 +49,13 @@ ZIP 从 GitHub 签名存储地址流式上传回原 PocketBase 受保护 file �
 `npx wrangler deploy --config wrangler.converter.jsonc --var CONVERTER_ENABLED:false`。
 查看日志：`npx wrangler tail anyworkflow-file-converter`。重新生成类型：`npm run converter:types`。
 生产配置中的 `CONVERTER_ENABLED=true` 会在下一次正常部署恢复运行。
+
+2026-10-24 生产验证：旧 PDF 容器已停止且 restart=no，旧 ref 已移除；
+[运行 #138](https://github.com/ActiveInsighter/file-converter-ai/actions/runs/40095870626)
+通过前端相同的 PocketBase 创建及 Worker 唤醒接口触发，使用 main 的
+`cb12d91b37912d18c24bb4d8dfd02e26d73121fd`，单页 Actions 约 33 秒成功。
+任务 `cfsmoke20261024` 回存为 succeeded，616 字节 ZIP 通过受保护下载接口取回，
+包含合并 Markdown 及 pages/001.md，文本为 `Dummy PDF file`。
 
 回退时先暂停 Cloudflare 调度器并等待当前检查结束，然后才启用 Docker 回退服务；
 将 Docker 的 ref 明确设为 main，并显式设 `PDF_LEGACY_ENABLED=true`。禁止两套消费者同时运行。
