@@ -12,6 +12,7 @@ import {
   type PdfJobInput,
 } from '@/lib/api/file-conversion'
 import { saveBlob } from '@/lib/platform/download'
+import { wakeConverter } from '@/lib/api/converter-dispatcher'
 
 const JOBS_POLL_MS = 5_000
 
@@ -43,6 +44,7 @@ export function useConversionJobs() {
       'create',
       async () => {
         await createPdfJob(id, input)
+        wakeConverter()
         submission.current = null
         await showLatest()
         return true
@@ -57,6 +59,7 @@ export function useConversionJobs() {
       `${job.id}:cancel`,
       async () => {
         await cancelPdfJob(job)
+        wakeConverter()
         await jobs.reload()
       },
       { success: `已请求结束「${job.title}」`, failure: false },
@@ -70,6 +73,7 @@ export function useConversionJobs() {
       `${job.id}:rerun`,
       async () => {
         await rerunPdfJob(id, job)
+        wakeConverter()
         rerunSubmission.current = null
         await showLatest()
       },

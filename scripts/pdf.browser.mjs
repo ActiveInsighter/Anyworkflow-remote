@@ -11,12 +11,20 @@ const errors = []
 page.on('pageerror', e => errors.push(e.message))
 let created, config, mode = 'empty', postCount = 0, tokenCalls = 0, configPatchCount = 0, configListCalls = 0, cancelCount = 0, rerunBody
 let uploadMode = 'success', uploadCount = 0
+let wakeCount = 0
 const heldUploads = new Map()
 const multipartUploads = new Map()
 const partSize = 32 * 1024 * 1024
 let fixtureDirectory
 const pdfFile = (name = '讲义.pdf') => ({ name, mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.7\nfixture\n') })
 await context.addInitScript(() => localStorage.setItem('anyworkflow.auth.session.v1', JSON.stringify({ token: 'fixture-token', record: { id: 'owner-1' }, baseUrl: 'https://pb.example.invalid' })))
+await context.route('**/api/file-conversion/wake', async route => {
+ assert.equal(route.request().method(), 'POST')
+ assert.equal(route.request().headers().authorization, 'Bearer fixture-token')
+ assert.equal(route.request().headers()['x-pocketbase-url'], 'https://pb.example.invalid')
+ wakeCount++
+ await route.fulfill({ status: 202, json: { accepted: true } })
+})
 await context.route('**/api/file-conversion/uploads/multipart**', async route => {
  const req = route.request(), url = new URL(req.url())
  assert.equal(req.headers().authorization, 'Bearer fixture-token')
@@ -261,6 +269,8 @@ assert.equal(created.outputName, '数学笔记')
  await largeFile.write('%PDF-1.7\n')
  await largeFile.close()
  uploadMode = 'hold'
+ // The POST response can precede the history reload and the fieldset becoming enabled.
+ await page.waitForFunction(() => !document.querySelector('#pdf-upload').matches(':disabled'))
  const firstThree = Promise.all([1, 2, 3].map(number => page.waitForRequest(request =>
    request.method() === 'PUT' && new URL(request.url()).pathname.endsWith(`/multipart/upload-6/parts/${number}`))))
  await fileInput.setInputFiles(largePath)
@@ -276,6 +286,8 @@ assert.equal(created.outputName, '数学笔记')
  await largeJobCreated
  assert.equal(postCount, 6)
  assert.equal(created.sourceUrl, 'https://ocr-files.any1.tech/fixtures/upload-6.pdf')
+ await page.waitForFunction(() => !document.querySelector('#pdf-upload').matches(':disabled'))
+ assert.ok(wakeCount >= postCount, 'saved jobs wake the Cloudflare dispatcher')
  assert.deepEqual(errors, [])
  console.log('PDF browser: links, multipart/cancel/retry, >90 MiB concurrent slices, job URL contract and responsive themes passed')
 } finally {

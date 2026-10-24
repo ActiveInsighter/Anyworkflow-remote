@@ -8,6 +8,17 @@ import { singleUpload } from './single-upload.js'
 const MULTIPART_ROUTE = new RegExp(`^${MULTIPART_PATH}/([^/]+)(?:/(parts)/([^/]+)|/(complete))?$`, 'u')
 
 async function apiRequest(request: Request, env: Env, pathname: string): Promise<Response> {
+  if (pathname === '/api/file-conversion/dispatcher') {
+    if (request.method !== 'GET') return methodNotAllowed('GET')
+    await authenticate(request, env)
+    return env.FILE_CONVERTER.fetch('https://converter.internal/status')
+  }
+  if (pathname === '/api/file-conversion/wake') {
+    if (request.method !== 'POST') return methodNotAllowed('POST')
+    await authenticate(request, env)
+    // Only a wake signal crosses the private binding. Jobs and parameters come from PocketBase.
+    return env.FILE_CONVERTER.fetch('https://converter.internal/wake', { method: 'POST' })
+  }
   if (pathname === UPLOAD_PATH) {
     if (request.method !== 'PUT') return methodNotAllowed('PUT')
     await authenticate(request, env)

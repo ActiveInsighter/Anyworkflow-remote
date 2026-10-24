@@ -9,12 +9,14 @@
   "scripts": {
     "dev": "vite",
     "test": "node --experimental-strip-types scripts/run-tests.mjs && npm run test:worker",
-    "test:worker": "node scripts/upload-worker.test.mjs && node scripts/upload-worker-multipart.test.mjs && node scripts/upload-worker-relay.test.mjs",
+    "test:worker": "node scripts/upload-worker.test.mjs && node scripts/upload-worker-multipart.test.mjs && node scripts/upload-worker-relay.test.mjs && node scripts/converter-worker.test.mjs",
     "test:browser": "node scripts/run-browser-tests.mjs",
     "test:browser:install": "playwright install chromium",
     "build": "npm run typecheck && vite build",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.worker.json",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.worker.json && tsc --noEmit -p tsconfig.converter.json",
     "worker:types": "wrangler types worker/worker-configuration.d.ts",
+    "converter:types": "wrangler types --config wrangler.converter.jsonc --env-interface ConverterEnv converter-worker/worker-configuration.d.ts",
+    "converter:deploy": "npm run preflight && wrangler deploy --config wrangler.converter.jsonc",
     "preview": "vite preview --host 0.0.0.0",
     "deploy": "npm run preflight && wrangler deploy",
     "preflight": "npm test && npm run build"
@@ -51,5 +53,8 @@
     "typescript": "^7.0.0",
     "vite": "^8.3.0",
     "wrangler": "4.151.1"
+  },
+  "overrides": {
+    "workerd": "1.20261024.1"
   }
 }

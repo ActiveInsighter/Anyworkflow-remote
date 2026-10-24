@@ -200,6 +200,9 @@ anyworkflow-remote-<commit-sha>.zip
 
 ## Cloudflare Workers Static Assets 部署
 
+文件转换调度独立部署为 `anyworkflow-file-converter`，始终触发转换仓库的 main，
+不再依赖 Docker PDF 服务。架构、首次切换和回退见 [转换调度 Worker](docs/file-converter-worker.md)。
+
 项目使用根目录 `wrangler.jsonc`，将 `dist/` 作为 Workers Static Assets，并启用 SPA fallback，因此 React Router 的深层链接可直接刷新。
 
 GitHub 仓库需要以下 Actions Secrets：

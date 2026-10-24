@@ -55,9 +55,9 @@ Worker 只向配置中的 `POCKETBASE_URL` 验证 `aw_clients` 会话，不将�
 `npm run test:browser` 后，通过原有 `deploy-cloudflare.yml` 部署；只测试本地 workerd 时
 不会访问生产 R2。`npm run worker:types` 可在修改绑定后更新 Worker 类型。
 
-现有转换服务已配置 `GITHUB_FILE_CONVERTER_REF=ccr-c3760b73-h8uc5y`，
-使用该分支 60 秒链接提交超时和后续分段并发提交。配置位于服务器的部署环境中，密钥不入库。
-若部署转换服务时更换环境文件，应保留这项显式配置；默认值仍为 `main`。
+转换调度已迁移至独立 Cloudflare Worker `anyworkflow-file-converter`，始终触发转换仓库的 `main`。
+旧 Docker PDF 服务曾固定在 `ccr-c3760b73-h8uc5y`，导致生产未使用 main 的优化；不要恢复这项配置。
+部署、密钥、切换和回退见 [转换调度 Worker](file-converter-worker.md)。
 
 ## 2026-10-22 实测
 
