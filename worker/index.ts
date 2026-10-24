@@ -4,10 +4,12 @@ import { abortMultipart, completeMultipart, createMultipart, uploadPart } from '
 import { MULTIPART_PATH, UPLOAD_PATH } from './pdf.js'
 import { RELAY_PATH, relayUpload } from './relay.js'
 import { singleUpload } from './single-upload.js'
+import { DOWNLOAD_PATH, downloadArchive } from './download.js'
 
 const MULTIPART_ROUTE = new RegExp(`^${MULTIPART_PATH}/([^/]+)(?:/(parts)/([^/]+)|/(complete))?$`, 'u')
 
 async function apiRequest(request: Request, env: Env, pathname: string): Promise<Response> {
+  if (pathname === DOWNLOAD_PATH) return downloadArchive(request, env)
   if (pathname === '/api/file-conversion/dispatcher') {
     if (request.method !== 'GET') return methodNotAllowed('GET')
     await authenticate(request, env)

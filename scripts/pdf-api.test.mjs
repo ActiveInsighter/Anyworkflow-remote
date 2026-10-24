@@ -4,8 +4,8 @@ import { createServer } from 'vite'
 const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' })
 const originalFetch = globalThis.fetch
 try {
-  const { setSession } = await server.ssrLoadModule('/src/lib/api/session.ts')
-  const { DEFAULT_PDF_SYSTEM_PROMPT, cancelPdfJob, createPdfJob, getPdfConversionConfig, listPdfJobs, pdfDownloadUrl, rerunPdfJob, savePdfConversionConfig } = await server.ssrLoadModule('/src/lib/api/file-conversion.ts')
+  const { getSession, setSession } = await server.ssrLoadModule('/src/lib/api/session.ts')
+  const { DEFAULT_PDF_SYSTEM_PROMPT, cancelPdfJob, createPdfJob, getPdfConversionConfig, listPdfJobs, pdfDownloadUrl, pdfBrowserDownloadUrl, rerunPdfJob, savePdfConversionConfig } = await server.ssrLoadModule('/src/lib/api/file-conversion.ts')
   setSession({ token: 'test', record: { id: 'owner-1' }, baseUrl: 'https://pb.example.invalid' })
   let sent
   const config = {
@@ -77,6 +77,21 @@ try {
   const link = await pdfDownloadUrl({ id: 'job1', owner: 'owner-1', file: 'book.zip' })
   assert.equal(new URL(link).searchParams.get('token'), 'short-lived')
   assert.equal(new URL(link).searchParams.get('download'), '1')
+  const previousSession = getSession()
+  const downloadJob = { id: 'job1', owner: 'owner-1', file: 'book.zip', outputName: '数学笔记' }
+  assert.equal(new URL(await pdfBrowserDownloadUrl(downloadJob)).origin, 'https://pb.example.invalid', 'custom backends keep their own authorized file route')
+  setSession({ ...previousSession, baseUrl: 'https://pb.any1.tech' })
+  const native = new URL(await pdfBrowserDownloadUrl(downloadJob), 'https://remote.invalid')
+  assert.equal(native.pathname, '/api/file-conversion/download')
+  assert.equal(native.searchParams.get('name'), '数学笔记.zip')
+  assert.equal(native.searchParams.get('token'), 'short-lived')
+  await assert.rejects(() => pdfBrowserDownloadUrl({ ...downloadJob, owner: 'other' }), /归属/u)
+  globalThis.fetch = async () => {
+    setSession({ ...previousSession, record: { id: 'other' } })
+    return Response.json({ token: 'short-lived' })
+  }
+  await assert.rejects(() => pdfDownloadUrl(downloadJob), /账户已切换/u)
+  setSession(previousSession)
   globalThis.fetch = async () => Response.json({ items: [{ ...config, options: { ...config.options, dpi: 500 } }] })
   await assert.rejects(() => getPdfConversionConfig(), /格式无效/)
   // Pin the visible default to the same seed as PocketBase and the converter.

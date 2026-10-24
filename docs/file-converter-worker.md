@@ -30,6 +30,21 @@ ZIP 从 GitHub 签名存储地址流式上传回原 PocketBase 受保护 file �
 上传失败可由下轮检查重新下载同步，无需重复运行转换。日志记录 job id、run id、实际分支和 SHA，
 不记录提示词、源文件链接或密钥。
 
+## 浏览器下载
+
+下载按钮只请求短期 PocketBase file token，随后交给浏览器下载管理器；网页不再
+通过 fetch/blob 等待完整 ZIP。生产使用同源 `GET /api/file-conversion/download`，
+Worker 将文件流直接转发，保留中文产物文件名及 Range/If-Range、HEAD、Content-Length。
+PocketBase 在源端继续验证 file token 和归属；无服务器身份绕过授权，目标固定为配置中的
+PocketBase 和转换产物集合。下载响应禁止缓存，鉴权错误不作为 ZIP 返回。
+短期 token 到期后如需重新发起/恢复下载，应再次点击按钮取得新权限。
+自定义 PocketBase 连接仍使用该服务自己的受保护附件下载接口。
+
+2026-10-24 下载排查：任务 `cc1c013d2fe2487` 的 32,116,376 字节 ZIP 在服务器侧约
+3.6 秒完整取回；源接口和 CORS 正常，Range 请求返回 206。旧网页先完整缓冲才保存，
+慢速或中断时只会持续转圈并最终显示 Failed to fetch。新入口让浏览器显示实际下载进度，
+传输过程中不锁定转换记录的其他操作。
+
 ## 首次切换
 
 1. 运行 `npm run preflight`；`npm run test:browser -- pdf` 验证转换界面。

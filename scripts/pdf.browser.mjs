@@ -68,7 +68,7 @@ await context.route('**/api/file-conversion/uploads/multipart**', async route =>
 await context.route('https://pb.example.invalid/**', async route => {
  const req = route.request(), url = new URL(req.url())
  if (url.pathname === '/api/files/token') { tokenCalls++; return route.fulfill({ json: { token: 'short-lived' } }) }
- if (url.pathname.startsWith('/api/files/')) { assert.equal(url.searchParams.get('token'), 'short-lived'); return route.fulfill({ body: Buffer.from([80,75,3,4]), contentType: 'application/zip' }) }
+ if (url.pathname.startsWith('/api/files/')) { assert.equal(url.searchParams.get('token'), 'short-lived'); return route.fulfill({ body: Buffer.from([80,75,3,4]), contentType: 'application/zip', headers: { 'Content-Disposition': "attachment; filename*=UTF-8''" + encodeURIComponent(`${created.outputName}.zip`) } }) }
  if (url.pathname.includes('/aw_file_conversion_configs/records')) {
    if (req.method() === 'GET' && process.env.CONFIG_LOAD_FAILURE && configListCalls++ < Number(process.env.CONFIG_FAILURE_COUNT || 1)) {
      return route.fulfill({ status: 503, json: { message: 'fixture config load failed' } })

@@ -6,12 +6,12 @@ import {
   createPdfJob,
   listPdfJobs,
   newRecordId,
-  pdfDownloadUrl,
+  pdfBrowserDownloadUrl,
   rerunPdfJob,
   type PdfJob,
   type PdfJobInput,
 } from '@/lib/api/file-conversion'
-import { saveBlob } from '@/lib/platform/download'
+import { startBrowserDownload } from '@/lib/platform/download'
 import { wakeConverter } from '@/lib/api/converter-dispatcher'
 
 const JOBS_POLL_MS = 5_000
@@ -85,11 +85,9 @@ export function useConversionJobs() {
     void action.run(
       `${job.id}:download`,
       async () => {
-        const response = await fetch(await pdfDownloadUrl(job))
-        if (!response.ok) throw new Error('下载失败，请刷新后重试')
-        saveBlob(await response.blob(), `${job.outputName}.zip`)
+        startBrowserDownload(await pdfBrowserDownloadUrl(job), `${job.outputName}.zip`)
       },
-      { failure: false },
+      { failure: false, success: '已交给浏览器下载，可在下载列表查看进度' },
     )
   }
 

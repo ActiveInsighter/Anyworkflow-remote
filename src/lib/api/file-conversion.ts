@@ -1,6 +1,7 @@
 import { DEFAULT_PDF_SYSTEM_PROMPT } from '../file-conversion-prompt'
 import { ApiError, assertOwner, listOwnedCollection, quoteFilter, request } from './client'
 import { requireSession } from './session'
+import { DEFAULT_POCKETBASE_URL } from './config'
 
 export { DEFAULT_PDF_SYSTEM_PROMPT } from '../file-conversion-prompt'
 
@@ -320,11 +321,22 @@ export async function rerunPdfJob(id: string, job: Pick<PdfJob, 'id' | 'owner' |
 }
 
 export async function pdfDownloadUrl(job: Pick<PdfJob, 'id' | 'owner' | 'file'>) {
+  const session = requireSession()
   assertOwner(job)
-  const { token } = await request<{ token: string }>('/api/files/token', { method: 'POST' })
+  const { token } = await request<{ token: string }>('/api/files/token', { method: 'POST', signal: AbortSignal.timeout(15_000) })
+  if (requireSession() !== session) throw new ApiError('账户已切换，请重新下载', 409, 'SESSION_CHANGED')
   if (!token || !job.file) throw Error('产物暂不可下载，请刷新后重试')
-  const url = new URL(`/api/files/${FILE_CONVERSION_JOB_COLLECTION}/${encodeURIComponent(job.id)}/${encodeURIComponent(job.file)}`, requireSession().baseUrl)
+  const url = new URL(`/api/files/${FILE_CONVERSION_JOB_COLLECTION}/${encodeURIComponent(job.id)}/${encodeURIComponent(job.file)}`, session.baseUrl)
   url.searchParams.set('token', token)
   url.searchParams.set('download', '1')
   return url.toString()
+}
+
+/** Keep custom PocketBase connections working; the deployed origin uses a streaming filename relay. */
+export async function pdfBrowserDownloadUrl(job: Pick<PdfJob, 'id' | 'owner' | 'file' | 'outputName'>) {
+  const session = requireSession()
+  const direct = new URL(await pdfDownloadUrl(job))
+  if (session.baseUrl.replace(/\/$/u, '') !== DEFAULT_POCKETBASE_URL.replace(/\/$/u, '')) return direct.toString()
+  const params = new URLSearchParams({ job: job.id, file: job.file, token: direct.searchParams.get('token')!, name: `${job.outputName}.zip` })
+  return `/api/file-conversion/download?${params}`
 }

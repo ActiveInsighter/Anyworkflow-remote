@@ -65,7 +65,7 @@ export function ConversionJobItem({
           {job.file ? (
             <Button size="sm" disabled={busy} onClick={onDownload}>
               {is('download') ? <Spinner data-icon="inline-start" /> : <Download data-icon="inline-start" />}
-              {is('download') ? '下载中…' : '下载 ZIP'}
+              {is('download') ? '准备下载…' : '下载 ZIP'}
             </Button>
           ) : null}
           {isPdfJobActive(job) ? (
