@@ -43,7 +43,7 @@ jobs:
             "Anyworkflow-remote/AGENTS.md" \
             "Anyworkflow-remote/skills-lock.json" \
             "Anyworkflow-remote/.agents/skills/ui-style/SKILL.md"; do
-            printf '%s\n' "${entries}" | grep -Fxq "${required}"
+            grep -Fx "${required}" <<< "${entries}" > /dev/null
           done
 
           skill_count="$(printf '%s\n' "${entries}" | grep -Ec '^Anyworkflow-remote/.agents/skills/.+/SKILL\.md$')"
