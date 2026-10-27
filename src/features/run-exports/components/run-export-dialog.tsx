@@ -25,9 +25,9 @@ export function RunExportDialog({ run, open, onOpenChange, returnFocus }: {
       <ModalContent size="md" finalFocus={() => returnFocus() ?? true}>
         <ModalHeader>
           <ModalTitle>导出 AI 对话</ModalTitle>
+          <ModalDescription className="text-muted-foreground">将当前 Run 的对话整理为 Markdown，打包为 ZIP。</ModalDescription>
         </ModalHeader>
         <ModalBody className="flex min-w-0 flex-col gap-5">
-          <ModalDescription className="-mt-1 text-body break-words text-muted-foreground">将当前 Run 的对话整理为 Markdown，打包为 ZIP。</ModalDescription>
           <form className="flex min-w-0 flex-col gap-4" onSubmit={event => { event.preventDefault(); state.create() }}>
             <FieldGroup>
               <Field>

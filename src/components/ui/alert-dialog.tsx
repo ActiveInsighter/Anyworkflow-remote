@@ -20,7 +20,7 @@ function AlertDialogOverlay({ className, ...props }: React.ComponentProps<typeof
     <AlertDialogPrimitive.Overlay
       data-slot="alert-dialog-overlay"
       className={cn(
-        'fixed inset-0 z-overlay bg-overlay data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0',
+        'fixed inset-0 z-overlay bg-(--modal-backdrop) duration-slow data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0',
         className,
       )}
       {...props}
@@ -35,8 +35,10 @@ function AlertDialogContent({ className, ...props }: React.ComponentProps<typeof
       <AlertDialogPrimitive.Content
         data-slot="alert-dialog-content"
         className={cn(
-          'fixed top-1/2 left-1/2 z-overlay grid w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 gap-5 rounded-xl border bg-background p-5 shadow-lg duration-base sm:p-6',
-          'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
+          // Same family as the Modal: a bottom sheet on phones, a floating card from `sm` up.
+          'fixed inset-x-0 bottom-0 z-overlay grid w-full gap-5 rounded-t-(--modal-radius) bg-(--modal-surface) px-5 pt-6 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-(--modal-shadow) ease-standard',
+          'sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:w-[calc(100%-2rem)] sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-(--modal-radius) sm:p-7 sm:shadow-(--modal-shadow-float)',
+          'duration-slow data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-bottom data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-bottom sm:data-[state=closed]:slide-out-to-bottom-4 sm:data-[state=closed]:zoom-out-95 sm:data-[state=open]:slide-in-from-bottom-4 sm:data-[state=open]:zoom-in-95',
           className,
         )}
         {...props}
