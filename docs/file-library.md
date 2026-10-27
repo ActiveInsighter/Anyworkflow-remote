@@ -7,11 +7,27 @@
 在提交前再次检查文件是否存在，再把同一 `sourceUrl` 写入原 `aw_pdf_to_md_jobs`。
 不同的页码范围、模型配置、提示词与任务记录共用一份原文件。取消选择不会删除资料库文件。
 
+## 浏览与操作
+
+资料库与收藏和模板共用 `src/components/drive/` 的云盘式浏览器：
+
+- 顶部搜索覆盖全部文件夹；排序（名称、修改时间、大小）与列表/网格视图按页面记在本机。
+- 点击文件夹进入，当前文件夹写入 `?folder=`，每进入一层增加一条历史记录，返回键逐级退出。
+- 每个条目的 ⋮（桌面也可右键）打开操作面板：手机为底部弹出，宽屏为悬浮面板。
+  重命名、移动、删除确认以面板内的下一页打开；移动时在面板里逐级浏览目标文件夹。
+- 新建：手机为右下角悬浮按钮，展开“上传 PDF / 新建文件夹”；宽屏为页头的“新建”。
+  资料库支持一次选择多个 PDF 或拖放到页面，按顺序上传到当前文件夹，底部显示进度。
+- 删除文件夹不会删除内容：其中的文件、收藏、模板和子文件夹移到上一级。
+
 ## 存储及访问
 
 - `LIBRARY_FILES` 是私有 R2 bucket；生产配置 `anyworkflow-library`，预览配置 `anyworkflow-library-preview`。
 - 文件使用随机 UUID key，目录索引按 owner 分开保存；文件名及 owner 元数据不经过公开 bucket。
-- `GET /api/library/files`、单文件详情及 DELETE 均验证固定 PocketBase 的 aw_clients 会话。
+- `GET /api/library/files`、单文件详情、PATCH（重命名、移动）及 DELETE 均验证固定 PocketBase 的 aw_clients 会话。
+  列表支持 `limit`（1–1000，默认 100），前端一次载入全部文件后在本地按文件夹浏览。
+- 文件夹保存在同一 bucket 的 `folders/<owner>/<UUID>`，每个文件夹一个对象，元数据为名称和上级；
+  `GET/POST /api/library/folders`、`PATCH/DELETE /api/library/folders/<UUID>`。移动会拒绝移入自身或子文件夹。
+  文件所在文件夹和可修改的文件名记在该文件的索引对象上；存储对象保留上传时的名字。
 - 新上传使用 `/api/library/files/uploads/multipart`，原先的临时上传接口继续兼容旧页面及 OCR 中转。
 - 新上传的签名票据使用 v2；临时上传使用 v1，禁止跨接口使用票据。
 - 上传完成才写目录索引，重复 complete 返回同一文件。删除先写 tombstone，迟到的 complete 不能恢复文件。

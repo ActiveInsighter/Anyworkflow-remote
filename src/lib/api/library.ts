@@ -234,27 +234,29 @@ export async function updateLibraryFolder(
 }
 
 /**
- * Deleting a folder never orphans anything: child folders move to the root and filed items fall
- * back to 未分类. `scope` narrows that cleanup to the tab the folder belongs to, so removing a
- * 收藏 directory cannot detach a 模板 that happens to sit in it.
+ * Deleting a folder never orphans anything: its child folders and filed items move up one level.
+ * `scope` narrows that cleanup to the tab the folder belongs to, so removing a 收藏 directory
+ * cannot detach a 模板 that happens to sit in it.
  */
 export async function deleteLibraryFolder(id: string, scope?: LibraryFolderScope): Promise<void> {
   const folderId = requiredId(id, '目录 ID')
   const foreignScope = otherScope(scope)
   const library = await listLibrary()
-  for (const child of library.folders.filter((folder) => folder.parent === folderId && folder.scope !== foreignScope)) {
-    await updateLibraryFolder(child.id, { parent: '' })
+  const parent = library.folders.find((folder) => folder.id === folderId)?.parent ?? ''
+  const target = parent === folderId ? '' : parent
+  const writes: Promise<unknown>[] = []
+  for (const child of library.folders.filter((folder) => folder.parent === folderId && folder.id !== folderId && folder.scope !== foreignScope)) {
+    writes.push(updateLibraryFolder(child.id, { parent: target }))
   }
   if (scope !== 'template') {
-    for (const favorite of library.favorites.filter((item) => item.folder === folderId)) {
-      await moveRunFavorite(favorite.id, '')
-    }
+    for (const favorite of library.favorites.filter((item) => item.folder === folderId)) writes.push(moveRunFavorite(favorite.id, target))
   }
   if (scope !== 'favorite') {
     for (const template of library.templates.filter((item) => item.folder === folderId)) {
-      await updateWorkflowTemplate(template.id, { folder: '' })
+      writes.push(updateWorkflowTemplate(template.id, { folder: target }))
     }
   }
+  await Promise.all(writes)
   await request<void>(
     `/api/collections/${LIBRARY_FOLDER_COLLECTION}/records/${encodeURIComponent(folderId)}`,
     { method: 'DELETE' },

@@ -64,3 +64,15 @@ export function formatRelativeTime(value: string, now = Date.now()): string {
   if (minutes < 24 * 60) return `${Math.floor(minutes / 60)} 小时前`
   return formatDateTime(value)
 }
+
+/** Compact date for file lists: time today, month and day this year, the full date before. */
+export function formatShortDate(value: string, now = new Date()): string {
+  if (!value) return '—'
+  const date = new Date(value.trim().replace(/^(\d{4}-\d{2}-\d{2}) /u, '$1T'))
+  if (Number.isNaN(date.getTime())) return value
+  if (date.toDateString() === now.toDateString()) {
+    return new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(date)
+  }
+  if (date.getFullYear() === now.getFullYear()) return `${date.getMonth() + 1}月${date.getDate()}日`
+  return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`
+}
