@@ -72,6 +72,9 @@ Do not apply every UI skill mechanically. Use `ui-style` first, then consult the
 - Use semantic CSS variables/theme tokens instead of hardcoded component colors unless the task explicitly requires a new token. New tokens go in `src/styles/tokens/`.
 - Never read a React external-store snapshot by parsing storage into a new object on every `getSnapshot` call.
 - Do not introduce a second source of truth for Run/Task/Event state or command semantics.
+- Async task status (Runs, conversions, exports) goes through `@/lib/tasks` (the vendored `shared/task-kit`).
+  Never edit `shared/task-kit/` here: change `AnyWorkflow-workers/src/platform/tasks`, then run
+  `node scripts/sync-task-kit.mjs`. See `docs/architecture.md`.
 - Keep user-facing copy concise and remove implementation-detail prose from product UI unless it is necessary for operation.
 - Run `npm run preflight` before treating a code change as complete.
 - Do not claim Cloudflare deployment success until the relevant deploy workflow is actually green.
