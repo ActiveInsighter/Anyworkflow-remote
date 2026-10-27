@@ -52,3 +52,15 @@ export function formatFileSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
+
+/** "刚刚" / "5 分钟前" / "3 小时前" within a day, then the absolute date and time. */
+export function formatRelativeTime(value: string, now = Date.now()): string {
+  if (!value) return '—'
+  const time = Date.parse(value.trim().replace(/^(\d{4}-\d{2}-\d{2}) /u, '$1T'))
+  if (Number.isNaN(time)) return value
+  const minutes = Math.floor((now - time) / 60_000)
+  if (minutes < 1) return '刚刚'
+  if (minutes < 60) return `${minutes} 分钟前`
+  if (minutes < 24 * 60) return `${Math.floor(minutes / 60)} 小时前`
+  return formatDateTime(value)
+}

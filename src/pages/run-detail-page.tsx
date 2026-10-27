@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { useParams } from 'react-router'
+import { useParams, useSearchParams } from 'react-router'
 import { ConfirmDeleteDialog } from '@/components/feedback/confirm-dialog'
 import { ErrorAlert } from '@/components/feedback/error-alert'
 import { LoadingState } from '@/components/feedback/loading-state'
@@ -27,7 +27,16 @@ export function RunDetailPage() {
     selectVersion: detail.selectVersion,
   })
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
-  const [exportOpen, setExportOpen] = useState(false)
+  // `?export=1` opens the export sheet, so the task center can link straight to it.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const exportOpen = searchParams.get('export') === '1'
+  const setExportOpen = (open: boolean) =>
+    setSearchParams((params) => {
+      const next = new URLSearchParams(params)
+      if (open) next.set('export', '1')
+      else next.delete('export')
+      return next
+    }, { replace: true })
   const menuTriggerRef = useRef<HTMLButtonElement>(null)
   const now = useNow()
 
@@ -85,7 +94,7 @@ export function RunDetailPage() {
         deepLink={detail.deepLink}
       />
 
-      <RunExportDialog key={run.id} run={run} open={exportOpen} onOpenChange={setExportOpen} returnFocus={() => menuTriggerRef.current?.focus()} />
+      <RunExportDialog key={run.id} run={run} open={exportOpen} onOpenChange={setExportOpen} returnFocus={() => menuTriggerRef.current} />
 
       <ConfirmDeleteDialog
         open={confirmDeleteOpen}

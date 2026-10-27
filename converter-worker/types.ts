@@ -3,6 +3,7 @@ import type { ArtifactStore, GitHubActionsClient, GitHubRun, TaskRecord } from '
 export type { GitHubRun }
 
 export type ConversionJob = TaskRecord & {
+  [field: string]: unknown
   sourceUrl?: string
   outputName?: string
   cancelRequested?: boolean

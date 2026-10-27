@@ -18,6 +18,8 @@ await context.addInitScript(() => localStorage.setItem('anyworkflow.auth.session
 await context.route('https://pb.example.invalid/**', async route => {
   const req = route.request()
   const url = new URL(req.url())
+  // The task center's feed (all kinds, no Run filter) is not this sheet's export list.
+  if (url.searchParams.get('skipTotal')) return route.fulfill({ json: { page: 1, perPage: 8, totalItems: -1, totalPages: -1, items: [] } })
   requests.push(url)
   if (url.pathname === '/api/files/token') return route.fulfill({ json: { token: 'file-token' } })
   if (url.pathname.startsWith('/api/files/aw_run_exports/')) {

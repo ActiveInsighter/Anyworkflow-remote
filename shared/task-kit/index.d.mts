@@ -4,7 +4,11 @@
  */
 
 export type TaskState = 'idle' | 'queued' | 'running' | 'succeeded' | 'partial' | 'failed' | 'canceled' | 'expired'
-export type TaskRecord = { id: string; status: string; [field: string]: unknown }
+/** Any task record: kinds read their own fields structurally (no index signature needed). */
+export interface TaskRecord {
+  id: string
+  status: string
+}
 
 export interface TaskView {
   kind: string

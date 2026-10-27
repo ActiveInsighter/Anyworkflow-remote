@@ -1,12 +1,13 @@
 /*
  * Shape tokens.
  *
- * Controls use modest 5–8px radii; avoid pill shapes except for status dots and avatars.
+ * Controls use 7–10px radii, panels and cards 14px, sheets 24px (modal tokens). Pills are
+ * reserved for status badges, counters and avatars.
  * `--radius` is the shadcn/ui base value; the scale is derived from it.
  */
 
 :root {
-  --radius: 0.5rem;
+  --radius: 0.625rem;
 }
 
 @theme inline {
@@ -14,4 +15,5 @@
   --radius-md: calc(var(--radius) - 1px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
 }

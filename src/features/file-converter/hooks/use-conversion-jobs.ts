@@ -4,6 +4,7 @@ import { useAsyncData } from '@/hooks/use-async-data'
 import {
   cancelPdfJob,
   createPdfJob,
+  isPdfJobActive,
   listPdfJobs,
   newRecordId,
   pdfBrowserDownloadUrl,
@@ -13,8 +14,11 @@ import {
 } from '@/lib/api/file-conversion'
 import { startBrowserDownload } from '@/lib/platform/download'
 import { wakeConverter } from '@/lib/api/converter-dispatcher'
+import { notifyTasksChanged } from '@/lib/tasks'
 
-const JOBS_POLL_MS = 5_000
+/** Follow active conversions closely; an idle history only needs an occasional refresh. */
+const ACTIVE_POLL_MS = 5_000
+const IDLE_POLL_MS = 30_000
 
 /**
  * Paged conversion history plus every job write. Creates reuse the same record id until the
@@ -22,7 +26,9 @@ const JOBS_POLL_MS = 5_000
  */
 export function useConversionJobs() {
   const [page, setPage] = useState(1)
-  const jobs = useAsyncData((signal) => listPdfJobs(page, signal), [page], { pollMs: JOBS_POLL_MS })
+  const jobs = useAsyncData((signal) => listPdfJobs(page, signal), [page], {
+    pollMs: (data) => (data?.items.some(isPdfJobActive) ? ACTIVE_POLL_MS : IDLE_POLL_MS),
+  })
   // Separate trackers: a create failure belongs to the form, a row failure to the list.
   const creating = useAsyncAction()
   const action = useAsyncAction()
@@ -45,6 +51,7 @@ export function useConversionJobs() {
       async () => {
         await createPdfJob(id, input)
         wakeConverter()
+        notifyTasksChanged()
         submission.current = null
         await showLatest()
         return true
@@ -60,6 +67,7 @@ export function useConversionJobs() {
       async () => {
         await cancelPdfJob(job)
         wakeConverter()
+        notifyTasksChanged()
         await jobs.reload()
       },
       { success: `已请求结束「${job.title}」`, failure: false },
@@ -74,6 +82,7 @@ export function useConversionJobs() {
       async () => {
         await rerunPdfJob(id, job)
         wakeConverter()
+        notifyTasksChanged()
         rerunSubmission.current = null
         await showLatest()
       },

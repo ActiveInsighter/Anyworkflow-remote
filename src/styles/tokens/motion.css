@@ -98,3 +98,17 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Work in progress with no measurable fraction: a segment sweeping along the track. */
+@keyframes indeterminate-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+
+@utility animate-indeterminate {
+  animation: indeterminate-sweep 1.4s var(--ease-standard) infinite;
+}
