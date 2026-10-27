@@ -10,7 +10,7 @@ export function RunList({ children }: { children: ReactNode }) {
       <div
         aria-hidden="true"
         className={cn(
-          'hidden items-center gap-4 bg-muted/50 px-5 py-3 text-caption font-medium text-muted-foreground lg:grid',
+          'hidden items-center gap-4 bg-subtle px-5 py-2.5 text-caption font-medium text-muted-foreground lg:grid',
           RUN_LIST_COLUMNS,
         )}
       >

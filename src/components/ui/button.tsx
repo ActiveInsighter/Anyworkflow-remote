@@ -4,13 +4,13 @@ import { Slot } from 'radix-ui'
 import { cn } from '@/lib/utils'
 
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-[color,background-color,border-color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-45 aria-invalid:border-destructive [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "inline-flex shrink-0 items-center justify-center gap-2 rounded-lg text-sm font-medium whitespace-nowrap transition-[color,background-color,border-color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-45 aria-invalid:border-destructive [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
-        default: 'border border-transparent bg-primary text-primary-foreground shadow-xs hover:bg-primary-hover',
+        default: 'border border-transparent bg-primary text-primary-foreground shadow-[inset_0_1px_0_rgb(255_255_255/14%),var(--elevation-xs)] hover:bg-primary-hover',
         destructive: 'bg-destructive text-destructive-foreground shadow-xs hover:bg-destructive/90',
-        outline: 'border border-border-strong bg-card hover:bg-muted',
+        outline: 'border border-border-strong bg-card shadow-xs hover:bg-muted',
         secondary: 'border border-border bg-secondary text-secondary-foreground hover:bg-secondary/80',
         ghost: 'hover:bg-muted',
         /** Quiet destructive action inside toolbars and lists. */

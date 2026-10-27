@@ -2,14 +2,14 @@ import * as React from 'react'
 import { cn } from '@/lib/utils'
 
 /**
- * The console's one bordered surface. Flat by design: structure comes from the border and
- * internal dividers, never from shadow. Rows inside a card separate with `divide-y`.
+ * The console's one bordered surface: a hairline border with the faintest lift off the page.
+ * Structure inside comes from dividers, never nested cards. Rows separate with `divide-y`.
  */
 function Card({ className, ...props }: React.ComponentProps<'section'>) {
   return (
     <section
       data-slot="card"
-      className={cn('flex min-w-0 flex-col overflow-hidden rounded-lg border bg-card text-card-foreground', className)}
+      className={cn('flex min-w-0 flex-col overflow-hidden rounded-xl border bg-card text-card-foreground shadow-xs', className)}
       {...props}
     />
   )
