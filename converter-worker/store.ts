@@ -5,7 +5,7 @@ const collection = '/api/collections/aw_pdf_to_md_jobs/records'
 
 // Stream multipart data, enforcing the signed blob's length and ZIP signature.
 // FormData+Blob would buffer up to 100 MiB and exceed the isolate memory budget.
-export function archiveMultipart(archive: Archive, filename: string, metadata: JobPatch) {
+export function archiveMultipart(archive: Archive, filename: string, metadata: JobPatch | Record<string, string | number>) {
   const boundary = `aw-${crypto.randomUUID()}`
   const encoder = new TextEncoder()
   const safeName = filename.replace(/[\r\n"\\]/gu, '_')
@@ -60,7 +60,9 @@ export function createStore(env: ConverterEnv, fetchImpl: typeof fetch = fetch):
     return `/${id}`
   }
   return {
+    // Oldest last-check first: bounded, fair sweeps without pagination drift.
     async list(statuses) {
+      if (statuses.length === 0) return []
       const query = new URLSearchParams({ filter: statuses.map(status => `status="${status}"`).join(' || '), sort: 'updated,id', perPage: '10' })
       const result = await request<{ items: ConversionJob[] }>(`?${query}`)
       if (!Array.isArray(result.items)) throw new Error('Invalid job list')

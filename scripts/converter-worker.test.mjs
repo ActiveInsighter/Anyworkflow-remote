@@ -11,6 +11,10 @@ const modules = await Promise.all((await readdir(new URL('../converter-worker/',
     type: 'ESModule', path: `converter-worker/${name.replace(/\.ts$/u, '.js')}`,
     contents: stripTypeScriptTypes(await readFile(new URL(`../converter-worker/${name}`, import.meta.url), 'utf8')),
   })))
+// The coordinator runs the vendored task kit; load it exactly as wrangler bundles it.
+for (const name of (await readdir(new URL('../shared/task-kit/', import.meta.url), { recursive: true })).filter(file => file.endsWith('.mjs'))) {
+  modules.push({ type: 'ESModule', path: `shared/task-kit/${name}`, contents: await readFile(new URL(`../shared/task-kit/${name}`, import.meta.url), 'utf8') })
+}
 const rows = [], dispatches = [], uploads = [], cancellations = []
 let runReads = 0
 let uncertainDispatch = false, completed = false, conclusion = 'success', archiveAvailable = true
