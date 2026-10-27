@@ -10,7 +10,9 @@
 浏览器继续使用 PocketBase 的 `aw_file_conversion_configs`、`aw_pdf_to_md_jobs`。
 配置快照、系统提示词、本次提示词、页码范围、相邻页、模型、并发数等均沿用原接口。
 Worker 从已保存的任务构建白名单 inputs，不接受浏览器直接提交 Actions 参数。
-原 Docker 服务的状态机已移到 `processor.ts`，Docker PDF 服务仅作为显式启用的回退路径。
+状态机来自共享异步任务框架（`shared/task-kit/`，源码在 AnyWorkflow-workers 的 `src/platform/tasks/`）：
+`kinds/file-conversion.mjs` 定义输入白名单与引擎，`executors/github-actions.mjs` 负责派发、对账、取消和产物回存。
+Cloudflare 调度器与 Docker 回退服务构建同一个引擎，行为不会分叉；Docker PDF 服务仅作为显式启用的回退路径。
 
 浏览器保存新建、重跑或取消后，向同源 `POST /api/file-conversion/wake` 发送通知。
 Remote Worker 使用固定 PocketBase 验证当前会话，再通过私有 `FILE_CONVERTER` service binding
@@ -18,7 +20,8 @@ Remote Worker 使用固定 PocketBase 验证当前会话，再通过私有 `FILE
 通知失败不撤销已保存任务，也不重复创建；每分钟 cron 补漏，因此 MCP 或直接写入 PocketBase
 的任务也可以运行。生产与现有共享预览都使用同一 PocketBase，唤醒的是同一队列。
 
-单个 SQLite Durable Object 协调共享模型配额池，最多同时运行一个转换。
+单个 SQLite Durable Object（`TaskCoordinator`，以原名 `ConversionCoordinator` 绑定以保留存储）协调共享模型配额池，最多同时运行一个转换。
+新的外部执行任务类型只需在 `converter-worker/index.ts` 的 `createEngines` 中注册引擎。
 活跃任务和等待任务分开读取，等待队列超过一页也不会阻塞当前 Actions 的状态同步。
 只有 alarm 执行状态机；HTTP 与 cron 只设置 alarm。活跃时每 30 秒核对 Actions，
 空闲时关闭 alarm。PocketBase 仍是任务唯一数据源，DO 仅持有 alarm 和最近一次检查摘要。

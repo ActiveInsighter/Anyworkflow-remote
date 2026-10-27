@@ -1,14 +1,15 @@
 import { ChevronRight, CircleStop, Download, ExternalLink, RotateCcw } from 'lucide-react'
 import { DescriptionList } from '@/components/data-display/description-list'
-import { StatusBadge } from '@/components/data-display/status-badge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Spinner } from '@/components/ui/spinner'
+import { TaskProgress, TaskStatusBadge } from '@/features/tasks'
 import { isPdfJobActive, isPdfJobTerminal, type PdfJob } from '@/lib/api/file-conversion'
+import { fileConversionKind } from '@/lib/tasks'
 import { formatDateTime, formatFileSize } from '@/lib/format'
 import { describeJobOption } from '../lib/conversion-options'
-import { jobDuration, jobPageRange, jobRunUrl, jobStatusLabel, jobStatusTone } from '../lib/job-status'
+import { jobDuration, jobPageRange, jobRunUrl } from '../lib/job-status'
 
 /** One conversion: status, artifact, the parameters it ran with, and the actions its state allows. */
 export function ConversionJobItem({
@@ -48,9 +49,7 @@ export function ConversionJobItem({
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <h3 className="min-w-0 text-body font-medium break-all">{job.title}</h3>
-            <StatusBadge tone={jobStatusTone(job)} className="shrink-0">
-              {jobStatusLabel(job)}
-            </StatusBadge>
+            <TaskStatusBadge kind={fileConversionKind} record={job} className="shrink-0" />
           </div>
           <p className="mt-1 text-xs break-all text-muted-foreground tabular-nums">{meta.join(' · ')}</p>
           {pages || job.options?.adjacent_pages ? (
@@ -90,6 +89,8 @@ export function ConversionJobItem({
           ) : null}
         </div>
       </div>
+
+      <TaskProgress view={fileConversionKind.describe(job)} className="mt-3 max-w-md" />
 
       {job.error ? <p className="mt-3 rounded-md bg-muted/60 px-3 py-2 text-xs break-words text-danger">{job.error}</p> : null}
 

@@ -11,7 +11,7 @@ const tabsListVariants = cva('group/tabs-list inline-flex w-fit items-center tex
   variants: {
     variant: {
       /** Segmented pill, for switching views inside a section. */
-      default: 'h-9 rounded-md bg-muted p-1',
+      default: 'h-9 rounded-lg bg-muted p-1',
       /** Underlined, for page-level filters that sit on a divider. */
       line: 'h-auto gap-5 border-b border-border',
     },
@@ -42,7 +42,7 @@ function TabsTrigger({ className, ...props }: React.ComponentProps<typeof TabsPr
       data-slot="tabs-trigger"
       className={cn(
         'inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 text-xs font-medium whitespace-nowrap transition-colors outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:text-foreground [&_svg]:size-3.5',
-        'group-data-[variant=default]/tabs-list:h-7 group-data-[variant=default]/tabs-list:rounded-sm group-data-[variant=default]/tabs-list:px-2.5 group-data-[variant=default]/tabs-list:data-[state=active]:bg-background group-data-[variant=default]/tabs-list:data-[state=active]:shadow-xs',
+        'group-data-[variant=default]/tabs-list:h-7 group-data-[variant=default]/tabs-list:rounded-md group-data-[variant=default]/tabs-list:px-2.5 group-data-[variant=default]/tabs-list:data-[state=active]:bg-background group-data-[variant=default]/tabs-list:data-[state=active]:shadow-xs',
         'group-data-[variant=line]/tabs-list:-mb-px group-data-[variant=line]/tabs-list:h-touch group-data-[variant=line]/tabs-list:flex-none group-data-[variant=line]/tabs-list:border-b-2 group-data-[variant=line]/tabs-list:border-transparent group-data-[variant=line]/tabs-list:px-1 group-data-[variant=line]/tabs-list:data-[state=active]:border-primary',
         className,
       )}

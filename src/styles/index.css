@@ -3,7 +3,7 @@
  *   1. Tailwind and the animation plugin used by shadcn/ui overlays
  *   2. Design tokens — the only place raw values are declared
  *   3. The Tailwind bridge that turns tokens into utilities
- *   4. Element baseline and the CodeMirror shell
+ *   4. Element baseline, the CodeMirror shell and the Modal sheet
  *
  * Components style themselves with utilities; add CSS here only for third-party DOM.
  */
@@ -17,7 +17,9 @@
 @import './tokens/shape.css';
 @import './tokens/layout.css';
 @import './tokens/motion.css';
+@import './tokens/modal.css';
 
 @import './theme.css';
 @import './base.css';
 @import './editor.css';
+@import './modal.css';

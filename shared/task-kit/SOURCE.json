@@ -1,0 +1,13 @@
+{
+  "source": "AnyWorkflow-workers/src/platform/tasks",
+  "files": {
+    "catalog.mjs": "7309811c54ec7d3a2b0981358094ac539b0bc98ace8e4ebc685b6abc906094c8",
+    "engine.mjs": "f18b50ecb4c28a086a4522ed68ef3cbd333f16b03e14ec399c89ca44f0cc6cc1",
+    "executors/github-actions.mjs": "a94cf08704f19296543ea0bad4d5f2d24e32c7bd99b22c4872b58666dcad565d",
+    "index.d.mts": "445979e4a88b8970b34cb1b523b4c12d8541c278e7b833124ceb309c3b6bf8a6",
+    "index.mjs": "3a7284eaab3b5daebb886ed2e453a440f638ca058b7db7e517678b5a65cccd08",
+    "kinds/file-conversion.mjs": "f8c4858fc988322fbce101eefa46400542f87b5fc05a05be72ac733031c16c62",
+    "lifecycle.mjs": "fd78b2962ad98cf6b9ba44ce1e35e34b9cf904b2229096681c420b581bccbd29",
+    "retry.mjs": "ef229b2818bf689deda32818dedc2014e387daf6cb9391be146e89293afc8b65"
+  }
+}

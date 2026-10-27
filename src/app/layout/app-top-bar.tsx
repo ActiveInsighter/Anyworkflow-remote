@@ -1,7 +1,6 @@
 import { Fragment } from 'react'
 import { ArrowLeft, Menu } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router'
-import { StatusDot } from '@/components/data-display/status-badge'
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -12,10 +11,11 @@ import {
 } from '@/components/ui/breadcrumb'
 import { Button } from '@/components/ui/button'
 import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar'
+import { TaskCenter } from '@/features/tasks'
 import { useSession } from '@/lib/api/session'
 import { breadcrumbsFor, fallbackParent } from '@/app/breadcrumbs'
 
-/** Location bar: drawer trigger (mobile), back, breadcrumb trail and connection state. */
+/** Location bar: drawer trigger (mobile), back, breadcrumb trail and the task center. */
 export function AppTopBar() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -23,7 +23,6 @@ export function AppTopBar() {
   const { isMobile } = useSidebar()
   const crumbs = breadcrumbsFor(location.pathname)
   const currentTitle = crumbs.at(-1)?.label
-  const connection = session ? '已连接' : '未连接'
 
   function goBack() {
     if (location.pathname.startsWith('/settings/')) navigate(fallbackParent(location.pathname))
@@ -32,24 +31,22 @@ export function AppTopBar() {
   }
 
   return (
-    <header className="flex h-[calc(var(--spacing-header)+env(safe-area-inset-top))] shrink-0 items-center gap-1 border-b bg-background px-3 pt-[env(safe-area-inset-top)] sm:px-6">
+    <header className="flex h-[calc(var(--spacing-header)+env(safe-area-inset-top))] shrink-0 items-center gap-1 border-b border-border/70 px-2.5 pt-[env(safe-area-inset-top)] sm:px-4">
       <title>{currentTitle ? `${currentTitle} · AnyWorkflow Remote` : 'AnyWorkflow Remote'}</title>
       {isMobile ? (
-        <SidebarTrigger size="icon-touch" className="-ms-1.5 text-foreground">
+        <SidebarTrigger size="icon-touch" className="text-foreground">
           <Menu />
         </SidebarTrigger>
       ) : null}
 
       {location.pathname !== '/' ? (
-        <Button variant="ghost" size="icon-touch" onClick={goBack} aria-label="返回" className="text-muted-foreground">
+        <Button variant="ghost" size="icon-touch" onClick={goBack} aria-label="返回" className="text-muted-foreground sm:size-8">
           <ArrowLeft />
         </Button>
       ) : null}
 
       <Breadcrumb aria-label="当前位置" className="min-w-0 flex-1 overflow-hidden px-1">
         <BreadcrumbList className="flex-nowrap gap-1 text-xs sm:gap-1.5 sm:text-body">
-          <BreadcrumbItem className="hidden sm:inline-flex">工作空间</BreadcrumbItem>
-          <BreadcrumbSeparator className="hidden sm:block" />
           {crumbs.map((crumb, index) => {
             const current = index === crumbs.length - 1
             return (
@@ -57,7 +54,7 @@ export function AppTopBar() {
                 {index > 0 ? <BreadcrumbSeparator /> : null}
                 <BreadcrumbItem className="min-w-0">
                   {crumb.to && !current ? (
-                    <BreadcrumbLink asChild className="max-w-[32vw] truncate rounded-sm px-1 py-1 sm:max-w-64">
+                    <BreadcrumbLink asChild className="max-w-[32vw] truncate rounded-md px-1.5 py-1 hover:bg-muted sm:max-w-64">
                       <Link to={crumb.to}>{crumb.label}</Link>
                     </BreadcrumbLink>
                   ) : (
@@ -72,15 +69,7 @@ export function AppTopBar() {
         </BreadcrumbList>
       </Breadcrumb>
 
-      <span
-        role="status"
-        aria-label={connection}
-        title={connection}
-        className="flex shrink-0 items-center gap-1.5 rounded-md border bg-card px-2 py-1 text-caption text-muted-foreground"
-      >
-        <StatusDot tone={session ? 'success' : 'neutral'} />
-        <span className="hidden sm:inline">{connection}</span>
-      </span>
+      {session ? <TaskCenter /> : null}
     </header>
   )
 }

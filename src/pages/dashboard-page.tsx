@@ -95,17 +95,19 @@ export function DashboardPage() {
       </ErrorAlert>
       <ErrorAlert>{actions.error}</ErrorAlert>
 
-      <div className="mb-5 flex flex-col gap-4">
-        <SearchField
-          size="touch"
-          className="sm:max-w-sm [&_input]:text-base sm:[&_input]:text-sm"
-          label="搜索工作流"
-          placeholder="搜索名称或 Run ID"
-          value={listQuery.searchInput}
-          onValueChange={listQuery.setSearchInput}
-        />
-        <RunFilterTabs value={filter} onValueChange={listQuery.setFilter} />
-        <div className="flex items-center justify-between text-caption text-muted-foreground" role="status">
+      <div className="mb-4 flex flex-col gap-3">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <RunFilterTabs value={filter} onValueChange={listQuery.setFilter} />
+          <SearchField
+            size="touch"
+            className="lg:w-80 [&_input]:text-base sm:[&_input]:text-sm"
+            label="搜索工作流"
+            placeholder="搜索名称或 Run ID"
+            value={listQuery.searchInput}
+            onValueChange={listQuery.setSearchInput}
+          />
+        </div>
+        <div className="flex items-center justify-between px-0.5 text-caption text-muted-foreground" role="status">
           <span className="min-w-0 flex-1 truncate pe-3" title={query || undefined}>
             {query ? `搜索“${query}”` : '运行记录'}
           </span>

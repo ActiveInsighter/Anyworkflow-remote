@@ -2,7 +2,8 @@ import { GitBranch } from 'lucide-react'
 import { Link } from 'react-router'
 import { ProgressMeter } from '@/components/data-display/progress-meter'
 import { StatusBadge } from '@/components/data-display/status-badge'
-import { formatDateTime, progressPercent, progressText } from '@/lib/format'
+import { useNow } from '@/hooks/use-now'
+import { formatDateTime, formatRelativeTime, progressPercent, progressText } from '@/lib/format'
 import { isActiveStatus, runStatusMeta, runTitle, runVersionLabel } from '@/lib/domain/run-status'
 import type { DispatchRunRecord } from '@/types'
 import { RunStatusIcon } from '../run-status-icon'
@@ -16,10 +17,12 @@ import type { ReactNode } from 'react'
 export function RunListItem({ run, actions }: { run: DispatchRunRecord; actions: ReactNode }) {
   const status = runStatusMeta(run.status, run.requestedAction)
   const title = runTitle(run)
+  const now = useNow()
+  const updated = formatRelativeTime(run.updated, now)
 
   return (
     <article
-      className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-3 py-3.5 transition-colors hover:bg-muted/40 sm:px-5 lg:gap-x-4 lg:py-3 ${RUN_LIST_COLUMNS}`}
+      className={`group/run relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-3.5 py-3.5 transition-colors duration-fast hover:bg-subtle sm:px-5 lg:gap-x-4 lg:py-3 ${RUN_LIST_COLUMNS}`}
     >
       <div className="flex min-w-0 items-start gap-3 lg:items-center">
         <RunStatusIcon status={run.status} tone={status.tone} className="mt-1 lg:mt-0" />
@@ -36,8 +39,8 @@ export function RunListItem({ run, actions }: { run: DispatchRunRecord; actions:
               <GitBranch className="size-3" aria-hidden="true" />
               {runVersionLabel(run)}
             </span>
-            <time className="lg:hidden" dateTime={run.updated}>
-              {formatDateTime(run.updated)}
+            <time className="lg:hidden" dateTime={run.updated} title={formatDateTime(run.updated)}>
+              {updated}
             </time>
             <span className="hidden font-mono text-micro xl:inline">{run.id}</span>
           </div>
@@ -59,8 +62,8 @@ export function RunListItem({ run, actions }: { run: DispatchRunRecord; actions:
           {progressText(run.completedTasks, run.totalTasks, 'Tasks')}
         </span>
       </div>
-      <time className="hidden text-caption text-muted-foreground tabular-nums lg:block" dateTime={run.updated}>
-        {formatDateTime(run.updated)}
+      <time className="hidden text-caption text-muted-foreground tabular-nums lg:block" dateTime={run.updated} title={formatDateTime(run.updated)}>
+        {updated}
       </time>
       <div className="col-start-2 row-start-1 lg:col-auto lg:row-auto">{actions}</div>
     </article>

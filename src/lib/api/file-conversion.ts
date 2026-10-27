@@ -1,4 +1,5 @@
 import { DEFAULT_PDF_SYSTEM_PROMPT } from '../file-conversion-prompt'
+import { fileConversionKind } from '@shared/task-kit/index.mjs'
 import { ApiError, assertOwner, listOwnedCollection, quoteFilter, request } from './client'
 import { requireSession } from './session'
 import { DEFAULT_POCKETBASE_URL } from './config'
@@ -116,11 +117,6 @@ export interface PdfJob extends PdfJobInput {
   finishedAt: string
   cancelRequested: boolean
   rerunOf: string
-}
-
-export const pdfStatusLabels: Record<string, string> = {
-  queued: '等待调度', dispatching: '提交中', pending: '排队中', running: '转换中', uploading: '保存产物中',
-  succeeded: '已完成', partial: '部分完成', failed: '失败', canceled: '已取消',
 }
 
 /** PocketBase-compatible 15-character id; reusing one for a retried create keeps it idempotent. */
@@ -284,17 +280,14 @@ export async function createPdfJob(id: string, input: PdfJobInput) {
   }
 }
 
-const activePdfStatuses = new Set(['queued', 'dispatching', 'pending', 'running', 'uploading'])
-const terminalPdfStatuses = new Set(['succeeded', 'partial', 'failed', 'canceled'])
-
 /** Still occupying the converter: can be cancelled, not rerun. */
 export function isPdfJobActive(job: Pick<PdfJob, 'status'>): boolean {
-  return activePdfStatuses.has(job.status)
+  return fileConversionKind.isActive(job.status)
 }
 
 /** Reached a terminal state: can be rerun with its original parameters. */
 export function isPdfJobTerminal(job: Pick<PdfJob, 'status'>): boolean {
-  return terminalPdfStatuses.has(job.status)
+  return fileConversionKind.isTerminal(job.status)
 }
 
 export async function cancelPdfJob(job: Pick<PdfJob, 'id' | 'owner' | 'status'>): Promise<PdfJob> {

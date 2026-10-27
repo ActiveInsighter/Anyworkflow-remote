@@ -14,7 +14,7 @@ export function Page({
     <div
       data-slot="page"
       className={cn(
-        'mx-auto w-full px-4 pt-6 pb-[calc(3rem+env(safe-area-inset-bottom))] sm:px-7 sm:pt-8 sm:pb-16 lg:px-10 lg:pt-10',
+        'mx-auto w-full px-4 pt-5 pb-[calc(3rem+env(safe-area-inset-bottom))] sm:px-7 sm:pt-8 sm:pb-16 lg:px-10 lg:pt-9',
         width === 'page' ? 'max-w-page' : 'max-w-detail',
         className,
       )}
@@ -60,14 +60,14 @@ export function PageHeader({
         ) : null}
         <h1
           className={cn(
-            'text-title font-semibold sm:text-display',
+            'text-title font-semibold text-foreground sm:text-display',
             wrapTitle ? 'break-words whitespace-normal' : 'truncate',
           )}
         >
           {title}
         </h1>
         {description ? (
-          <p className={cn('mt-1.5 max-w-2xl text-body text-muted-foreground', compact && 'hidden sm:block')}>
+          <p className={cn('mt-1.5 max-w-2xl text-sm text-muted-foreground', compact && 'hidden sm:block')}>
             {description}
           </p>
         ) : null}

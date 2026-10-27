@@ -14,13 +14,13 @@ export function isRunListFilter(value: string | null): value is RunListFilter {
   return RUN_FILTERS.some((filter) => filter.value === value)
 }
 
-/** Status filter on the page divider; spreads evenly on mobile, packs left on desktop. */
+/** Status filter as a segmented control; spreads evenly on mobile, packs to its labels on desktop. */
 export function RunFilterTabs({ value, onValueChange }: { value: RunListFilter; onValueChange: (value: RunListFilter) => void }) {
   return (
     <Tabs value={value} onValueChange={(next) => onValueChange(isRunListFilter(next) ? next : 'all')}>
-      <TabsList variant="line" aria-label="运行状态" className="grid w-full grid-cols-6 gap-0 sm:flex sm:w-fit sm:gap-5">
+      <TabsList aria-label="运行状态" className="grid h-touch w-full grid-cols-6 sm:flex sm:h-9 sm:w-fit">
         {RUN_FILTERS.map((filter) => (
-          <TabsTrigger key={filter.value} value={filter.value}>
+          <TabsTrigger key={filter.value} value={filter.value} className="px-1 group-data-[variant=default]/tabs-list:h-full sm:px-3">
             {filter.label}
           </TabsTrigger>
         ))}

@@ -24,7 +24,7 @@ function DialogOverlay({ className, ...props }: React.ComponentProps<typeof Dial
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
       className={cn(
-        'fixed inset-0 z-overlay bg-overlay data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0',
+        'fixed inset-0 z-overlay bg-(--modal-backdrop) duration-slow data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0',
         className,
       )}
       {...props}
@@ -44,8 +44,10 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          'fixed top-1/2 left-1/2 z-overlay grid max-h-[calc(100dvh-1rem)] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto overscroll-contain rounded-xl border bg-background p-5 shadow-lg outline-none duration-base sm:max-h-[calc(100dvh-2rem)] sm:p-6',
-          'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
+          // Same family as the Modal: a bottom sheet on phones, a floating card from `sm` up.
+          'fixed inset-x-0 bottom-0 z-overlay grid max-h-[calc(100dvh-env(safe-area-inset-top)-1.5rem)] w-full gap-4 overflow-y-auto overscroll-contain rounded-t-(--modal-radius) bg-(--modal-surface) px-5 pt-6 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-(--modal-shadow) outline-none ease-standard',
+          'sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:max-h-[calc(100dvh-2.5rem)] sm:w-[calc(100%-2rem)] sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-(--modal-radius) sm:p-7 sm:shadow-(--modal-shadow-float)',
+          'duration-slow data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-bottom data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-bottom sm:data-[state=closed]:slide-out-to-bottom-4 sm:data-[state=closed]:zoom-out-95 sm:data-[state=open]:slide-in-from-bottom-4 sm:data-[state=open]:zoom-in-95',
           className,
         )}
         {...props}
@@ -54,7 +56,7 @@ function DialogContent({
         {showCloseButton ? (
           <DialogPrimitive.Close
             data-slot="dialog-close"
-            className="absolute top-2 right-2 grid size-touch place-items-center rounded-md text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:top-3 sm:right-3 sm:size-8 [&_svg]:size-4"
+            className="absolute top-3 right-3 grid size-touch place-items-center rounded-full bg-(--modal-glass) text-muted-foreground shadow-(--modal-glass-shadow) backdrop-blur-md outline-none transition-colors duration-fast hover:bg-(--modal-glass-hover) hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:top-4 sm:right-4 sm:size-9 [&_svg]:size-4"
           >
             <XIcon />
             <span className="sr-only">关闭</span>

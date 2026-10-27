@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type DependencyList, type Dispatch, type SetStateAction } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type DependencyList, type Dispatch, type SetStateAction } from 'react'
 import { SESSION_CHANGE_EVENT, SESSION_STORAGE_KEY } from '@/lib/api/session'
 
 export interface AsyncState<T> {
@@ -73,7 +73,11 @@ export function useAsyncData<T>(
   deps: DependencyList,
   options: {
     enabled?: boolean
-    pollMs?: number
+    /**
+     * Refresh interval while the tab is visible. A function picks the next interval from the
+     * latest data (fast while work is active, slow when idle); it must return a positive number.
+     */
+    pollMs?: number | ((data: T | null) => number)
     staleMs?: number
     cacheKey?: string
     errorMessage?: (error: unknown) => string
@@ -90,6 +94,11 @@ export function useAsyncData<T>(
   const [error, setError] = useState('')
   const controllerRef = useRef<AbortController | null>(null)
   const activeCacheKeyRef = useRef(cacheKey)
+  const pollRef = useRef(options.pollMs)
+  useLayoutEffect(() => {
+    pollRef.current = options.pollMs
+  })
+  const polling = Boolean(options.pollMs)
 
   const setData: Dispatch<SetStateAction<T | null>> = useCallback((value) => {
     setDataState((current) => {
@@ -166,17 +175,26 @@ export function useAsyncData<T>(
       void reload()
     }
 
-    if (!options.pollMs) return () => controllerRef.current?.abort()
+    if (!polling) return () => controllerRef.current?.abort()
 
-    const timer = window.setInterval(() => {
-      if (document.visibilityState === 'visible') void reload()
-    }, options.pollMs)
+    // Re-read the interval before every wait, so it follows the data without restarting loads.
+    let timer = 0
+    const schedule = () => {
+      const value = pollRef.current
+      const delay = typeof value === 'function' ? value(dataRef.current) : value
+      if (!delay || delay <= 0) return
+      timer = window.setTimeout(() => {
+        if (document.visibilityState === 'visible') void reload()
+        schedule()
+      }, delay)
+    }
+    schedule()
 
     return () => {
-      window.clearInterval(timer)
+      window.clearTimeout(timer)
       controllerRef.current?.abort()
     }
-  }, [enabled, reload, options.pollMs, staleMs, cacheKey])
+  }, [enabled, reload, polling, staleMs, cacheKey])
 
   return { data, loading, refreshing, error, reload, setData }
 }

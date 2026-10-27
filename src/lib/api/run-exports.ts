@@ -1,3 +1,4 @@
+import { runExportKind } from '@shared/task-kit/index.mjs'
 import type { RunExportContent, RunExportRecord } from '../../types/run-export'
 import { ApiError, assertOwner, listOwnedCollection, quoteFilter, request } from './client'
 import { requireSession } from './session'
@@ -22,7 +23,7 @@ function normalize(row: RunExportRecord, runId: string): RunExportRecord {
 }
 
 export function isRunExportActive(row: Pick<RunExportRecord, 'status'>): boolean {
-  return ['queued', 'collecting', 'packaging'].includes(row.status)
+  return runExportKind.isActive(row.status)
 }
 
 export function canDownloadRunExport(row: Pick<RunExportRecord, 'status' | 'file' | 'expiresAt'>): boolean {

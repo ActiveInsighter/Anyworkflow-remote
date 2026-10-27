@@ -12,54 +12,58 @@
 :root {
   color-scheme: light;
 
-  /* Surfaces */
+  /* Surfaces. The app frame sits on the canvas; pages are panels raised on it. */
+  --canvas: #f3f3f6;
   --background: #ffffff;
-  --foreground: #202127;
+  --foreground: #1b1c22;
   --card: #ffffff;
-  --card-foreground: #202127;
+  --card-foreground: #1b1c22;
   --popover: #ffffff;
-  --popover-foreground: #202127;
-  --overlay: rgb(15 16 20 / 38%);
+  --popover-foreground: #1b1c22;
+  --overlay: rgb(14 15 22 / 40%);
+  /* A quiet band inside a panel: table headers, toolbars, inset wells. */
+  --subtle: #f8f8fa;
 
   /* Brand and interaction */
-  --primary: #5e6ad2;
-  --primary-hover: #515fc4;
+  --primary: #5b5bd6;
+  --primary-hover: #4e4ec6;
   --primary-foreground: #ffffff;
-  --secondary: #f0f0f3;
-  --secondary-foreground: #33343c;
-  --muted: #f4f4f6;
-  --muted-foreground: #666973;
-  --accent: #eeeefa;
-  --accent-foreground: #505ab8;
+  --primary-soft: #eff0fe;
+  --secondary: #f1f1f4;
+  --secondary-foreground: #2d2e36;
+  --muted: #f4f4f7;
+  --muted-foreground: #646773;
+  --accent: #eef0fd;
+  --accent-foreground: #4848b8;
   --destructive: #c9364f;
   --destructive-foreground: #ffffff;
 
   /* Lines: decorative dividers stay quiet, inputs and focus stay legible. */
-  --border: #e8e8ed;
-  --border-strong: #d5d6df;
-  --input: #858995;
-  --ring: #5e6ad2;
+  --border: #e6e6eb;
+  --border-strong: #d2d3dc;
+  --input: #8b8e9b;
+  --ring: #5b5bd6;
 
   /* Status tones: each pairs a readable foreground with a soft surface. */
-  --info: #5062bf;
-  --info-soft: #eeeffb;
-  --success: #207c56;
-  --success-soft: #edf8f2;
-  --warning: #916313;
-  --warning-soft: #fcf6e8;
-  --danger: #c9364f;
-  --danger-soft: #fdf0f2;
+  --info: #4357c4;
+  --info-soft: #eef0fc;
+  --success: #1f7a54;
+  --success-soft: #eaf7f0;
+  --warning: #8d5f0f;
+  --warning-soft: #fcf4e2;
+  --danger: #c6334c;
+  --danger-soft: #fdeef1;
 
-  /* Navigation */
-  --sidebar: #f7f7f8;
-  --sidebar-foreground: #202127;
-  --sidebar-hover: rgb(32 33 39 / 5%);
-  --sidebar-accent: #e9e9ee;
-  --sidebar-accent-foreground: #202127;
-  --sidebar-primary: #5e6ad2;
+  /* Navigation shares the canvas, so the page panel is the only raised surface. */
+  --sidebar: #f3f3f6;
+  --sidebar-foreground: #1b1c22;
+  --sidebar-hover: rgb(27 28 34 / 5%);
+  --sidebar-accent: #ffffff;
+  --sidebar-accent-foreground: #1b1c22;
+  --sidebar-primary: #5b5bd6;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-border: #e8e8ed;
-  --sidebar-ring: #5e6ad2;
+  --sidebar-border: #e3e3e9;
+  --sidebar-ring: #5b5bd6;
 
   /* Code editor surfaces and syntax */
   --cm-bg: #fcfcfd;
@@ -86,44 +90,49 @@
 .dark {
   color-scheme: dark;
 
-  --background: #101114;
-  --foreground: #edeef2;
-  --card: #141519;
-  --card-foreground: #edeef2;
-  --popover: #18191e;
-  --popover-foreground: #edeef2;
+  --canvas: #09090c;
+  --background: #111116;
+  --foreground: #ececf1;
+  --card: #141419;
+  --card-foreground: #ececf1;
+  --popover: #18181e;
+  --popover-foreground: #ececf1;
   --overlay: rgb(0 0 0 / 64%);
+  --subtle: #16161c;
 
-  --secondary: #25262e;
-  --secondary-foreground: #e4e5ed;
-  --muted: #1c1d23;
-  --muted-foreground: #9699a6;
-  --accent: #24263d;
-  --accent-foreground: #b0b7ff;
+  --primary: #5b5bd6;
+  --primary-hover: #6b6be3;
+  --primary-soft: #1f2040;
+  --secondary: #23232b;
+  --secondary-foreground: #e4e4ec;
+  --muted: #1b1b22;
+  --muted-foreground: #9a9cab;
+  --accent: #222440;
+  --accent-foreground: #b4b8ff;
   --destructive: #eb8294;
   --destructive-foreground: #210c12;
 
-  --border: #272830;
-  --border-strong: #3b3d48;
-  --input: #666a78;
-  --ring: #939cf0;
+  --border: #25252d;
+  --border-strong: #383944;
+  --input: #686b7a;
+  --ring: #9599f5;
 
-  --info: #a3afff;
-  --info-soft: #20243c;
-  --success: #70cea4;
-  --success-soft: #162b24;
-  --warning: #e4bc77;
-  --warning-soft: #30281a;
-  --danger: #f08c9d;
-  --danger-soft: #321e28;
+  --info: #a6b1ff;
+  --info-soft: #1d2140;
+  --success: #6fcea3;
+  --success-soft: #142a22;
+  --warning: #e6bd74;
+  --warning-soft: #2e2617;
+  --danger: #f28d9e;
+  --danger-soft: #331c26;
 
-  --sidebar: #0c0d10;
-  --sidebar-foreground: #edeef2;
-  --sidebar-hover: rgb(237 238 242 / 5%);
-  --sidebar-accent: #23242c;
-  --sidebar-accent-foreground: #edeef2;
-  --sidebar-border: #272830;
-  --sidebar-ring: #939cf0;
+  --sidebar: #09090c;
+  --sidebar-foreground: #ececf1;
+  --sidebar-hover: rgb(236 236 241 / 5%);
+  --sidebar-accent: #1b1b22;
+  --sidebar-accent-foreground: #ececf1;
+  --sidebar-border: #202028;
+  --sidebar-ring: #9599f5;
 
   --cm-bg: #121318;
   --cm-fg: #e1e3ed;

@@ -22,7 +22,8 @@ AnyWorkflow 的响应式 Web 控制端。项目参考 `Anyworkflow-wechat` 的�
 - Run → Task → Event 层级详情与运行时状态展示
 - Run 详情「更多操作 → 导出 AI 对话」：完整对话/仅 AI 回复、后台生成 Markdown ZIP、进度与历史下载
 - Event 执行内容按需查看
-- 进行中数据自动轮询刷新与有界跨页缓存
+- 进行中数据自适应轮询（有进行中任务时加快，空闲时放慢）与有界跨页缓存
+- 顶栏任务中心：工作流、文件转换、对话导出统一显示，侧栏计数，完成提醒
 - 收藏和模板独立侧栏与层级目录
 - 持久文件资料库：上传、搜索、删除与跨转换任务复用
 - CodeMirror DSL 编辑器、本地草稿与括号消息语法
@@ -57,6 +58,7 @@ src/
 ├── app/                  应用壳：路由、Provider、侧栏/顶栏、面包屑、导航配置、错误边界
 ├── pages/                路由页面，只负责组合 feature，不写业务逻辑
 ├── features/<领域>/       业务模块：components/ hooks/ lib/
+│   ├── tasks/            任务中心：跨类型的异步任务列表、状态徽标与进度、完成提醒
 │   ├── runs/             工作流列表、Run 详情与 Task → Event → Act → Message 层级
 │   ├── run-exports/      Run 对话导出、处理进度、结果下载
 │   ├── run-editor/       新建/编辑 Run：草稿、执行计划、运行配置、保存与运行
@@ -75,6 +77,7 @@ src/
 ├── lib/
 │   ├── api/              PocketBase 客户端、会话与各集合读写（唯一的后端访问层）
 │   ├── domain/           纯领域逻辑：状态文案、计划、调度、重复规则、资料库树
+│   ├── tasks/            异步任务模型（共享 task kit 的类型、状态文案、变更事件）
 │   ├── workflow-dsl/     DSL 校验、元数据与编辑器上下文
 │   └── platform/         浏览器能力：存储、剪贴板、主题、键盘、下载
 ├── types/                后端记录与共享类型
@@ -82,15 +85,25 @@ src/
     ├── tokens/           设计 Token：color / typography / shape / layout / elevation / motion
     ├── theme.css         Token → Tailwind 工具类映射
     ├── base.css          元素基线
-    └── editor.css        CodeMirror 第三方 DOM 样式
+    ├── editor.css        CodeMirror 第三方 DOM 样式
+    └── modal.css         Modal 底部弹出面板（移植自 exam-docs）
+
+shared/task-kit/          从 AnyWorkflow-workers 同步的异步任务框架（勿手改，见 docs/architecture.md）
+worker/                   边缘 API：router.ts 路由表 + 各接口处理
+converter-worker/         转换调度 Durable Object（TaskCoordinator）
 ```
+
+整体架构、前后端解耦方式与异步任务框架见 [架构与异步任务框架](docs/architecture.md)。
 
 约定：
 
 - 组件只使用语义工具类（`bg-card`、`text-muted-foreground`、`duration-fast`、`z-overlay` 等），
   不写颜色值、数字 z-index 或自定义时长；新增视觉值先加到 `styles/tokens/`。
-- 菜单、浮层、对话框、抽屉、折叠、选择统一使用 `components/ui/` 中的 shadcn 原语
-  （DropdownMenu、Popover、Dialog/AlertDialog、Sheet、Collapsible、NativeSelect）。
+- 菜单、浮层、对话框、抽屉、折叠、选择统一使用 `components/ui/` 中的原语
+  （DropdownMenu、Popover、Modal、Dialog/AlertDialog、Sheet、Collapsible、NativeSelect）。
+  较长的表单和面板使用 Modal（手机底部弹出、宽屏悬浮、可分栏），简单确认使用 AlertDialog。
+- 异步任务的状态一律通过 `@/lib/tasks`（`kind.describe`、`taskStatusMeta`）判断和显示；
+  创建、取消、重跑任务后调用 `notifyTasksChanged()`。
 - feature 之间通过公开的组件或 Hook 引用；页面只做组合。组件与 Hook 保持在约 300 行以内，
   超出时按子组件、Hook、纯函数拆分；`lib/` 中单一职责的解析器或集合访问模块可略长。
 

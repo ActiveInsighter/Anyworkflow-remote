@@ -7,6 +7,7 @@ import type {
   StatusTone,
   WorkflowHistoryStatus,
 } from '../../types'
+import { runKind, taskStatusMeta } from '../tasks'
 
 /**
  * Single source of truth for how Run, Task, Event and history states read in the UI and which
@@ -16,15 +17,6 @@ import type {
 export interface StatusMeta {
   label: string
   tone: StatusTone
-}
-
-const RUN_STATUS: Record<DispatchStatus, StatusMeta> = {
-  draft: { label: '草稿', tone: 'neutral' },
-  queued: { label: '排队中', tone: 'info' },
-  running: { label: '执行中', tone: 'warning' },
-  succeeded: { label: '已完成', tone: 'success' },
-  failed: { label: '失败', tone: 'danger' },
-  canceled: { label: '已取消', tone: 'neutral' },
 }
 
 const EVENT_STATUS: Record<DispatchEventStatus, StatusMeta> = {
@@ -43,14 +35,13 @@ const RUN_ORIGIN: Record<DispatchRunOrigin, string> = {
   edited_rerun: '编辑副本',
 }
 
-const TERMINAL: ReadonlySet<DispatchStatus> = new Set(['succeeded', 'failed', 'canceled'])
-
+/** Runs are one kind of async task: the shared lifecycle decides active and terminal. */
 export function isTerminalStatus(status: DispatchStatus): boolean {
-  return TERMINAL.has(status)
+  return runKind.isTerminal(status)
 }
 
 export function isActiveStatus(status: DispatchStatus): boolean {
-  return status === 'queued' || status === 'running'
+  return runKind.isActive(status)
 }
 
 /** Drafts edit in place; finished Runs fork a new version. Active definitions are immutable. */
@@ -79,7 +70,8 @@ export function runStatusMeta(status: DispatchStatus, requestedAction: DispatchR
     if (requestedAction === 'resume') return { label: '正在恢复', tone: 'info' }
     if (requestedAction === 'cancel') return { label: '正在取消', tone: 'warning' }
   }
-  return RUN_STATUS[status] || { label: status, tone: 'neutral' }
+  const record = { id: '', status, requestedAction }
+  return taskStatusMeta(runKind, record)
 }
 
 export function eventStatusMeta(status: DispatchEventStatus, result: string): StatusMeta {

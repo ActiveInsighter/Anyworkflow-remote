@@ -3,13 +3,17 @@ import { useAsyncAction } from '@/hooks/use-async-action'
 import { useAsyncData } from '@/hooks/use-async-data'
 import { createRunExport, downloadRunExport, isRunExportActive, listRunExports } from '@/lib/api/run-exports'
 import { saveBlob } from '@/lib/platform/download'
+import { notifyTasksChanged } from '@/lib/tasks'
 import type { RunExportContent, RunExportRecord } from '@/types/run-export'
 import { runExportFilename } from '../lib/filename'
 
 export function useRunExports(runId: string, open: boolean) {
   const [page, setPage] = useState(1)
   const [contentMode, setContentMode] = useState<RunExportContent>('conversation')
-  const jobs = useAsyncData(signal => listRunExports(runId, page, signal), [runId, page], { enabled: open, pollMs: 5_000 })
+  const jobs = useAsyncData(signal => listRunExports(runId, page, signal), [runId, page], {
+    enabled: open,
+    pollMs: data => (data?.items.some(isRunExportActive) ? 3_000 : 30_000),
+  })
   const action = useAsyncAction()
   const submission = useRef<{ id: string; contentMode: RunExportContent } | null>(null)
   const controller = useRef<AbortController | null>(null)
@@ -25,6 +29,7 @@ export function useRunExports(runId: string, open: boolean) {
       const current = new AbortController()
       controller.current = current
       await createRunExport(pending.id, runId, pending.contentMode, current.signal)
+      notifyTasksChanged()
       submission.current = null
       if (page === 1) await jobs.reload()
       else setPage(1)
