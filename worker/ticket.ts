@@ -2,7 +2,7 @@ import { UploadError } from './errors.js'
 import { FILE_LIFETIME_MS, MAX_PDF_SIZE, PDF_SIGNATURE, SESSION_LIFETIME_MS, validateFileName } from './pdf.js'
 
 export interface UploadTicket {
-  v: 1
+  v: 1 | 2
   owner: string
   key: string
   size: number
@@ -30,7 +30,7 @@ function decodeBase64Url(value: string): Uint8Array {
   return bytes
 }
 
-export async function ticketKey(env: Env): Promise<CryptoKey> {
+export async function ticketKey(env: Pick<Env, 'UPLOAD_TICKET_SECRET'>): Promise<CryptoKey> {
   if (typeof env.UPLOAD_TICKET_SECRET !== 'string' || env.UPLOAD_TICKET_SECRET.length < 32) {
     throw new UploadError('大文件上传暂未配置，请稍后重试或使用 PDF 链接', 503, 'UPLOAD_NOT_CONFIGURED')
   }
@@ -43,7 +43,7 @@ export async function signTicket(ticket: UploadTicket, key: CryptoKey): Promise<
   return `${payload}.${encodeBase64Url(new Uint8Array(signature))}`
 }
 
-export async function verifyTicket(request: Request, env: Env, owner: string, uploadId: string): Promise<UploadTicket> {
+export async function verifyTicket(request: Request, env: Pick<Env, 'UPLOAD_TICKET_SECRET'>, owner: string, uploadId: string, version: 1 | 2 = 1): Promise<UploadTicket> {
   const key = await ticketKey(env)
   const value = request.headers.get('X-Upload-Ticket') || ''
   let payload: unknown
@@ -56,7 +56,7 @@ export async function verifyTicket(request: Request, env: Env, owner: string, up
       throw new Error('Invalid signature')
     }
     payload = JSON.parse(new TextDecoder('utf-8', { fatal: true, ignoreBOM: false }).decode(decodeBase64Url(segments[0])))
-    if (!isTicket(payload)) throw new Error('Invalid ticket payload')
+    if (!isTicket(payload) || payload.v !== version) throw new Error('Invalid ticket payload')
   } catch {
     // Ticket problems do not invalidate the PocketBase login session.
     throw new UploadError('上传凭据无效，请重新选择文件上传', 400, 'INVALID_UPLOAD_TICKET')
@@ -70,7 +70,7 @@ export async function verifyTicket(request: Request, env: Env, owner: string, up
 function isTicket(value: unknown): value is UploadTicket {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false
   const ticket = value as Partial<UploadTicket>
-  if (Object.keys(value).length !== 10 || ticket.v !== 1 ||
+  if (Object.keys(value).length !== 10 || (ticket.v !== 1 && ticket.v !== 2) ||
     typeof ticket.owner !== 'string' || !ticket.owner || ticket.owner.length > 255 ||
     typeof ticket.key !== 'string' || !KEY_PATTERN.test(ticket.key) ||
     typeof ticket.session !== 'string' || !SESSION_PATTERN.test(ticket.session) ||
@@ -78,7 +78,7 @@ function isTicket(value: unknown): value is UploadTicket {
     typeof ticket.size !== 'number' || !Number.isSafeInteger(ticket.size) || ticket.size < PDF_SIGNATURE.length || ticket.size > MAX_PDF_SIZE ||
     typeof ticket.createdAt !== 'number' || !Number.isSafeInteger(ticket.createdAt) || ticket.createdAt > Date.now() + 60_000 ||
     typeof ticket.expiresAt !== 'number' || ticket.expiresAt !== ticket.createdAt + SESSION_LIFETIME_MS ||
-    ticket.fileExpiresAt !== new Date(ticket.createdAt + FILE_LIFETIME_MS).toISOString()) return false
+    ticket.fileExpiresAt !== (ticket.v === 2 ? '' : new Date(ticket.createdAt + FILE_LIFETIME_MS).toISOString())) return false
   try {
     validateFileName(ticket.fileName)
     return true

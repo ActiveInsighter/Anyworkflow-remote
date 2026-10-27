@@ -6,9 +6,11 @@ export const MAX_PDF_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024
 const PART_SIZE = 32 * 1024 * 1024
 const PART_CONCURRENCY = 3
 const PART_RETRIES = 3
-const UPLOAD_PATH = '/api/file-conversion/uploads/multipart'
+const UPLOAD_PATH = '/api/library/files/uploads/multipart'
 
 export interface UploadedPdf {
+  id?: string
+  createdAt?: string
   sourceUrl: string
   fileName: string
   size: number
@@ -59,11 +61,11 @@ function normalizePart(payload: unknown, partNumber: number): UploadedPart {
 function normalizeUpload(payload: unknown, size: number): UploadedPdf {
   if (payload && typeof payload === 'object' && 'sourceUrl' in payload && 'fileName' in payload && 'size' in payload && 'expiresAt' in payload) {
     const { sourceUrl, fileName, size: uploadedSize, expiresAt } = payload
-    if (typeof sourceUrl === 'string' && typeof fileName === 'string' && fileName && uploadedSize === size && typeof expiresAt === 'string' && Date.parse(expiresAt) > Date.now()) {
+    if (typeof sourceUrl === 'string' && typeof fileName === 'string' && fileName && uploadedSize === size && typeof expiresAt === 'string' && (expiresAt === '' || Date.parse(expiresAt) > Date.now())) {
       try {
         const url = new URL(sourceUrl)
         if (url.protocol === 'https:' && !url.username && !url.password && url.pathname.endsWith('.pdf')) {
-          return { sourceUrl, fileName, size, expiresAt }
+          return { sourceUrl, fileName, size, expiresAt, ...('id' in payload && typeof payload.id === 'string' ? { id: payload.id } : {}), ...('createdAt' in payload && typeof payload.createdAt === 'string' ? { createdAt: payload.createdAt } : {}) }
         }
       } catch { /* Report an invalid upload response below. */ }
     }

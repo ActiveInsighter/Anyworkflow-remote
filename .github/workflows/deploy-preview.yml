@@ -43,7 +43,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: "4"
-          command: deploy --name anyworkflow-remote-preview
+          command: deploy --env preview
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish preview URL

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { toErrorMessage } from '@/lib/api/errors'
 import { uploadPdf, type UploadedPdf } from '@/lib/api/file-upload'
 
-export function usePdfUpload() {
+export function usePdfUpload(onUploaded?: (file: UploadedPdf) => void) {
   const [uploaded, setUploaded] = useState<UploadedPdf | null>(null)
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -35,7 +35,10 @@ export function usePdfUpload() {
         signal: controller.signal,
         onProgress: (value) => { if (active.current === controller) setProgress(value) },
       })
-      if (active.current === controller) setUploaded(result)
+      if (active.current === controller) {
+        setUploaded(result)
+        onUploaded?.(result)
+      }
     } catch (failure) {
       if (active.current === controller && !controller.signal.aborted) setError(toErrorMessage(failure, '上传失败，请重新选择文件'))
     } finally {
@@ -46,7 +49,7 @@ export function usePdfUpload() {
     }
   }
 
-  /** Forget the uploaded file; its temporary link still expires on its own. */
+  /** Clear this selection; the persistent library file remains available. */
   function clear() {
     cancel()
     setUploaded(null)

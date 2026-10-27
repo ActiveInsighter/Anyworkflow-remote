@@ -1,170 +1,35 @@
-import { useState, type DragEvent } from 'react'
-import { Copy, FileText, Link, Upload, X } from 'lucide-react'
-import { toast } from 'sonner'
-import { ErrorAlert } from '@/components/feedback/error-alert'
-import { Button } from '@/components/ui/button'
+import { FolderOpen, Link, Upload } from 'lucide-react'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { Progress } from '@/components/ui/progress'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { formatFileSize } from '@/lib/format'
-import { writeClipboard } from '@/lib/platform/clipboard'
-import { cn } from '@/lib/utils'
-import type { PdfUploadState } from '../hooks/use-pdf-upload'
+import { LibraryFilePicker } from '@/features/files/components/library-file-picker'
+import { PdfUploadField } from '@/features/files/components/pdf-upload-field'
+import type { PdfUploadState } from '@/features/files/hooks/use-pdf-upload'
+import type { LibraryFile } from '@/lib/api/library-files'
 
-export type PdfSourceMode = 'link' | 'upload'
+export type PdfSourceMode = 'link' | 'upload' | 'library'
 
-/** AI Studio fetches linked files up to this size; larger ones are converted in relayed segments. */
-const LINK_FETCH_LIMIT = 200 * 1000 * 1000
-
-export function ConversionSourceField({ mode, onModeChange, sourceUrl, onSourceUrlChange, upload }: {
+export function ConversionSourceField({ mode, onModeChange, sourceUrl, onSourceUrlChange, upload, selectedFile, onSelectFile }: {
   mode: PdfSourceMode
   onModeChange: (mode: PdfSourceMode) => void
   sourceUrl: string
   onSourceUrlChange: (value: string) => void
   upload: PdfUploadState
+  selectedFile: LibraryFile | null
+  onSelectFile: (file: LibraryFile | null) => void
 }) {
-  return (
-    <Tabs value={mode} onValueChange={(value) => { if (value === 'link' || value === 'upload') onModeChange(value) }} className="gap-3">
-      <TabsList aria-label="PDF 来源" className="h-touch w-full">
-        <TabsTrigger value="link" className="h-9!">
-          <Link aria-hidden="true" />链接
-        </TabsTrigger>
-        <TabsTrigger value="upload" className="h-9!">
-          <Upload aria-hidden="true" />上传文件
-        </TabsTrigger>
-      </TabsList>
-      <TabsContent value="link">
-        <Field>
-          <FieldLabel htmlFor="pdf-source">PDF 源文件地址</FieldLabel>
-          <Input
-            id="pdf-source"
-            name="sourceUrl"
-            type="url"
-            required={mode === 'link'}
-            maxLength={4096}
-            placeholder="https://…"
-            value={sourceUrl}
-            onChange={(event) => onSourceUrlChange(event.target.value)}
-            aria-describedby="pdf-source-help"
-          />
-          <FieldDescription id="pdf-source-help">公开 PDF 直链或 Google Drive 分享链接</FieldDescription>
-        </Field>
-      </TabsContent>
-      <TabsContent value="upload" className="flex flex-col gap-3">
-        {/* Always mounted, before the drop zone: the zone's focus ring follows it as a peer. */}
-        <input
-          id="pdf-upload"
-          type="file"
-          accept=".pdf,application/pdf"
-          className="peer sr-only"
-          aria-label="选择 PDF 文件"
-          aria-describedby="pdf-upload-help"
-          aria-invalid={Boolean(upload.error)}
-          onChange={(event) => {
-            const file = event.target.files?.[0]
-            event.target.value = ''
-            if (file) void upload.upload(file)
-          }}
-        />
-        {upload.uploading || upload.uploaded ? <UploadedFile upload={upload} /> : <DropZone upload={upload} />}
-        <ErrorAlert inline>{upload.error}</ErrorAlert>
-      </TabsContent>
-    </Tabs>
-  )
-}
-
-function DropZone({ upload }: { upload: PdfUploadState }) {
-  const [dragging, setDragging] = useState(false)
-
-  function drop(event: DragEvent<HTMLLabelElement>) {
-    event.preventDefault()
-    setDragging(false)
-    const file = event.dataTransfer.files[0]
-    if (file) void upload.upload(file)
-  }
-
-  return (
-    <label
-      htmlFor="pdf-upload"
-      onDragOver={(event) => {
-        event.preventDefault()
-        setDragging(true)
-      }}
-      onDragLeave={() => setDragging(false)}
-      onDrop={drop}
-      className={cn(
-        'flex min-h-32 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-input px-4 py-6 text-center transition-colors duration-fast',
-        'hover:border-ring hover:bg-muted/50 peer-focus-visible:border-ring peer-focus-visible:ring-[3px] peer-focus-visible:ring-ring/50',
-        dragging && 'border-primary bg-primary/5',
-      )}
-    >
-      <span className="flex size-9 items-center justify-center rounded-full bg-muted text-muted-foreground">
-        <Upload aria-hidden="true" className="size-4" />
-      </span>
-      <span className="text-body font-medium">选择 PDF 文件</span>
-      <span id="pdf-upload-help" className="text-xs text-muted-foreground">
-        或拖到这里 · 最大 2 GiB · 临时链接 1 天后清理
-      </span>
-    </label>
-  )
-}
-
-function UploadedFile({ upload }: { upload: PdfUploadState }) {
-  const { uploaded } = upload
-
-  async function copyLink() {
-    if (!uploaded) return
-    if (await writeClipboard(uploaded.sourceUrl)) toast.success('链接已复制')
-    else toast.error('复制失败，请选择链接手动复制')
-  }
-
-  return (
-    <div className="flex min-w-0 flex-col gap-3 rounded-lg border bg-muted/30 p-3">
-      <div className="flex min-w-0 items-center gap-3">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-background text-muted-foreground ring-1 ring-border">
-          <FileText aria-hidden="true" className="size-4" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-body font-medium">{uploaded?.fileName || upload.fileName}</p>
-          <p className="text-xs text-muted-foreground tabular-nums" role="status" aria-live="polite">
-            {uploaded
-              ? `已上传 · ${formatFileSize(uploaded.size)}`
-              : upload.progress === 100 ? '正在生成链接…' : `上传中 ${upload.progress}%`}
-          </p>
-        </div>
-        {uploaded ? (
-          <Button type="button" variant="ghost" size="icon-touch" aria-label="复制上传链接" onClick={() => void copyLink()}>
-            <Copy aria-hidden="true" />
-          </Button>
-        ) : null}
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-touch"
-          aria-label={uploaded ? '移除文件' : '取消上传'}
-          onClick={upload.uploading ? upload.cancel : upload.clear}
-        >
-          <X aria-hidden="true" />
-        </Button>
-      </div>
-      {upload.uploading ? <Progress value={upload.progress} aria-label="文件上传进度" /> : null}
-      {uploaded ? (
-        <>
-          <Input
-            readOnly
-            aria-label="上传文件链接"
-            value={uploaded.sourceUrl}
-            className="h-8 bg-background font-mono text-xs md:text-xs"
-            onFocus={(event) => event.currentTarget.select()}
-          />
-          {uploaded.size > LINK_FETCH_LIMIT ? (
-            <p className="text-xs text-muted-foreground">
-              文件超过 200 MB，识别时会分段中转，耗时比小文件长。
-            </p>
-          ) : null}
-        </>
-      ) : null}
-    </div>
-  )
+  return <Tabs value={mode} onValueChange={value => { if (value === 'link' || value === 'upload' || value === 'library') onModeChange(value) }} className="gap-3">
+    <TabsList aria-label="PDF 来源" className="h-touch w-full">
+      <TabsTrigger value="link" className="h-9!"><Link aria-hidden="true" />链接</TabsTrigger>
+      <TabsTrigger value="upload" className="h-9!"><Upload aria-hidden="true" />上传文件</TabsTrigger>
+      <TabsTrigger value="library" className="h-9!"><FolderOpen aria-hidden="true" />资料库</TabsTrigger>
+    </TabsList>
+    <TabsContent value="link"><Field>
+      <FieldLabel htmlFor="pdf-source">PDF 源文件地址</FieldLabel>
+      <Input id="pdf-source" name="sourceUrl" type="url" required={mode === 'link'} maxLength={4096} placeholder="https://…" value={sourceUrl} onChange={event => onSourceUrlChange(event.target.value)} aria-describedby="pdf-source-help" />
+      <FieldDescription id="pdf-source-help">公开 PDF 直链或 Google Drive 分享链接</FieldDescription>
+    </Field></TabsContent>
+    <TabsContent value="upload"><PdfUploadField upload={upload} /></TabsContent>
+    <TabsContent value="library"><LibraryFilePicker selected={selectedFile} onSelect={onSelectFile} /></TabsContent>
+  </Tabs>
 }

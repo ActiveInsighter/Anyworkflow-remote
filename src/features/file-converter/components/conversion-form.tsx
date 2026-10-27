@@ -1,4 +1,5 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useSearchParams } from 'react-router'
 import { Play } from 'lucide-react'
 import { ErrorAlert } from '@/components/feedback/error-alert'
 import { Button } from '@/components/ui/button'
@@ -11,7 +12,9 @@ import { Textarea } from '@/components/ui/textarea'
 import type { PdfJobInput, PdfPageRange } from '@/lib/api/file-conversion'
 import type { ConversionConfigState } from '../hooks/use-conversion-config'
 import type { ConversionJobsState } from '../hooks/use-conversion-jobs'
-import { usePdfUpload } from '../hooks/use-pdf-upload'
+import { usePdfUpload } from '@/features/files/hooks/use-pdf-upload'
+import { getLibraryFile, type LibraryFile } from '@/lib/api/library-files'
+import { toErrorMessage } from '@/lib/api/errors'
 import { ConversionSourceField, type PdfSourceMode } from './conversion-source-field'
 
 const MAX_TITLE_AS_NAME = 120
@@ -30,54 +33,83 @@ function configSummary(config: ConversionConfigState): string {
 
 /** New PDF → Markdown job. It always runs with the saved config, never the unsaved draft. */
 export function ConversionForm({ config, jobs }: { config: ConversionConfigState; jobs: ConversionJobsState }) {
+  const submitLock = useRef(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [params] = useSearchParams()
+  const fileId = params.get('file') || ''
   const [range, setRange] = useState<PdfPageRange>({})
   const [adjacentPages, setAdjacentPages] = useState(false)
   const [error, setError] = useState('')
-  const [sourceMode, setSourceMode] = useState<PdfSourceMode>('link')
+  const [sourceMode, setSourceMode] = useState<PdfSourceMode>(fileId ? 'library' : 'link')
+  const [selectedFile, setSelectedFile] = useState<LibraryFile | null>(null)
   const [sourceUrl, setSourceUrl] = useState('')
   const upload = usePdfUpload()
+
+  useEffect(() => {
+    if (!fileId) return
+    const controller = new AbortController()
+    setSelectedFile(null)
+    setSourceMode('library')
+    void getLibraryFile(fileId, controller.signal).then(file => {
+      if (!controller.signal.aborted) setSelectedFile(file)
+    }).catch(cause => { if (!controller.signal.aborted) setError(toErrorMessage(cause)) })
+    return () => controller.abort()
+  }, [fileId])
 
   const ready = Boolean(config.config) && !config.loading && !config.saving && !config.loadError
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (jobs.creating || config.loading || upload.uploading) return
-    if (!config.config) {
-      setError(config.loadError || '转换配置尚未加载，请刷新重试')
-      return
-    }
-    const form = new FormData(event.currentTarget)
-    const text = (key: string) => String(form.get(key) || '').trim()
-    if (!text('outputName') && text('title').length > MAX_TITLE_AS_NAME) {
-      setError(`任务名称超过 ${MAX_TITLE_AS_NAME} 个字符，请填写较短的产物文件名`)
-      return
-    }
-    if (range.start_page !== undefined && range.end_page !== undefined && range.end_page < range.start_page) {
-      setError('结束页不能小于起始页')
-      return
-    }
-    let selectedSourceUrl = text('sourceUrl')
-    if (sourceMode === 'upload') {
-      const uploaded = upload.uploaded
-      if (!uploaded || Date.parse(uploaded.expiresAt) <= Date.now()) {
-        setError(uploaded ? '上传链接已过期，请重新选择文件' : '请先上传 PDF 文件')
+    if (submitLock.current || jobs.creating || config.loading || upload.uploading) return
+    submitLock.current = true
+    setSubmitting(true)
+    try {
+      if (!config.config) {
+        setError(config.loadError || '转换配置尚未加载，请刷新重试')
         return
       }
-      selectedSourceUrl = uploaded.sourceUrl
+      const form = new FormData(event.currentTarget)
+      const text = (key: string) => String(form.get(key) || '').trim()
+      if (!text('outputName') && text('title').length > MAX_TITLE_AS_NAME) {
+        setError(`任务名称超过 ${MAX_TITLE_AS_NAME} 个字符，请填写较短的产物文件名`)
+        return
+      }
+      if (range.start_page !== undefined && range.end_page !== undefined && range.end_page < range.start_page) {
+        setError('结束页不能小于起始页')
+        return
+      }
+      let selectedSourceUrl = text('sourceUrl')
+      if (sourceMode === 'upload') {
+        const uploaded = upload.uploaded
+        if (!uploaded || (uploaded.expiresAt && Date.parse(uploaded.expiresAt) <= Date.now())) {
+          setError(uploaded ? '上传链接已过期，请重新选择文件' : '请先上传 PDF 文件')
+          return
+        }
+        selectedSourceUrl = uploaded.sourceUrl
+      }
+      if (sourceMode === 'library' || (sourceMode === 'upload' && upload.uploaded?.id)) {
+        const id = sourceMode === 'library' ? selectedFile?.id : upload.uploaded?.id
+        if (!id) { setError('请先选择资料库文件'); return }
+        try { selectedSourceUrl = (await getLibraryFile(id)).sourceUrl }
+        catch (cause) { setError(toErrorMessage(cause)); return }
+      }
+      setError('')
+      jobs.clearCreateError()
+      const input: PdfJobInput = {
+        title: text('title'),
+        sourceUrl: selectedSourceUrl,
+        outputName: text('outputName'),
+        prompt: text('prompt'),
+        configId: config.config.id,
+        ...(range.start_page !== undefined ? { startPage: range.start_page } : {}),
+        ...(range.end_page !== undefined ? { endPage: range.end_page } : {}),
+        ...(adjacentPages ? { adjacentPages: true } : {}),
+      }
+      await jobs.create(input, config.config.revision)
+    } finally {
+      submitLock.current = false
+      setSubmitting(false)
     }
-    setError('')
-    jobs.clearCreateError()
-    const input: PdfJobInput = {
-      title: text('title'),
-      sourceUrl: selectedSourceUrl,
-      outputName: text('outputName'),
-      prompt: text('prompt'),
-      configId: config.config.id,
-      ...(range.start_page !== undefined ? { startPage: range.start_page } : {}),
-      ...(range.end_page !== undefined ? { endPage: range.end_page } : {}),
-      ...(adjacentPages ? { adjacentPages: true } : {}),
-    }
-    await jobs.create(input, config.config.revision)
   }
 
   return (
@@ -87,7 +119,7 @@ export function ConversionForm({ config, jobs }: { config: ConversionConfigState
       </CardHeader>
       <form onSubmit={submit}>
         <CardContent>
-          <fieldset disabled={jobs.creating || config.loading} className="min-w-0">
+          <fieldset disabled={submitting || jobs.creating || config.loading} className="min-w-0">
             <FieldGroup className="gap-5">
               <ConversionSourceField
                 mode={sourceMode}
@@ -100,6 +132,8 @@ export function ConversionForm({ config, jobs }: { config: ConversionConfigState
                 sourceUrl={sourceUrl}
                 onSourceUrlChange={setSourceUrl}
                 upload={upload}
+                selectedFile={selectedFile}
+                onSelectFile={file => { setSelectedFile(file); setError('') }}
               />
 
               <FieldSeparator />
@@ -187,7 +221,7 @@ export function ConversionForm({ config, jobs }: { config: ConversionConfigState
           </ErrorAlert>
         </CardContent>
         <CardFooter className="flex-col items-stretch gap-2">
-          <Button type="submit" size="touch" className="w-full" disabled={jobs.creating || !ready || (sourceMode === 'upload' && (upload.uploading || !upload.uploaded))}>
+          <Button type="submit" size="touch" className="w-full" disabled={submitting || jobs.creating || !ready || (sourceMode === 'upload' && (upload.uploading || !upload.uploaded)) || (sourceMode === 'library' && !selectedFile)}>
             {jobs.creating ? <Spinner data-icon="inline-start" /> : <Play data-icon="inline-start" />}
             {jobs.creating ? '提交中…' : '开始转换'}
           </Button>

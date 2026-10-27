@@ -2,9 +2,11 @@ import { UploadError, jsonResponse, r2ErrorCode, storageFailure } from './errors
 import { FILE_LIFETIME_MS, MAX_PDF_SIZE, PART_SIZE, PDF_SIGNATURE, SESSION_LIFETIME_MS, contentLength, readJson, uploadedPdf, validateFileName } from './pdf.js'
 import { storeValidatedStream } from './stream.js'
 import { signTicket, ticketKey, verifyTicket } from './ticket.js'
+import type { PdfStorageEnv } from './pdf.js'
 import type { UploadTicket } from './ticket.js'
+import { assertLibraryFileAvailable, registerLibraryFile } from './library.js'
 
-export async function createMultipart(request: Request, env: Env, owner: string): Promise<Response> {
+export async function createMultipart(request: Request, env: PdfStorageEnv, owner: string, version: 1 | 2 = 1): Promise<Response> {
   const payload = await readJson(request)
   if (Object.keys(payload).length !== 2 || !('fileName' in payload) || !('size' in payload)) {
     throw new UploadError('文件信息无效，请重新选择 PDF', 400, 'INVALID_UPLOAD_REQUEST')
@@ -19,26 +21,26 @@ export async function createMultipart(request: Request, env: Env, owner: string)
   const createdAt = Date.now()
   const key = `${crypto.randomUUID()}.pdf`
   const session = crypto.randomUUID()
-  const expiresAt = new Date(createdAt + FILE_LIFETIME_MS).toISOString()
+  const expiresAt = version === 2 ? '' : new Date(createdAt + FILE_LIFETIME_MS).toISOString()
   let multipart: R2MultipartUpload
   try {
     multipart = await env.PDF_UPLOADS.createMultipartUpload(key, {
       httpMetadata: { contentType: 'application/pdf', cacheControl: 'no-store' },
       // Public metadata must not contain account IDs, names or tokens.
-      customMetadata: { expiresAt, uploadSession: session },
+      customMetadata: { expiresAt, uploadSession: session, ...(version === 2 ? { owner, fileName } : {}) },
     })
   } catch (error) {
     throw storageFailure(error)
   }
   const ticket = await signTicket({
-    v: 1, owner, key, size, fileName, uploadId: multipart.uploadId, session, createdAt,
+    v: version, owner, key, size, fileName, uploadId: multipart.uploadId, session, createdAt,
     expiresAt: createdAt + SESSION_LIFETIME_MS, fileExpiresAt: expiresAt,
   }, secret)
   return jsonResponse({ uploadId: multipart.uploadId, ticket, partSize: PART_SIZE }, 201)
 }
 
-export async function uploadPart(request: Request, env: Env, owner: string, uploadId: string, number: string): Promise<Response> {
-  const ticket = await verifyTicket(request, env, owner, uploadId)
+export async function uploadPart(request: Request, env: PdfStorageEnv, owner: string, uploadId: string, number: string, version: 1 | 2 = 1): Promise<Response> {
+  const ticket = await verifyTicket(request, env, owner, uploadId, version)
   const count = Math.ceil(ticket.size / PART_SIZE)
   if (!/^[1-9]\d*$/u.test(number) || !Number.isSafeInteger(Number(number)) || Number(number) > count) {
     throw new UploadError('上传分片编号无效', 400, 'INVALID_PART_NUMBER')
@@ -68,7 +70,7 @@ function completedParts(value: unknown, ticket: UploadTicket): R2UploadedPart[] 
 }
 
 /** Re-read the object; a client-supplied part manifest is not evidence. */
-async function verifiedObject(env: Env, ticket: UploadTicket): Promise<R2Object | null> {
+async function verifiedObject(env: PdfStorageEnv, ticket: UploadTicket): Promise<R2Object | null> {
   const object = await env.PDF_UPLOADS.head(ticket.key)
   if (!object) return null
   if (object.customMetadata?.uploadSession !== ticket.session || object.customMetadata?.expiresAt !== ticket.fileExpiresAt) {
@@ -92,8 +94,9 @@ async function verifiedObject(env: Env, ticket: UploadTicket): Promise<R2Object 
   return object
 }
 
-export async function completeMultipart(request: Request, env: Env, owner: string, uploadId: string): Promise<Response> {
-  const ticket = await verifyTicket(request, env, owner, uploadId)
+export async function completeMultipart(request: Request, env: PdfStorageEnv, owner: string, uploadId: string, version: 1 | 2 = 1): Promise<Response> {
+  const ticket = await verifyTicket(request, env, owner, uploadId, version)
+  if (version === 2) await assertLibraryFileAvailable(env.PDF_UPLOADS, ticket.key)
   const payload = await readJson(request)
   if (Object.keys(payload).length !== 1 || !('parts' in payload)) throw new UploadError('上传分片信息无效', 400, 'INVALID_PARTS')
   const parts = completedParts(payload.parts, ticket)
@@ -112,6 +115,7 @@ export async function completeMultipart(request: Request, env: Env, owner: strin
       object = object || await verifiedObject(env, ticket)
       if (!object) throw storageFailure()
     }
+    if (version === 2) return jsonResponse(await registerLibraryFile(env, owner, object, ticket.fileName), 201)
     return uploadedPdf(env, ticket.key, ticket.fileName, object.size, ticket.fileExpiresAt)
   } catch (error) {
     if (error instanceof UploadError) throw error
@@ -119,8 +123,8 @@ export async function completeMultipart(request: Request, env: Env, owner: strin
   }
 }
 
-export async function abortMultipart(request: Request, env: Env, owner: string, uploadId: string): Promise<Response> {
-  const ticket = await verifyTicket(request, env, owner, uploadId)
+export async function abortMultipart(request: Request, env: PdfStorageEnv, owner: string, uploadId: string, version: 1 | 2 = 1): Promise<Response> {
+  const ticket = await verifyTicket(request, env, owner, uploadId, version)
   try {
     // Only abort the pending session. If complete wins a concurrent race, its
     // committed PDF remains available; cancellation never deletes objects.

@@ -34,6 +34,7 @@ const TaskRedirectPage = page(() => import('@/pages/task-redirect-page'), 'TaskR
 const EventRedirectPage = page(() => import('@/pages/event-redirect-page'), 'EventRedirectPage')
 const SchedulesPage = page(() => import('@/pages/schedules-page'), 'SchedulesPage')
 const LibraryPage = page(() => import('@/pages/library-page'), 'LibraryPage')
+const FavoritesAndTemplatesPage = page(() => import('@/pages/favorites-and-templates-page'), 'FavoritesAndTemplatesPage')
 const TemplateDetailPage = page(() => import('@/pages/template-detail-page'), 'TemplateDetailPage')
 const FileConverterPage = page(() => import('@/pages/file-converter-page'), 'FileConverterPage')
 const RuntimeSettingsPage = page(() => import('@/pages/settings-detail-page'), 'RuntimeSettingsPage')
@@ -84,6 +85,7 @@ export const router = createBrowserRouter([
               route('events/:eventId', EventRedirectPage),
               route('schedules', SchedulesPage),
               route('library', LibraryPage),
+              route('favorites-and-templates', FavoritesAndTemplatesPage),
               route('templates/:templateId', TemplateDetailPage),
               route('file-converter', FileConverterPage),
               route('pdf-to-md', FileConverterPage),

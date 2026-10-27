@@ -26,9 +26,10 @@ export function breadcrumbsFor(pathname: string): BreadcrumbItem[] {
 
   if (parts[0] === 'file-converter' || parts[0] === 'pdf-to-md') return [{ label: '文件转换' }]
   if (parts[0] === 'library') return [{ label: '资料库' }]
+  if (parts[0] === 'favorites-and-templates') return [{ label: '收藏和模板' }]
   if (parts[0] === 'templates') {
     const templateId = parts[1] || ''
-    return [{ label: '资料库', to: '/library?tab=templates' }, { label: `模板 ${shortId(templateId)}` }]
+    return [{ label: '收藏和模板', to: '/favorites-and-templates?tab=templates' }, { label: `模板 ${shortId(templateId)}` }]
   }
   if (parts[0] === 'schedules') return [{ label: '重复计划' }]
   if (parts[0] === 'settings') {
@@ -56,6 +57,6 @@ export function fallbackParent(pathname: string): string {
   const runEdit = pathname.match(/^\/runs\/([^/]+)\/edit$/u)
   if (runEdit) return `/runs/${runEdit[1]}`
   if (pathname.startsWith('/runs/') || pathname.startsWith('/tasks/') || pathname.startsWith('/events/')) return '/'
-  if (pathname.startsWith('/templates/')) return '/library?tab=templates'
+  if (pathname.startsWith('/templates/')) return '/favorites-and-templates?tab=templates'
   return '/'
 }

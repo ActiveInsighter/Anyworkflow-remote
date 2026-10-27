@@ -5,10 +5,40 @@ import { MULTIPART_PATH, UPLOAD_PATH } from './pdf.js'
 import { RELAY_PATH, relayUpload } from './relay.js'
 import { singleUpload } from './single-upload.js'
 import { DOWNLOAD_PATH, downloadArchive } from './download.js'
+import { LIBRARY_PATH, LIBRARY_SOURCE_PATH, libraryEnv, libraryFile, librarySource, listLibraryFiles } from './library.js'
+import { importLegacyFiles } from './library-import.js'
 
 const MULTIPART_ROUTE = new RegExp(`^${MULTIPART_PATH}/([^/]+)(?:/(parts)/([^/]+)|/(complete))?$`, 'u')
+const LIBRARY_MULTIPART = `${LIBRARY_PATH}/uploads/multipart`
+const LIBRARY_MULTIPART_ROUTE = new RegExp(`^${LIBRARY_MULTIPART}/([^/]+)(?:/(parts)/([^/]+)|/(complete))?$`, 'u')
 
 async function apiRequest(request: Request, env: Env, pathname: string): Promise<Response> {
+  if (pathname === `${LIBRARY_PATH}/import`) {
+    if (request.method !== 'POST') return methodNotAllowed('POST')
+    return importLegacyFiles(request, env, await authenticate(request, env))
+  }
+  if (pathname.startsWith(`${LIBRARY_SOURCE_PATH}/`)) return librarySource(request, env, pathname.slice(LIBRARY_SOURCE_PATH.length + 1))
+  if (pathname === LIBRARY_PATH) {
+    if (request.method !== 'GET') return methodNotAllowed('GET')
+    return listLibraryFiles(request, libraryEnv(request, env), await authenticate(request, env))
+  }
+  if (pathname === LIBRARY_MULTIPART) {
+    if (request.method !== 'POST') return methodNotAllowed('POST')
+    return createMultipart(request, libraryEnv(request, env), await authenticate(request, env), 2)
+  }
+  const libraryMatch = LIBRARY_MULTIPART_ROUTE.exec(pathname)
+  if (libraryMatch) {
+    const method = libraryMatch[2] ? 'PUT' : libraryMatch[4] ? 'POST' : 'DELETE'
+    if (request.method !== method) return methodNotAllowed(method)
+    let uploadId: string
+    try { uploadId = decodeURIComponent(libraryMatch[1]) } catch { throw new UploadError('上传编号格式无效', 400, 'INVALID_UPLOAD_ID') }
+    const owner = await authenticate(request, env)
+    const storage = libraryEnv(request, env)
+    if (libraryMatch[2]) return uploadPart(request, storage, owner, uploadId, libraryMatch[3], 2)
+    if (libraryMatch[4]) return completeMultipart(request, storage, owner, uploadId, 2)
+    return abortMultipart(request, storage, owner, uploadId, 2)
+  }
+  if (pathname.startsWith(`${LIBRARY_PATH}/`)) return libraryFile(request, libraryEnv(request, env), await authenticate(request, env), pathname.slice(LIBRARY_PATH.length + 1))
   if (pathname === DOWNLOAD_PATH) return downloadArchive(request, env)
   if (pathname === '/api/file-conversion/dispatcher') {
     if (request.method !== 'GET') return methodNotAllowed('GET')
