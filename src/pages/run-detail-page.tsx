@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react'
-import { useParams, useSearchParams } from 'react-router'
+import { useEffect, useRef, useState } from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router'
 import { ConfirmDeleteDialog } from '@/components/feedback/confirm-dialog'
 import { ErrorAlert } from '@/components/feedback/error-alert'
 import { LoadingState } from '@/components/feedback/loading-state'
@@ -16,6 +16,24 @@ import { useRunDetail } from '@/features/runs/hooks/use-run-detail'
 import { useRunDetailActions } from '@/features/runs/hooks/use-run-detail-actions'
 import { RunExportDialog } from '@/features/run-exports/components/run-export-dialog'
 
+/**
+ * `?export=1` (linked from the task center) opens the export sheet once. The parameter is removed
+ * in place, so the sheet stays view state and Back never reopens it.
+ */
+function useExportDeepLink(setOpen: (open: boolean) => void) {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const requested = new URLSearchParams(location.search).get('export') === '1'
+  useEffect(() => {
+    if (!requested) return
+    setOpen(true)
+    const params = new URLSearchParams(location.search)
+    params.delete('export')
+    const search = params.toString()
+    navigate({ pathname: location.pathname, search: search ? `?${search}` : '', hash: location.hash }, { replace: true, state: location.state })
+  }, [requested, setOpen, navigate, location.pathname, location.search, location.hash, location.state])
+}
+
 export function RunDetailPage() {
   const { runId = '' } = useParams()
   const detail = useRunDetail(runId)
@@ -27,16 +45,8 @@ export function RunDetailPage() {
     selectVersion: detail.selectVersion,
   })
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
-  // `?export=1` opens the export sheet, so the task center can link straight to it.
-  const [searchParams, setSearchParams] = useSearchParams()
-  const exportOpen = searchParams.get('export') === '1'
-  const setExportOpen = (open: boolean) =>
-    setSearchParams((params) => {
-      const next = new URLSearchParams(params)
-      if (open) next.set('export', '1')
-      else next.delete('export')
-      return next
-    }, { replace: true })
+  const [exportOpen, setExportOpen] = useState(false)
+  useExportDeepLink(setExportOpen)
   const menuTriggerRef = useRef<HTMLButtonElement>(null)
   const now = useNow()
 
