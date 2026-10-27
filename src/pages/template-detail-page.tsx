@@ -21,7 +21,7 @@ import { useAsyncData } from '@/hooks/use-async-data'
 import { toErrorMessage } from '@/lib/api'
 import { deleteWorkflowTemplate, duplicateWorkflowTemplate, getWorkflowTemplate } from '@/lib/api/library'
 import { formatDateTime } from '@/lib/format'
-import { templateTitle } from '@/features/library/components/template-row'
+import { templateTitle } from '@/features/library/lib/template-title'
 
 export function TemplateDetailPage() {
   const { templateId = '' } = useParams()

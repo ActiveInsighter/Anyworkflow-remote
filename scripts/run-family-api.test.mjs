@@ -301,9 +301,11 @@ const readSource = async (path) => (await import('node:fs/promises')).readFile(n
 const viewSource = (await readSource('pages/run-detail-page.tsx')) + (await readSource('features/runs/hooks/use-run-detail.ts'))
 assert.match(viewSource, /setTaskPageSelection\(/u, 'Task pagination should stay in component state')
 assert.doesNotMatch(viewSource, /setSearchParams\(/u, 'Run detail view-only controls must not push URL history')
-const librarySource = await readSource('features/library/hooks/use-library-view.ts')
-assert.equal((librarySource.match(/setSearchParams\(params, \{ replace: true \}\)/gu) || []).length, 2,
-  'library Tab and folder selections should replace the current history entry')
+const librarySource = await readSource('components/drive/use-drive-location.ts')
+assert.equal((librarySource.match(/setParams\(next, \{ replace: true \}\)/gu) || []).length, 1,
+  'library Tab changes replace the current history entry')
+assert.match(librarySource, /if \(id !== folder\) setParams\(next\)/u,
+  'opening a folder adds a history entry so back steps up one folder')
 const actNodeSource = await readSource('features/runs/components/execution/act-node.tsx')
 const messageNodeSource = await readSource('features/runs/components/execution/message-node.tsx')
 const eventNodeSource = await readSource('features/runs/components/execution/event-node.tsx')
