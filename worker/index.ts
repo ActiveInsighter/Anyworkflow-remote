@@ -6,6 +6,7 @@ import { singleUpload } from './single-upload.js'
 import { DOWNLOAD_PATH, downloadArchive } from './download.js'
 import { LIBRARY_PATH, LIBRARY_SOURCE_PATH, libraryEnv, libraryFile, librarySource, listLibraryFiles } from './library.js'
 import { importLegacyFiles } from './library-import.js'
+import { LIBRARY_FOLDERS_PATH, folderCollection, folderItem } from './library-folders.js'
 import { createRouter, decodeParam, pattern, under, type Route } from './router.js'
 
 type Storage = (request: Request, env: Env) => PdfStorageEnv
@@ -58,6 +59,14 @@ const routes: Route[] = [
   { path: LIBRARY_PATH, methods: { GET: async ({ request, env, owner }) => listLibraryFiles(request, libraryEnv(request, env), await owner()) } },
   ...multipartRoutes(`${LIBRARY_PATH}/uploads/multipart`, libraryEnv, 2),
   { path: under(LIBRARY_PATH), any: async ({ request, env, params, owner }) => libraryFile(request, libraryEnv(request, env), await owner(), params[0]) },
+  {
+    path: LIBRARY_FOLDERS_PATH,
+    methods: {
+      GET: async ({ request, env, owner }) => folderCollection(request, libraryEnv(request, env), await owner()),
+      POST: async ({ request, env, owner }) => folderCollection(request, libraryEnv(request, env), await owner()),
+    },
+  },
+  { path: pattern(LIBRARY_FOLDERS_PATH, '/:id'), any: async ({ request, env, params, owner }) => folderItem(request, libraryEnv(request, env), await owner(), params[0]) },
 
   // File conversion: artifact downloads, the private coordinator binding and source uploads.
   { path: DOWNLOAD_PATH, any: ({ request, env }) => downloadArchive(request, env) },

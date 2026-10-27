@@ -19,7 +19,7 @@ type Handler = (context: RouteContext) => Promise<Response> | Response
  */
 export interface Route {
   path: string | RegExp
-  methods?: Partial<Record<'GET' | 'HEAD' | 'POST' | 'PUT' | 'DELETE', Handler>>
+  methods?: Partial<Record<'GET' | 'HEAD' | 'POST' | 'PUT' | 'PATCH' | 'DELETE', Handler>>
   any?: Handler
 }
 
