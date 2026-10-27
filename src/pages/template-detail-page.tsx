@@ -57,7 +57,7 @@ export function TemplateDetailPage() {
       },
       { success: '模板已删除', failure: '删除模板失败' },
     )
-    if (done) navigate('/library?tab=templates')
+    if (done) navigate('/favorites-and-templates?tab=templates')
   }
 
   return (
@@ -65,8 +65,8 @@ export function TemplateDetailPage() {
       <PageHeader
         wrapTitle
         eyebrow={
-          <Link to="/library?tab=templates" className="outline-none hover:text-foreground focus-visible:underline">
-            资料库
+          <Link to="/favorites-and-templates?tab=templates" className="outline-none hover:text-foreground focus-visible:underline">
+            收藏和模板
           </Link>
         }
         title={templateTitle(template)}

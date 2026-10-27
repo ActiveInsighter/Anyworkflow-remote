@@ -25,7 +25,7 @@ await context.route('**/api/file-conversion/wake', async route => {
  wakeCount++
  await route.fulfill({ status: 202, json: { accepted: true } })
 })
-await context.route('**/api/file-conversion/uploads/multipart**', async route => {
+await context.route('**/api/library/files/uploads/multipart**', async route => {
  const req = route.request(), url = new URL(req.url())
  assert.equal(req.headers().authorization, 'Bearer fixture-token')
  assert.equal(req.headers()['x-pocketbase-url'], 'https://pb.example.invalid')
@@ -199,7 +199,7 @@ assert.equal(created.outputName, '数学笔记')
  assert.equal(uploadCount, 0)
 
  uploadMode = 'hold'
- const firstRequest = page.waitForRequest('**/api/file-conversion/uploads/multipart/*/parts/*')
+ const firstRequest = page.waitForRequest('**/api/library/files/uploads/multipart/*/parts/*')
  await fileInput.setInputFiles(pdfFile('old.pdf'))
  await firstRequest
  await page.getByRole('button', { name: '取消上传', exact: true }).waitFor()
@@ -222,7 +222,7 @@ assert.equal(created.outputName, '数学笔记')
  await page.getByText('链接已复制', { exact: true }).waitFor()
 
  uploadMode = 'hold'
- const switchingRequest = page.waitForRequest('**/api/file-conversion/uploads/multipart/*/parts/*')
+ const switchingRequest = page.waitForRequest('**/api/library/files/uploads/multipart/*/parts/*')
  await fileInput.setInputFiles(pdfFile('switch.pdf'))
  await switchingRequest
  await page.getByRole('tab', { name: '链接', exact: true }).click()

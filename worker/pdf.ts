@@ -8,6 +8,7 @@ export const PART_SIZE = 32 * 1024 * 1024
 export const FILE_LIFETIME_MS = 24 * 60 * 60 * 1000
 export const SESSION_LIFETIME_MS = 12 * 60 * 60 * 1000
 export const PDF_SIGNATURE = [0x25, 0x50, 0x44, 0x46, 0x2d]
+export type PdfStorageEnv = Omit<Env, 'PDF_PUBLIC_BASE_URL'> & { PDF_PUBLIC_BASE_URL: string }
 
 export function validateFileName(value: unknown): string {
   if (typeof value !== 'string' || !value || value.length > 255 || /[/\\\u0000-\u001f\u007f]/u.test(value) || !/\.pdf$/iu.test(value)) {
@@ -39,7 +40,7 @@ export function contentLength(request: Request, maxSize: number): number {
   return size
 }
 
-export function uploadedPdf(env: Env, key: string, fileName: string, size: number, expiresAt: string): Response {
+export function uploadedPdf(env: PdfStorageEnv, key: string, fileName: string, size: number, expiresAt: string): Response {
   return jsonResponse({ sourceUrl: `${env.PDF_PUBLIC_BASE_URL}/${key}`, fileName, size, expiresAt }, 201)
 }
 

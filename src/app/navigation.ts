@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
-import { BookMarked, CalendarClock, FileText, House, Settings } from 'lucide-react'
+import { BookMarked, CalendarClock, FileText, FolderOpen, House, Settings } from 'lucide-react'
 
 export interface AppNavItem {
   id: string
@@ -30,11 +30,18 @@ export const appNavigation: AppNavItem[] = [
     match: (pathname) => pathname === '/schedules',
   },
   {
+    id: 'favorites-and-templates',
+    label: '收藏和模板',
+    to: '/favorites-and-templates',
+    icon: BookMarked,
+    match: (pathname) => pathname === '/favorites-and-templates' || pathname.startsWith('/templates/'),
+  },
+  {
     id: 'library',
     label: '资料库',
     to: '/library',
-    icon: BookMarked,
-    match: (pathname) => pathname === '/library' || pathname.startsWith('/templates/'),
+    icon: FolderOpen,
+    match: (pathname) => pathname === '/library',
   },
   {
     id: 'file-converter',

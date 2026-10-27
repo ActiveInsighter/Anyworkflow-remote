@@ -23,7 +23,8 @@ AnyWorkflow 的响应式 Web 控制端。项目参考 `Anyworkflow-wechat` 的�
 - Run 详情「更多操作 → 导出 AI 对话」：完整对话/仅 AI 回复、后台生成 Markdown ZIP、进度与历史下载
 - Event 执行内容按需查看
 - 进行中数据自动轮询刷新与有界跨页缓存
-- 收藏、模板与层级资料库目录
+- 收藏和模板独立侧栏与层级目录
+- 持久文件资料库：上传、搜索、删除与跨转换任务复用
 - CodeMirror DSL 编辑器、本地草稿与括号消息语法
 - 桌面侧栏布局
 - 手机侧边导航、顶部路径导航与触控优化
@@ -61,6 +62,7 @@ src/
 │   ├── run-editor/       新建/编辑 Run：草稿、执行计划、运行配置、保存与运行
 │   ├── editor/           CodeMirror DSL 编辑器、工具栏与命令
 │   ├── library/          收藏、模板与目录
+│   ├── files/            持久文件资料库、共享上传与文件选择
 │   ├── schedules/        每天重复计划
 │   ├── runtime-config/   浏览器运行配置字段与默认值
 │   ├── file-converter/   PDF → Markdown 转换
@@ -411,3 +413,5 @@ UTC+08:00），保存草稿不会启动，点击“启用重复”才提交首�
 `modelSelection`。未覆盖的页面继承原有全局参数与模型选择；旧 v1–v3 快照和校验和不重写。
 发布顺序：先部署 `1792340000_runtime_config_v4.js`、hooks 和 scheduler，再加载能力版本 4 的扩展
 （0.1.23 起），最后发布 Remote。Remote 兼容 v1–v4；旧扩展不能领取需要 v4 的任务。
+
+持久文件资料库、旧上传迁移及预览存储配置见 [文件资料库](docs/file-library.md)。

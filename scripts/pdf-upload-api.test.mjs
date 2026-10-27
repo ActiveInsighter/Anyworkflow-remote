@@ -3,7 +3,7 @@ import { createServer } from 'vite'
 
 const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' })
 const originalXhr = globalThis.XMLHttpRequest
-const path = '/api/file-conversion/uploads/multipart'
+const path = '/api/library/files/uploads/multipart'
 const partSize = 32 * 1024 * 1024
 const uploads = new Map()
 let sequence = 0

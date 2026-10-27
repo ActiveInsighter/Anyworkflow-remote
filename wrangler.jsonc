@@ -12,7 +12,8 @@
     "not_found_handling": "single-page-application"
   },
   "r2_buckets": [
-    { "binding": "PDF_UPLOADS", "bucket_name": "anyworkflow-ocr-relay" }
+    { "binding": "PDF_UPLOADS", "bucket_name": "anyworkflow-ocr-relay" },
+    { "binding": "LIBRARY_FILES", "bucket_name": "anyworkflow-library" }
   ],
   "services": [
     { "binding": "FILE_CONVERTER", "service": "anyworkflow-file-converter" }
@@ -22,6 +23,21 @@
     "PDF_PUBLIC_BASE_URL": "https://ocr-files.any1.tech"
   },
   "secrets": { "required": ["UPLOAD_TICKET_SECRET"] },
+  "env": {
+    "preview": {
+      "name": "anyworkflow-remote-preview",
+      "r2_buckets": [
+        { "binding": "PDF_UPLOADS", "bucket_name": "anyworkflow-ocr-relay" },
+        { "binding": "LIBRARY_FILES", "bucket_name": "anyworkflow-library-preview" }
+      ],
+      "services": [{ "binding": "FILE_CONVERTER", "service": "anyworkflow-file-converter" }],
+      "vars": {
+        "POCKETBASE_URL": "https://pb.any1.tech",
+        "PDF_PUBLIC_BASE_URL": "https://ocr-files.any1.tech"
+      },
+      "secrets": { "required": ["UPLOAD_TICKET_SECRET"] }
+    }
+  },
   "observability": {
     "enabled": true,
     "logs": { "enabled": true, "head_sampling_rate": 1 },
