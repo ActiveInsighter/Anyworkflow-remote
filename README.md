@@ -335,6 +335,8 @@ Event 队列中的消息块和轮询组支持 `}*N` 重复后缀，`N` 为 1–1
 
 ## 文件转换
 
+上传满一天后的 R2 → Workers Assets 分片归档、密钥配置和上线验证见 [PDF 归档](docs/pdf-archive.md)。
+
 侧边栏的 `文件转换` 页面（新路径 `/file-converter`，旧路径 `/pdf-to-md` 继续兼容）
 支持公开 PDF / Google Drive 地址，也可选择「上传文件」从本机上传 PDF（最大 2 GiB）。
 原有链接入口仍为默认；本机文件上传成功后生成 HTTPS `.pdf` 链接，复用同一任务提交与转换流程。

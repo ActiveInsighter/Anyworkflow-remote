@@ -8,15 +8,17 @@
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
-    "run_worker_first": ["/api/*"],
+    "run_worker_first": ["/api/*", "/*.pdf"],
     "not_found_handling": "single-page-application"
   },
+  "routes": [{ "pattern": "ocr-files.any1.tech/*", "zone_name": "any1.tech" }],
   "r2_buckets": [
     { "binding": "PDF_UPLOADS", "bucket_name": "anyworkflow-ocr-relay" },
     { "binding": "LIBRARY_FILES", "bucket_name": "anyworkflow-library" }
   ],
   "services": [
-    { "binding": "FILE_CONVERTER", "service": "anyworkflow-file-converter" }
+    { "binding": "FILE_CONVERTER", "service": "anyworkflow-file-converter" },
+    { "binding": "PDF_ARCHIVE", "service": "anyworkflow-pdf-archive" }
   ],
   "vars": {
     "POCKETBASE_URL": "https://pb.any1.tech",
@@ -26,11 +28,15 @@
   "env": {
     "preview": {
       "name": "anyworkflow-remote-preview",
+      "routes": [],
       "r2_buckets": [
         { "binding": "PDF_UPLOADS", "bucket_name": "anyworkflow-ocr-relay" },
         { "binding": "LIBRARY_FILES", "bucket_name": "anyworkflow-library-preview" }
       ],
-      "services": [{ "binding": "FILE_CONVERTER", "service": "anyworkflow-file-converter" }],
+      "services": [
+        { "binding": "FILE_CONVERTER", "service": "anyworkflow-file-converter" },
+        { "binding": "PDF_ARCHIVE", "service": "anyworkflow-pdf-archive" }
+      ],
       "vars": {
         "POCKETBASE_URL": "https://pb.any1.tech",
         "PDF_PUBLIC_BASE_URL": "https://ocr-files.any1.tech"

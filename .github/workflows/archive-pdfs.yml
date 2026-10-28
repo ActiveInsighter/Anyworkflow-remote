@@ -1,0 +1,55 @@
+name: archive-pdfs-to-worker-assets
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+    inputs:
+      verify:
+        description: 'Archive and verify one synthetic 26 MiB PDF immediately (no user files)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pdf-archive-production
+  cancel-in-progress: false
+
+jobs:
+  archive:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22'
+      - name: Archive, verify published bytes, then remove R2 originals
+        if: ${{ !inputs.verify }}
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          PDF_ARCHIVE_GATEWAY: ${{ vars.PDF_ARCHIVE_GATEWAY }}
+          ARCHIVE_ADMIN_SECRET: ${{ secrets.ARCHIVE_ADMIN_SECRET }}
+        run: node scripts/archive-files.mjs
+
+      - name: Verify production Assets with a synthetic PDF
+        if: ${{ inputs.verify }}
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          PDF_ARCHIVE_GATEWAY: ${{ vars.PDF_ARCHIVE_GATEWAY }}
+          ARCHIVE_ADMIN_SECRET: ${{ secrets.ARCHIVE_ADMIN_SECRET }}
+        run: node scripts/verify-pdf-archive.mjs
+
+      - name: Save production verification evidence
+        if: ${{ inputs.verify }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: pdf-archive-verification
+          path: .deployment-evidence/pdf-archive-verification.json
+          if-no-files-found: error
+          retention-days: 30

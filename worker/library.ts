@@ -1,3 +1,4 @@
+import { readArchive, storedPdf } from './archive.js'
 import { UploadError, jsonResponse, methodNotAllowed } from './errors.js'
 import { assertFolderExists, cleanName, fileIndexPrefix, readJson } from './library-folders.js'
 import type { PdfStorageEnv } from './pdf.js'
@@ -27,7 +28,7 @@ function indexEntry(env: PdfStorageEnv, meta: IndexMeta) {
 }
 
 /** One index object per file avoids lost updates when multiple tabs upload concurrently. */
-export async function registerLibraryFile(env: PdfStorageEnv, owner: string, object: R2Object, fileName: string) {
+export async function registerLibraryFile(env: PdfStorageEnv, owner: string, object: Pick<R2Object, 'key' | 'size' | 'uploaded'>, fileName: string) {
   const key = object.key
   const createdAt = object.uploaded.toISOString()
   await assertLibraryFileAvailable(env.PDF_UPLOADS, key)
@@ -64,14 +65,14 @@ export async function listLibraryFiles(request: Request, env: PdfStorageEnv, own
 
 export async function libraryFile(request: Request, env: PdfStorageEnv, owner: string, key: string): Promise<Response> {
   if (!FILE_ID.test(key)) throw new UploadError('文件不存在', 404, 'FILE_NOT_FOUND')
-  const object = await env.PDF_UPLOADS.head(key)
+  const object = await env.PDF_UPLOADS.head(key) || await readArchive(env.PDF_UPLOADS, key)
   if (object && object.customMetadata?.owner !== owner) throw new UploadError('文件不存在', 404, 'FILE_NOT_FOUND')
   if (request.method === 'GET' || request.method === 'PATCH') {
     if (!object) throw new UploadError('文件已删除或不存在', 404, 'FILE_NOT_FOUND')
     await assertLibraryFileAvailable(env.PDF_UPLOADS, key)
     // The index carries the editable name and folder; the stored object keeps its upload name.
     const index = await env.PDF_UPLOADS.head(indexKey(owner, key))
-    const meta: IndexMeta = { id: key, fileName: object.customMetadata!.fileName, size: String(object.size), createdAt: object.uploaded.toISOString(), ...index?.customMetadata }
+    const meta: IndexMeta = { id: key, fileName: object.customMetadata!.fileName, size: String(object.size), createdAt: 'v' in object ? object.uploaded : object.uploaded.toISOString(), ...index?.customMetadata }
     if (request.method === 'GET') return jsonResponse(indexEntry(env, meta))
     const body = await readJson(request)
     if (body.fileName !== undefined) meta.fileName = cleanName(body.fileName, 240, '文件名')
@@ -100,28 +101,9 @@ export async function libraryFile(request: Request, env: PdfStorageEnv, owner: s
 }
 
 /** Unguessable capability URLs let Actions and OCR fetch the same source across jobs. */
-export async function librarySource(request: Request, env: Env, key: string): Promise<Response> {
+export async function librarySource(request: Request, env: Env, key: string, ctx?: ExecutionContext): Promise<Response> {
   if (request.method !== 'GET' && request.method !== 'HEAD') return methodNotAllowed('GET, HEAD')
   if (!FILE_ID.test(key)) throw new UploadError('文件不存在', 404, 'FILE_NOT_FOUND')
   await assertLibraryFileAvailable(env.LIBRARY_FILES, key)
-  const meta = await env.LIBRARY_FILES.head(key)
-  if (!meta) throw new UploadError('文件已删除或不存在', 404, 'FILE_NOT_FOUND')
-  let range: { offset: number; length: number } | undefined
-  const rangeHeader = request.method === 'GET' && (!request.headers.has('If-Range') || request.headers.get('If-Range') === meta.httpEtag) ? request.headers.get('Range') : null
-  if (rangeHeader) {
-    const match = /^bytes=(\d*)-(\d*)$/u.exec(rangeHeader)
-    if (match && (match[1] || match[2])) {
-      const offset = match[1] ? Number(match[1]) : Math.max(0, meta.size - Number(match[2]))
-      const end = match[1] && match[2] ? Math.min(meta.size - 1, Number(match[2])) : meta.size - 1
-      if (Number.isSafeInteger(offset) && Number.isSafeInteger(end) && offset >= 0 && offset < meta.size && end >= offset && (match[1] || Number(match[2]) > 0)) range = { offset, length: end - offset + 1 }
-    }
-    if (!range) return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${meta.size}`, 'Cache-Control': 'no-store' } })
-  }
-  const headers = new Headers({ 'Content-Type': 'application/pdf', 'Cache-Control': 'no-store', 'Accept-Ranges': 'bytes', 'ETag': meta.httpEtag, 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' })
-  headers.set('Content-Length', String(range?.length ?? meta.size))
-  if (range) headers.set('Content-Range', `bytes ${range.offset}-${range.offset + range.length - 1}/${meta.size}`)
-  if (request.method === 'HEAD') return new Response(null, { headers })
-  const object = await env.LIBRARY_FILES.get(key, { ...(range ? { range } : {}), onlyIf: { etagMatches: meta.etag } })
-  if (!object || !('body' in object)) throw new UploadError('文件已删除或不存在', 404, 'FILE_NOT_FOUND')
-  return new Response(object.body, { status: range ? 206 : 200, headers })
+  return storedPdf(request, env, env.LIBRARY_FILES, key, ctx)
 }

@@ -36,6 +36,12 @@ jobs:
       - name: Validate
         run: npm run preflight
 
+      - name: Create private archive service if missing (preserve existing assets)
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: node scripts/archive-files.mjs --bootstrap
+
       - name: Deploy preview to Cloudflare Workers
         id: deploy
         uses: cloudflare/wrangler-action@v4
