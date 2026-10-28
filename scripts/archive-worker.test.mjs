@@ -21,6 +21,12 @@ const runtime = new Miniflare(convertV4MiniflareOptions({
     export default { fetch(request, env, ctx) {
       const url = new URL(request.url);
       if (url.pathname === '/__test/clock') { delta = Number(url.searchParams.get('delta')); return new Response(null, { status: 204 }); }
+      const service = env.PDF_ARCHIVE;
+      env = { ...env, PDF_ARCHIVE: { async fetch(...args) {
+        const response = await service.fetch(...args);
+        const headers = new Headers(response.headers); headers.delete('Content-Length');
+        return new Response(response.body, { status: response.status, headers });
+      } } };
       return app.fetch(request, env, ctx);
     } };` }, ...await workerModules()],
   bindings: { POCKETBASE_URL: 'https://pb.any1.tech', PDF_PUBLIC_BASE_URL: 'https://ocr-files.any1.tech', UPLOAD_TICKET_SECRET: secret, ARCHIVE_ADMIN_SECRET: secret },
@@ -42,7 +48,7 @@ const runtime = new Miniflare(convertV4MiniflareOptions({
   outboundService: request => RuntimeResponse.json({ record: { id: request.headers.get('Authorization'), collectionName: 'aw_clients' } }),
 }))
 const fetcher = (url, options) => runtime.dispatchFetch(String(url), options)
-const bridge = () => createBridge({ baseUrl, secret, fetcher })
+const bridge = () => createBridge({ baseUrl, secret, fetcher, retryDelay: async () => {} })
 const digest = bytes => createHash('sha256').update(bytes).digest('hex')
 const cache = () => {
   const chunks = new Map()
