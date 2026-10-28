@@ -80,14 +80,17 @@ export async function storedPdf(request: Request, env: ArchiveEnv, bucket: R2Buc
     const to = Math.min(chunk.size, end - chunkStart) - 1
     const response = await archive.fetch(`https://archive.internal${chunkPath(chunk.hash)}`)
     // Fetch complete immutable assets: Range behavior differs between service bindings and edge caches.
+    // RPC responses can omit Content-Length even when HTTP transport later synthesizes it.
+    // The outer FixedLengthStream and pre-commit stream hashes enforce actual byte counts.
     // Full chunks pipe natively; only a partial boundary chunk needs a bounded buffer.
-    if (response.status === 200 && Number(response.headers.get('Content-Length')) === chunk.size && response.body) {
+    if (response.status === 200 && (!response.headers.has('Content-Length') || Number(response.headers.get('Content-Length')) === chunk.size) && response.body) {
       if (from === 0 && to === chunk.size - 1) return response.body
       const bytes = new Uint8Array(await response.arrayBuffer())
       if (bytes.byteLength !== chunk.size) throw new UploadError('文件归档分片不完整', 502, 'ARCHIVE_UNAVAILABLE')
       return new Response(bytes.subarray(from, to + 1)).body!
     }
     if (response.status !== 206 || response.headers.get('Content-Range') !== `bytes ${from}-${to}/${chunk.size}` || Number(response.headers.get('Content-Length')) !== to - from + 1 || !response.body) {
+      console.error(JSON.stringify({ event: 'pdf_archive_chunk_unavailable', status: response.status, length: response.headers.get('Content-Length'), range: response.headers.get('Content-Range'), hasBody: !!response.body, expectedSize: chunk.size }))
       await response.body?.cancel()
       throw new UploadError('文件归档分片暂不可用', 502, 'ARCHIVE_UNAVAILABLE')
     }

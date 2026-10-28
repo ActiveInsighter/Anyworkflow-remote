@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import { archiveFiles, buildManifest, createPublisher, MAX_ASSETS, CHUNK_SIZE } from './archive-files.mjs'
+import { archiveFiles, buildManifest, createBridge, createPublisher, MAX_ASSETS, CHUNK_SIZE } from './archive-files.mjs'
 
 const record = n => {
   const sha256 = createHash('sha256').update(String(n)).digest('hex')
@@ -39,3 +39,14 @@ assert.equal(writes, 0)
 const forbidden = createPublisher({ accountId: '1'.repeat(32), apiToken: 'token', fetcher: async () => new Response(null, { status: 403 }) })
 await assert.rejects(() => forbidden.bootstrap(), /HTTP 403/u)
 console.log('archive-files: capacity admission, complete manifests, deduplication, invalid chunks, collision detection, lease cleanup and bootstrap preservation passed')
+
+let reads = 0, waits = 0
+const propagating = createBridge({ baseUrl: 'https://gateway.invalid', secret: 'test-secret', retryDelay: async () => { waits++ }, fetcher: async () => ++reads === 1 ? new Response(null, { status: 404 }) : new Response('chunk') })
+assert.equal((await propagating.chunk('a'.repeat(32))).toString(), 'chunk')
+assert.equal(reads, 2)
+assert.equal(waits, 1)
+let deniedReads = 0
+const denied = createBridge({ baseUrl: 'https://gateway.invalid', secret: 'test-secret', retryDelay: async () => { throw new Error('auth failures must not retry') }, fetcher: async () => { deniedReads++; return new Response(null, { status: 401 }) } })
+await assert.rejects(() => denied.chunk('b'.repeat(32)), /HTTP 401/u)
+assert.equal(deniedReads, 1)
+console.log('archive-files: bounded propagation retry and immediate auth failure passed')

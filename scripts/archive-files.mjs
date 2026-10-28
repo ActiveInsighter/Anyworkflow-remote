@@ -104,11 +104,16 @@ export async function archiveFiles({ bridge, publisher, cache, maxFiles = 100, m
 }
 
 async function checked(response, operation) {
-  if (!response.ok) { await response.body?.cancel(); throw new Error(`${operation}: HTTP ${response.status}`) }
+  if (!response.ok) {
+    await response.body?.cancel()
+    const error = new Error(`${operation}: HTTP ${response.status}`)
+    error.status = response.status
+    throw error
+  }
   return response
 }
 
-export function createBridge({ baseUrl, secret, fetcher = fetch, signal = AbortSignal.timeout(50 * 60 * 1000) }) {
+export function createBridge({ baseUrl, secret, fetcher = fetch, signal = AbortSignal.timeout(50 * 60 * 1000), retryDelay = ms => new Promise(resolve => setTimeout(resolve, ms)) }) {
   let token
   const base = new URL('/api/internal/pdf-archive/', baseUrl)
   if (base.protocol !== 'https:') throw new Error('Archive bridge requires HTTPS')
@@ -116,6 +121,15 @@ export function createBridge({ baseUrl, secret, fetcher = fetch, signal = AbortS
     const url = new URL(action, base)
     for (const [name, value] of Object.entries({ scope, key, cursor, pending, hash })) if (value !== undefined) url.searchParams.set(name, String(value))
     return checked(await fetcher(url, { method, headers: { Authorization: `Bearer ${secret}`, ...(token ? { 'X-Archive-Lease': token } : {}), ...(body ? { 'Content-Type': 'application/json' } : {}), ...headers }, body: body ? JSON.stringify(body) : undefined, redirect: 'error', signal: AbortSignal.any([signal, AbortSignal.timeout(120_000)]) }), `Archive ${action}`)
+  }
+  const read = async (action, options) => {
+    // A new asset deployment can reach service-binding edges after the upload API succeeds.
+    for (let attempt = 0; ; attempt++) {
+      try { return await call(action, options) } catch (error) {
+        if (attempt >= 6 || ![404, 408, 429, 500, 502, 503, 504].includes(error.status)) throw error
+        await retryDelay(500 * 2 ** attempt)
+      }
+    }
   }
   const pages = async function* (action, options) {
     let cursor = ''
@@ -147,9 +161,9 @@ export function createBridge({ baseUrl, secret, fetcher = fetch, signal = AbortS
       if (response.headers.get('etag') !== object.httpEtag || Number(response.headers.get('content-length')) !== size) throw new Error('Source identity changed')
       return Buffer.from(await response.arrayBuffer())
     },
-    async chunk(hash) { return Buffer.from(await (await call('chunk', { hash })).arrayBuffer()) },
+    async chunk(hash) { return Buffer.from(await (await read('chunk', { hash })).arrayBuffer()) },
     async verify(record) {
-      const response = await call('verify', { scope: record.scope, key: record.key })
+      const response = await read('verify', { scope: record.scope, key: record.key })
       if (Number(response.headers.get('content-length')) !== record.size || response.headers.get('etag') !== record.httpEtag || !response.body) throw new Error('Assembled archive identity mismatch; R2 original retained')
       let index = 0, offset = 0, hash = createHash('sha256')
       for await (const bytes of response.body) {
