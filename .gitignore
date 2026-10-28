@@ -8,3 +8,4 @@ dist
 !.env.example
 
 .deployment-evidence/
+.archive-work-*/

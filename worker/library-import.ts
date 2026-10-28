@@ -1,3 +1,4 @@
+import { archiveKey, readArchive } from './archive.js'
 import { UploadError, jsonResponse } from './errors.js'
 import { libraryEnv, registerLibraryFile } from './library.js'
 
@@ -28,12 +29,21 @@ export async function importLegacyFiles(request: Request, env: Env, owner: strin
     const hex = [...bytes].map(byte => byte.toString(16).padStart(2, '0')).join('')
     const key = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}.pdf`
     if (await env.LIBRARY_FILES.head(`deleted/${key}`) || await env.LIBRARY_FILES.head(`owners/${encodeURIComponent(owner)}/${key}`)) continue
-    let object = await env.LIBRARY_FILES.head(key)
+    let object: Pick<R2Object, 'key' | 'size' | 'uploaded'> | null = await env.LIBRARY_FILES.head(key)
+    if (!object) {
+      const archived = await readArchive(env.LIBRARY_FILES, key)
+      if (archived) object = { key, size: archived.size, uploaded: new Date(archived.uploaded) }
+    }
     const fileName = `${String(job.title || '历史上传').replace(/[/\\\x00-\x1f\x7f]/gu, '_').replace(/\.pdf$/iu, '').slice(0, 240)}.pdf`
     if (!object) {
       const legacy = await env.PDF_UPLOADS.get(oldKey)
-      if (!legacy) { progress.unavailable++; continue }
-      object = await env.LIBRARY_FILES.put(key, legacy.body, { httpMetadata: { contentType: 'application/pdf', cacheControl: 'no-store' }, customMetadata: { owner, fileName } })
+      if (!legacy) {
+        const archived = await readArchive(env.PDF_UPLOADS, oldKey)
+        if (!archived) { progress.unavailable++; continue }
+        const imported = { ...archived, scope: 'library', key, customMetadata: { owner, fileName } }
+        await env.LIBRARY_FILES.put(archiveKey(key), JSON.stringify(imported), { httpMetadata: { contentType: 'application/json' } })
+        object = { key, size: archived.size, uploaded: new Date(archived.uploaded) }
+      } else object = await env.LIBRARY_FILES.put(key, legacy.body, { httpMetadata: { contentType: 'application/pdf', cacheControl: 'no-store' }, customMetadata: { owner, fileName } })
       if (!object) throw new UploadError('保存历史上传失败，请刷新重试', 502, 'IMPORT_UNAVAILABLE')
     }
     await registerLibraryFile(libraryEnv(request, env), owner, object, fileName)

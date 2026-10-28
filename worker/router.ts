@@ -3,6 +3,7 @@ import { UploadError, errorResponse, methodNotAllowed } from './errors.js'
 
 export interface RouteContext {
   request: Request
+  ctx?: ExecutionContext
   env: Env
   /** Capture groups of the route pattern, raw (not URI-decoded). */
   params: string[]
@@ -31,13 +32,13 @@ function match(path: string | RegExp, pathname: string): string[] | null {
 
 /** First matching path wins, so list specific paths before the prefixes that contain them. */
 export function createRouter(routes: Route[]) {
-  return async (request: Request, env: Env, pathname: string): Promise<Response> => {
+  return async (request: Request, env: Env, pathname: string, ctx?: ExecutionContext): Promise<Response> => {
     for (const route of routes) {
       const params = match(route.path, pathname)
       if (!params) continue
       const handler = route.any ?? route.methods?.[request.method as keyof NonNullable<Route['methods']>]
       if (!handler) return methodNotAllowed(Object.keys(route.methods ?? {}).join(', '))
-      return handler({ request, env, params, owner: () => authenticate(request, env) })
+      return handler({ request, env, ctx, params, owner: () => authenticate(request, env) })
     }
     return errorResponse(new UploadError('接口不存在', 404, 'NOT_FOUND'))
   }

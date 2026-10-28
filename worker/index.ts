@@ -1,3 +1,5 @@
+import { ARCHIVE_ADMIN_PATH, archiveAdmin } from './archive-admin.js'
+import { PDF_FILE_ID, storedPdf } from './archive.js'
 import { UploadError, errorResponse } from './errors.js'
 import { abortMultipart, completeMultipart, createMultipart, uploadPart } from './multipart.js'
 import { MULTIPART_PATH, UPLOAD_PATH, type PdfStorageEnv } from './pdf.js'
@@ -53,9 +55,10 @@ const conversionStorage: Storage = (_request, env) => env
  * reach this table. Specific paths come before the prefixes that contain them.
  */
 const routes: Route[] = [
+  { path: under(ARCHIVE_ADMIN_PATH), any: ({ request, env }) => archiveAdmin(request, env) },
   // Persistent file library (R2 LIBRARY_FILES).
   { path: `${LIBRARY_PATH}/import`, methods: { POST: async ({ request, env, owner }) => importLegacyFiles(request, env, await owner()) } },
-  { path: under(LIBRARY_SOURCE_PATH), any: ({ request, env, params }) => librarySource(request, env, params[0]) },
+  { path: under(LIBRARY_SOURCE_PATH), any: ({ request, env, params, ctx }) => librarySource(request, env, params[0], ctx) },
   { path: LIBRARY_PATH, methods: { GET: async ({ request, env, owner }) => listLibraryFiles(request, libraryEnv(request, env), await owner()) } },
   ...multipartRoutes(`${LIBRARY_PATH}/uploads/multipart`, libraryEnv, 2),
   { path: under(LIBRARY_PATH), any: async ({ request, env, params, owner }) => libraryFile(request, libraryEnv(request, env), await owner(), params[0]) },
@@ -106,11 +109,18 @@ const routes: Route[] = [
 const apiRequest = createRouter(routes)
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
     const url = new URL(request.url)
-    if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request)
     try {
-      return await apiRequest(request, env, url.pathname)
+      // Preserve already-issued R2 domain URLs after moving their bytes to Assets.
+      if (env.PDF_PUBLIC_BASE_URL && url.origin === new URL(env.PDF_PUBLIC_BASE_URL).origin) {
+        const key = url.pathname.slice(1)
+        if (!PDF_FILE_ID.test(key)) throw new UploadError('文件不存在', 404, 'FILE_NOT_FOUND')
+        if (request.method !== 'GET' && request.method !== 'HEAD') return new Response(null, { status: 405, headers: { Allow: 'GET, HEAD' } })
+        return await storedPdf(request, env, env.PDF_UPLOADS, key, ctx)
+      }
+      if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request)
+      return await apiRequest(request, env, url.pathname, ctx)
     } catch (error) {
       if (error instanceof UploadError) return errorResponse(error)
       console.error(JSON.stringify({ event: 'pdf_upload_failed', code: 'INTERNAL_ERROR' }))
