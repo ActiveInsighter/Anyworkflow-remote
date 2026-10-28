@@ -1,6 +1,6 @@
 import { UploadError, jsonResponse } from './errors.js'
 import { readJson } from './pdf.js'
-import { ARCHIVE_CHUNK_SIZE, PDF_FILE_ID, archiveBucket, archiveKey, chunkPath, validArchive, type ArchiveEnv } from './archive.js'
+import { ARCHIVE_CHUNK_SIZE, PDF_FILE_ID, archiveBucket, archiveKey, chunkPath, storedPdf, validArchive, type ArchiveEnv } from './archive.js'
 
 export const ARCHIVE_ADMIN_PATH = '/api/internal/pdf-archive'
 const LEASE_KEY = 'archive-control/lease'
@@ -22,7 +22,7 @@ async function assertLease(request: Request, env: Env) {
 }
 
 /** Privileged CI bridge: no Cloudflare credentials or public asset paths in browser APIs. */
-export async function archiveAdmin(request: Request, env: ArchiveEnv): Promise<Response> {
+export async function archiveAdmin(request: Request, env: ArchiveEnv, ctx?: ExecutionContext): Promise<Response> {
   await authenticate(request, env)
   const url = new URL(request.url)
   const action = url.pathname.slice(ARCHIVE_ADMIN_PATH.length)
@@ -70,6 +70,13 @@ export async function archiveAdmin(request: Request, env: ArchiveEnv): Promise<R
   }
   const key = url.searchParams.get('key') || ''
   if (!PDF_FILE_ID.test(key)) throw new UploadError('归档文件编号无效', 400, 'INVALID_FILE_ID')
+  if (action === '/verify' && request.method === 'GET') {
+    const stored = await bucket.get(pendingKey(key)) || await bucket.get(archiveKey(key))
+    const record: unknown = stored ? await stored.json() : null
+    if (!validArchive(record) || record.scope !== scope) throw fail('缺少待验证归档索引')
+    // Exercise the exact cold download path while the original is still safely in R2.
+    return storedPdf(request, env, bucket, key, ctx, record)
+  }
   if (action === '/source' && request.method === 'GET') {
     // Bound every read to one chunk. The runner cannot buffer a 2 GiB document in a Worker.
     const match = /^bytes=(\d+)-(\d+)$/u.exec(request.headers.get('Range') || '')

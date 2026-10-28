@@ -32,6 +32,7 @@ const runtime = new Miniflare(convertV4MiniflareOptions({
       const bytes = assets.get(pathname)
       if (serveFailure || pathname === assetPath(unavailableHash) || !bytes) return new RuntimeResponse(null, { status: 404 })
       const content = pathname === assetPath(corruptHash) ? Buffer.alloc(bytes.length) : bytes
+      assert.equal(request.headers.get('Range'), null, 'gateway reads complete immutable chunks rather than relying on production asset Range behavior')
       const range = /^bytes=(\d+)-(\d+)$/u.exec(request.headers.get('Range') || '')
       if (!range) return new RuntimeResponse(content, { headers: { 'Content-Length': String(content.length) } })
       const from = Number(range[1]), to = Number(range[2])
@@ -201,6 +202,13 @@ try {
   await assert.rejects(() => archiveFiles({ bridge: bridge(), publisher: malicious, cache: cache(), log() {} }), /verification failed/u)
   assert.ok(await bucket.head(id(3)))
   corruptHash = undefined
+  await run()
+
+  await bucket.put(id(7), Buffer.from('%PDF-assembled-verification'))
+  const brokenAssembly = bridge()
+  brokenAssembly.verify = async () => { throw new Error('simulated assembled download failure') }
+  await assert.rejects(() => archiveFiles({ bridge: brokenAssembly, publisher: publisher(), cache: cache(), log() {} }), /assembled download failure/u)
+  assert.ok(await bucket.head(id(7)), 'individual chunk hashes do not authorize deletion until full cold download passes')
   await run()
 
   // A process killed during commit leaves some pointers committed and some originals hot.
