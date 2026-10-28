@@ -94,6 +94,7 @@ export async function archiveFiles({ bridge, publisher, cache, maxFiles = 100, m
         verified.add(chunk.hash)
       }
     }
+    for (const record of selected) await bridge.verify(record)
     for (const record of selected) await bridge.commit(record)
     log(JSON.stringify({ event: 'pdf_archive_completed', files: selected.length, bytes: totalBytes, assets: Object.keys(manifest).length }))
     return { archived: selected.length, bytes: totalBytes }
@@ -147,6 +148,26 @@ export function createBridge({ baseUrl, secret, fetcher = fetch, signal = AbortS
       return Buffer.from(await response.arrayBuffer())
     },
     async chunk(hash) { return Buffer.from(await (await call('chunk', { hash })).arrayBuffer()) },
+    async verify(record) {
+      const response = await call('verify', { scope: record.scope, key: record.key })
+      if (Number(response.headers.get('content-length')) !== record.size || response.headers.get('etag') !== record.httpEtag || !response.body) throw new Error('Assembled archive identity mismatch; R2 original retained')
+      let index = 0, offset = 0, hash = createHash('sha256')
+      for await (const bytes of response.body) {
+        let position = 0
+        while (position < bytes.length) {
+          const chunk = record.chunks[index]
+          if (!chunk) throw new Error('Assembled archive exceeds expected size; R2 original retained')
+          const length = Math.min(bytes.length - position, chunk.size - offset)
+          hash.update(bytes.subarray(position, position + length))
+          position += length; offset += length
+          if (offset === chunk.size) {
+            if (hash.digest('hex') !== chunk.sha256) throw new Error('Assembled archive checksum mismatch; R2 original retained')
+            index++; offset = 0; hash = createHash('sha256')
+          }
+        }
+      }
+      if (index !== record.chunks.length || offset) throw new Error('Assembled archive truncated; R2 original retained')
+    },
     async stage(record) { await call('stage', { scope: record.scope, key: record.key, method: 'POST', body: record }) },
     async commit(record) { await call('commit', { scope: record.scope, key: record.key, method: 'POST' }) },
   }

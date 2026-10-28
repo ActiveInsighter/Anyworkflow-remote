@@ -55,7 +55,7 @@ const conversionStorage: Storage = (_request, env) => env
  * reach this table. Specific paths come before the prefixes that contain them.
  */
 const routes: Route[] = [
-  { path: under(ARCHIVE_ADMIN_PATH), any: ({ request, env }) => archiveAdmin(request, env) },
+  { path: under(ARCHIVE_ADMIN_PATH), any: ({ request, env, ctx }) => archiveAdmin(request, env, ctx) },
   // Persistent file library (R2 LIBRARY_FILES).
   { path: `${LIBRARY_PATH}/import`, methods: { POST: async ({ request, env, owner }) => importLegacyFiles(request, env, await owner()) } },
   { path: under(LIBRARY_SOURCE_PATH), any: ({ request, env, params, ctx }) => librarySource(request, env, params[0], ctx) },

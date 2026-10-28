@@ -39,9 +39,9 @@ export async function readArchive(bucket: R2Bucket, key: string): Promise<Archiv
 }
 
 /** Preserve original HTTP identity across tiers, including If-Range and suffix ranges. */
-export async function storedPdf(request: Request, env: ArchiveEnv, bucket: R2Bucket, key: string, ctx?: ExecutionContext): Promise<Response> {
-  const hot = await bucket.head(key)
-  const cold = hot ? null : await readArchive(bucket, key)
+export async function storedPdf(request: Request, env: ArchiveEnv, bucket: R2Bucket, key: string, ctx?: ExecutionContext, archived?: ArchiveRecord): Promise<Response> {
+  const hot = archived ? null : await bucket.head(key)
+  const cold = archived || (hot ? null : await readArchive(bucket, key))
   const meta = hot || cold
   if (!meta) throw new UploadError('文件已删除或不存在', 404, 'FILE_NOT_FOUND')
   let range: { offset: number; length: number } | undefined
@@ -78,9 +78,9 @@ export async function storedPdf(request: Request, env: ArchiveEnv, bucket: R2Buc
     const chunk = cold.chunks[position++]
     const from = Math.max(0, start - chunkStart)
     const to = Math.min(chunk.size, end - chunkStart) - 1
-    const response = await archive.fetch(`https://archive.internal${chunkPath(chunk.hash)}`, { headers: { Range: `bytes=${from}-${to}` } })
-    // The local ASSETS binding (and some serving paths) can ignore Range and return 200.
-    // Full chunks still pipe natively; only a partial boundary chunk needs a bounded buffer.
+    const response = await archive.fetch(`https://archive.internal${chunkPath(chunk.hash)}`)
+    // Fetch complete immutable assets: Range behavior differs between service bindings and edge caches.
+    // Full chunks pipe natively; only a partial boundary chunk needs a bounded buffer.
     if (response.status === 200 && Number(response.headers.get('Content-Length')) === chunk.size && response.body) {
       if (from === 0 && to === chunk.size - 1) return response.body
       const bytes = new Uint8Array(await response.arrayBuffer())

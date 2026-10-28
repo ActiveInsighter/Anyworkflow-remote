@@ -11,10 +11,10 @@
 - 分片 SHA-256 的前 32 个十六进制字符作为 Assets ID；索引保留完整 SHA-256。相同内容去重，截断哈希碰撞时停止发布。
 - 独立 Worker `anyworkflow-pdf-archive` 保存 `/chunks/<hash>.bin`，只通过 `PDF_ARCHIVE` 服务绑定访问，不配置公开域名、workers.dev 或预览 URL。
 - 完整资源清单始终包含两桶的 `archives/*.json` 和 `archive-pending/*.json`。Assets 每次部署替换整个资源集合，不能只上传本轮的新文件清单。
-- 一份文档的全部分片必须同时发布。运行器通过生产使用的服务绑定重新下载每片，核对长度与完整 SHA-256；全部待提交文档都通过校验后，逐份持久化 `archives/<原 key>.json`，再删除原 key 的 R2 文件，最后删除 pending 索引。
+- 一份文档的全部分片必须同时发布。运行器通过生产使用的服务绑定重新下载每片，核对长度与完整 SHA-256；还会在保留 R2 原件时，通过同一下载实现完整重组每份文档并逐片复核哈希；全部待提交文档都通过校验后，逐份持久化 `archives/<原 key>.json`，再删除原 key 的 R2 文件，最后删除 pending 索引。
 - 归档清单复制原始大小、上传时间、ETag 和私有归属 metadata。R2 仍保存小型索引、资料库 owner 索引、删除标记和导入进度，PDF 主体迁往 Assets。
 - 资料库 `sourceUrl` 不变。`ocr-files.any1.tech/*` 路由进入 Remote，兼容既有任务及 OCR 链接。`/*.pdf` 必须先运行 Worker，避免导航请求被 SPA fallback 改写为 HTML。
-- 下载通过原生 `pipeTo` 和 `FixedLengthStream` 顺序拼接，避免逐网络块 JavaScript 回调及整文件缓冲。支持 HEAD、单范围 Range、尾部范围和 ETag If-Range；跨片 Range 仅读取涉及的片段。若 Assets 绑定忽略 Range 并返回 200，完整片仍直接流转，仅边界片在最多 24 MiB 的缓冲中截取；不依赖 CDN 或缓存命中才能正确读取范围。
+- 下载通过原生 `pipeTo` 和 `FixedLengthStream` 顺序拼接，避免逐网络块 JavaScript 回调及整文件缓冲。支持 HEAD、单范围 Range、尾部范围和 ETag If-Range；跨片 Range 仅读取涉及的片段。内部始终读取完整 Assets 分片，完整片直接流转，仅边界片在最多 24 MiB 的缓冲中截取，避免不同生产服务绑定对 Range 的行为差异；不依赖 CDN 或缓存命中才能正确读取范围。
 - 资料库按原来的账号验证元数据和删除权限；删除标记立即阻断所有新下载。Assets 当前及历史部署中的不可公开访问的分片不会立刻物理擦除，本版不回收已删除文件的归档分片。
 - 历史导入若发现旧原件已归档，直接建立指向相同分片的新资料库索引，不把完整 PDF 再复制回 R2。
 
@@ -40,7 +40,7 @@
    用其原 `sourceUrl` 发起转换。确认 R2 原 key 不再存在、`archives/<key>.json` 存在，随后使用每小时定时任务。
 
 部署顺序先停止危险的 R2 自动删除，再接通新读取链路，最后启用归档任务。不要先清空原件。
-当前实现只更新本地代码，不代表上述生产步骤已经完成。
+生产启用与验证状态以 GitHub Actions 的部署和归档演练记录为准。
 
 ## 失败、容量和运行边界
 
