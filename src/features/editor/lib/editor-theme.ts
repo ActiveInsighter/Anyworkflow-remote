@@ -2,7 +2,7 @@ import { EditorView } from '@codemirror/view'
 
 /**
  * CodeMirror chrome on the `--cm-*` colour roles and the editor type tokens. Syntax colours live
- * in the highlight style (anyworkflow-dsl.ts); CSS that CodeMirror cannot express sits in
+ * in the highlight style (dsl-language.ts); CSS that CodeMirror cannot express sits in
  * styles/editor.css.
  */
 export const editorTheme = EditorView.theme({
@@ -39,7 +39,32 @@ export const editorTheme = EditorView.theme({
     backgroundColor: 'var(--cm-selection)',
     color: 'var(--cm-fg)',
   },
-  '.cm-panels': { backgroundColor: 'var(--cm-tooltip-bg)', color: 'var(--cm-fg)' },
+  '.cm-gutters': {
+    backgroundColor: 'var(--cm-bg)',
+    color: 'var(--cm-gutter-fg)',
+    border: 'none',
+    fontFamily: 'var(--font-mono)',
+    fontSize: '0.8em',
+  },
+  '.cm-lineNumbers .cm-gutterElement': { padding: '0 4px 0 10px', minWidth: '2.6em' },
+  '.cm-activeLineGutter': { backgroundColor: 'transparent', color: 'var(--cm-fg)' },
+  '.cm-foldGutter .cm-gutterElement': {
+    padding: '0 4px',
+    cursor: 'pointer',
+    color: 'var(--cm-gutter-fg)',
+    transition: 'color var(--duration-fast)',
+  },
+  '.cm-foldGutter .cm-gutterElement:hover': { color: 'var(--cm-fg)' },
+  '.cm-foldPlaceholder': {
+    backgroundColor: 'var(--cm-active-line)',
+    border: '1px solid var(--cm-border)',
+    color: 'var(--cm-gutter-fg)',
+    borderRadius: '4px',
+    padding: '0 6px',
+    margin: '0 4px',
+  },
+  '.cm-panels': { backgroundColor: 'var(--cm-toolbar-bg)', color: 'var(--cm-fg)' },
+  '.cm-panels.cm-panels-top': { borderBottom: '1px solid var(--cm-border)' },
   '.cm-lintRange-error': {
     backgroundImage: 'none',
     textDecoration: 'underline wavy var(--danger)',

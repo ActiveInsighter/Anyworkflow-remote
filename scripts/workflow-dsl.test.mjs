@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
-const { anyWorkflowCompletion, collectUsableVariables, planStructuredInsert, validateAnyWorkflowSource } = await import('../src/features/editor/lib/anyworkflow-dsl.ts')
+const { anyWorkflowCompletion, startLinkOptions } = await import('../src/features/editor/lib/dsl-completion.ts')
+const { planStructuredInsert } = await import('../src/features/editor/lib/editor-commands.ts')
+const { validateWorkflowSource: validateAnyWorkflowSource, collectWorkflowVariables: collectUsableVariables } = await import('../src/lib/workflow-dsl/index.ts')
 const { EditorState } = await import('@codemirror/state')
 
 function errors(source) {
@@ -335,3 +337,14 @@ assert.equal(errors(editorStarterPlan.replace('@let start_url=', '@let start_url
 const customDefault = validateAnyWorkflowSource(editorStarterPlan, { defaultStartUrl: 'https://claude.ai/new' })
 assert.match(customDefault.find((item) => item.severity === 'warning').message, /claude\.ai\/new/u, 'the configured default is reported')
 console.log('start_url assertions passed')
+
+const waitPlan = body => `@task T {\n@let delay=2\n@event E {\n${body}\n}\n}`
+for (const body of ['<sleep(100)>', '<wait(0.25)>\n{hello}', '<sleep(%delay%)>', '{ <sleep(1)> {hello} }*2', '@for i in range(1, 2) {\n<sleep(%i%)>\n{hello}\n}']) {
+  assert.deepEqual(errors(waitPlan(body)), [], `valid wait: ${body}`)
+}
+for (const body of ['<sleep（100）>', '<sleep（100)>', '<wait(100）>', '<sleep(1', '{ <sleep(1) {hello} }', '<sleep(-1)>', '<sleep()>', '<wait(86401)>', '<sleep(1e3)>', '<wait(Infinity)>', '<wait(%missing%)>', '{ <sleep(-1)> {hello} }']) {
+  assertHasError(waitPlan(body), `invalid wait: ${body}`)
+}
+
+const { parseEventActs } = await import('../src/lib/domain/event-structure.ts')
+assert.equal(parseEventActs('<sleep(1)>\n{ <wait(2)> {hello} }*2')[0].messageCount, 5, 'waits count toward queue progress, preserving executor node indexes')

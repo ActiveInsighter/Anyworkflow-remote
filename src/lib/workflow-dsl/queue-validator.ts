@@ -15,10 +15,17 @@ export function queueUrlIsExecutable(value: string): boolean {
   }
 }
 
+/** Wait parameters use the existing %name% template syntax, resolved by the executor. */
+export function queueSleepArgument(token: string): string | null {
+  const match = token.trim().match(/^<\s*(?:sleep|wait)\s*\(\s*([^()（）<>]*?)\s*\)\s*>$/iu)
+  return match ? (match[1] ?? '').trim() : null
+}
+
 export function startsWithStructuredQueueToken(value: string): boolean {
   const text = value.trimStart()
   if (!text) return false
   if (text.startsWith('{') || text.startsWith(BACKTICK_FENCE) || text.startsWith(TILDE_FENCE)) return true
+  if (/^<\s*(?:sleep|wait)\b/iu.test(text)) return true
   const closeAt = text.indexOf('>')
   return closeAt >= 0 && queueUrlIsExecutable(text.slice(0, closeAt + 1))
 }
@@ -233,6 +240,26 @@ export function validateQueueBody(value: string, options: QueueValidationOptions
       looseSeen = true
       leading = false
       cursor = repeat.next
+      continue
+    }
+
+    if (/^<\s*(?:sleep|wait)\b/iu.test(text.slice(cursor))) {
+      const closeAt = text.indexOf('>', cursor + 1)
+      const token = closeAt < 0 ? '' : text.slice(cursor, closeAt + 1)
+      const argument = queueSleepArgument(token)
+      if (argument === null || !/^(?:\d+(?:\.\d+)?|%[A-Za-z_][A-Za-z0-9_]*(?::(?:pad2|zh))?%)$/u.test(argument)) {
+        addQueueError(options, '等待格式无效，请使用 <sleep(秒数)> 或 <wait(秒数)>')
+        return false
+      }
+      if (argument.startsWith('%')) validateBrowserTemplateTokens(argument, { ...options, activeVariables })
+      else if (!Number.isFinite(Number(argument)) || Number(argument) > 86400) {
+        addQueueError(options, '等待秒数必须为 0–86400 的数字')
+        return false
+      }
+      executable = true
+      looseSeen = true
+      leading = false
+      cursor = closeAt + 1
       continue
     }
 

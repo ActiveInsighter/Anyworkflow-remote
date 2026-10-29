@@ -1,4 +1,4 @@
-import { Keyboard, Palette, Plug, SlidersHorizontal } from 'lucide-react'
+import { Keyboard, Link2, Palette, Plug, SlidersHorizontal } from 'lucide-react'
 import { SettingsRow } from '@/components/navigation/settings-row'
 import { useSession } from '@/lib/api/session'
 
@@ -11,6 +11,12 @@ export function SettingsDirectory() {
         description="默认开始链接与各页面的运行偏好"
         icon={SlidersHorizontal}
         to="/settings/runtime"
+      />
+      <SettingsRow
+        title="快捷链接"
+        description="编辑器中 start_url 可选的常用页面"
+        icon={Link2}
+        to="/settings/start-links"
       />
       <SettingsRow title="外观" description="主题与显示偏好" icon={Palette} to="/settings/appearance" />
       <SettingsRow

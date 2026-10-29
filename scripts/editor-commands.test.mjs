@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 
-const { loopScopeAt, planLoopInsert, planStructuredInsert, planSmartDelete, planSmartCopy, validateAnyWorkflowSource } =
-  await import('../src/features/editor/lib/anyworkflow-dsl.ts')
+const { loopScopeAt, planLoopInsert, planStructuredInsert, planSmartDelete, planSmartCopy, planSmartDuplicate, planQueueLineInsert } =
+  await import('../src/features/editor/lib/editor-commands.ts')
+const { validateWorkflowSource: validateAnyWorkflowSource } = await import('../src/lib/workflow-dsl/index.ts')
 
 const source = `@run=Editor
 @task First {

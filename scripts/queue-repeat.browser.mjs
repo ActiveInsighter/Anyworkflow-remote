@@ -52,8 +52,20 @@ try {
           await issues.waitFor()
           if (await issues.getAttribute('aria-expanded') === 'false') await issues.click()
           await page.getByText(/的重复次数必须是 1–100/).first().waitFor()
-          assert.equal(await save.isEnabled(), false, `${width}px *${count} blocks save`)
-          assert.equal(await run.isEnabled(), false, `${width}px *${count} blocks run`)
+          // Narrow screens list problems in a sheet; close it before using the page again.
+          if (width < 1280) {
+            await page.keyboard.press('Escape')
+            await page.getByRole('dialog').waitFor({ state: 'detached' })
+          }
+          // The buttons stay usable so a click can explain itself: nothing is written and the
+          // editor jumps to the first error.
+          const before = writes.length
+          await run.click()
+          await page.getByText('DSL 有 1 个错误，已定位到第一个', { exact: true }).waitFor()
+          await save.click()
+          assert.equal(writes.length, before, `${width}px *${count} blocks save and run`)
+          const selected = await page.evaluate(() => getSelection()?.toString() ?? '')
+          assert.ok(selected.length > 0, `${width}px *${count} selects the first error`)
         }
       }
     }

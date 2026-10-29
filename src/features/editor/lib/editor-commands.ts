@@ -70,7 +70,9 @@ export function planLoopInsert(source: string, at: number): LoopInsertPlan {
   const separator = !atLineStart && !source.endsWith('\n') && from === source.length ? '\n' : ''
   // At a line start the indentation already in the document leads the first line.
   const firstIndent = atLineStart ? '' : indent
-  const text = `${separator}${firstIndent}@for ${scope.name} in range(1, 3) {\n${indent}  \n${indent}}\n`
+  // Text after the cursor keeps its indentation on the line below the loop.
+  const restIndent = atLineStart && source.slice(point, lineEndAfter(source, point)).trim() ? indent : ''
+  const text = `${separator}${firstIndent}@for ${scope.name} in range(1, 3) {\n${indent}  \n${indent}}\n${restIndent}`
   return {
     ok: true,
     from,
@@ -100,7 +102,8 @@ function appendSeparator(before: string): string {
   return '\n\n'
 }
 
-function variableInsertPoint(source: string, container: SourceBlock): number {
+/** Offset after the leading directives and `@let` lines of a Task or Event body. */
+export function variableInsertPoint(source: string, container: SourceBlock): number {
   let cursor = container.headerEnd
   let insertAt = cursor
 
@@ -279,5 +282,58 @@ export function planSmartCopy(source: string, from: number, to: number): SmartCo
   return {
     ok: true, from: plan.from, to: plan.to, text: source.slice(plan.from, plan.to),
     message: `已复制 ${plan.label}`,
+  }
+}
+
+export type SmartDuplicatePlan =
+  | { ok: true; from: number; text: string; anchor: number; message: string }
+  | { ok: false; message: string }
+
+/** Inserts a copy of the block (or lines) the smart range resolves to right after it. */
+export function planSmartDuplicate(source: string, from: number, to: number): SmartDuplicatePlan {
+  const plan = planSmartRange(source, from, to)
+  if (!plan.ok) return plan
+  const body = source.slice(plan.from, plan.to)
+  const leading = plan.to > 0 && source[plan.to - 1] !== '\n' ? '\n' : ''
+  const text = `${leading}${body}${body.endsWith('\n') ? '' : '\n'}`
+  return { ok: true, from: plan.to, text, anchor: plan.to + leading.length, message: `已复制一份${plan.label}` }
+}
+
+export type LineInsertPlan =
+  | { ok: true; from: number; text: string; cursorOffset: number; selectionLength: number }
+  | { ok: false; message: string }
+
+/**
+ * Puts `text` on its own line in an Event queue, indented like its neighbour; a cursor in the
+ * middle of a line drops it on the next line. `select` marks the part to select afterwards.
+ */
+export function planQueueLineInsert(source: string, at: number, text: string, select: string): LineInsertPlan {
+  const point = Math.max(0, Math.min(at, source.length))
+  const structure = readSourceStructure(source)
+  const enclosing = structure.blocks.filter((block) =>
+    block.kind !== null && block.openAt < point && (block.closeAt < 0 || point <= block.closeAt),
+  )
+  const innermost = enclosing.at(-1)
+  if (!enclosing.some((block) => block.kind === 'event')) return { ok: false, message: '等待只能放在 Event 中，请把光标移到 Event 里。' }
+  if (innermost?.kind === 'message') return { ok: false, message: '消息块里不能放等待，请把光标移到消息块外。' }
+
+  const lineFrom = lineStartAt(source, point)
+  const prefix = source.slice(lineFrom, point)
+  const atLineStart = prefix.trim() === ''
+  const line = source.slice(lineFrom, lineEndAfter(source, point)).replace(/\r?\n$/u, '')
+  const lineIndent = line.match(/^[ \t]*/u)?.[0] ?? ''
+  const indent = atLineStart ? prefix : lineIndent + (line.trimEnd().endsWith('{') ? '  ' : '')
+  const insertAt = atLineStart ? point : lineEndAfter(source, point)
+  const separator = !atLineStart && insertAt === source.length && !source.endsWith('\n') ? '\n' : ''
+  const firstIndent = atLineStart ? '' : indent
+  const restIndent = atLineStart && source.slice(point, lineEndAfter(source, point)).trim() ? indent : ''
+  const full = `${separator}${firstIndent}${text}\n${restIndent}`
+  const selectAt = Math.max(0, text.indexOf(select))
+  return {
+    ok: true,
+    from: insertAt,
+    text: full,
+    cursorOffset: separator.length + firstIndent.length + selectAt,
+    selectionLength: select.length,
   }
 }

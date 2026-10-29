@@ -2,7 +2,7 @@ import type * as React from 'react'
 import { ChevronRight } from 'lucide-react'
 import { DescriptionList } from '@/components/data-display/description-list'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { START_LINKS } from '@/lib/domain/start-links'
+import { RUNTIME_PAGES } from '@/lib/domain/runtime-pages'
 import { resolvePageRuntimeConfig } from '@/lib/domain/runtime-config'
 import type { DispatchRunRecord } from '@/types'
 
@@ -38,26 +38,23 @@ export function RunRuntimeSummary({ run, aside }: { run: DispatchRunRecord; asid
               run.runtimeConfig?.schemaVersion === 4
                 ? [
                     { label: '默认开始链接', value: run.runtimeConfig.defaultStartUrl ?? 'https://chatgpt.com/' },
-                    ...START_LINKS.map((link) => {
+                    ...RUNTIME_PAGES.map((link) => {
                       const page = resolvePageRuntimeConfig(run.runtimeConfig!, link.url)
                       const browser = page.browser
                       return {
                         label: link.label,
-                        value: `${browser.replyTimeoutMinutes} 分钟 · ${selectionText(page.modelSelection)} · ${browser.deferredReply.enabled ? `并发回收 ${browser.deferredReply.delayMinutes} 分钟` : browser.randomWait.enabled ? `等待 ${browser.randomWait.minSeconds}–${browser.randomWait.maxSeconds} 秒` : '不等待'}`,
+                        value: `${browser.replyTimeoutMinutes} 分钟 · ${selectionText(page.modelSelection)} · ${browser.randomWait.enabled ? `等待 ${browser.randomWait.minSeconds}–${browser.randomWait.maxSeconds} 秒` : '不等待'}${browser.deferredReply.enabled ? ` · 异步回收 ${browser.deferredReply.delayMinutes} 分钟` : ''}`,
                       }
                     }),
                   ]
                 : [
                     { label: '回复超时', value: `${config.replyTimeoutMinutes} 分钟` },
+                    { label: '异步回收', value: config.deferredReply.enabled ? `${config.deferredReply.delayMinutes} 分钟后自动回收` : '关闭' },
                     {
                       label: '随机等待',
                       value: config.randomWait.enabled
-                        ? `${config.randomWait.minSeconds}–${config.randomWait.maxSeconds} 秒${config.deferredReply.enabled ? '（并发期间停用）' : ''}`
+                        ? `${config.randomWait.minSeconds}–${config.randomWait.maxSeconds} 秒`
                         : '关闭',
-                    },
-                    {
-                      label: '并发投递后回收',
-                      value: config.deferredReply.enabled ? `延迟 ${config.deferredReply.delayMinutes} 分钟` : '关闭',
                     },
                     ...(models
                       ? (Object.keys(SITE_LABELS) as (keyof typeof SITE_LABELS)[]).flatMap((site) =>

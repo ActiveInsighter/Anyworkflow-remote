@@ -273,12 +273,16 @@ try {
   await page.locator('.cm-content').waitFor()
   await editorConfig('chatgpt-images')
   assert.equal(await page.getByLabel('回复超时（分钟）').inputValue(), '90')
+  assert.equal(await page.getByLabel('自动回收延迟（分钟）').isDisabled(), true)
+  await page.getByLabel('异步回收', { exact: true }).check()
+  await page.getByLabel('自动回收延迟（分钟）').fill('7')
   await page.getByLabel('随机等待', { exact: true }).check()
   await page.getByLabel('最短等待（秒）').fill('20')
   assert.equal(await page.getByRole('button', { name: '完成', exact: true }).isDisabled(), true)
   await page.getByLabel('最长等待（秒）').fill('25')
   await page.getByLabel('回复超时（分钟）').fill('120')
   await choose()
+  assert.equal(await page.getByLabel('异步回收', { exact: true }).isChecked(), false, 'async collection settings are scoped to the page')
   assert.equal(await page.getByLabel('回复超时（分钟）').inputValue(), '90')
   assert.equal(await page.getByLabel('ChatGPT 模型', { exact: true }).inputValue(), 'GPT-6')
   await page.getByLabel('ChatGPT 模型', { exact: true }).selectOption('GPT-5.6 Sol')
@@ -301,6 +305,8 @@ try {
   assert.equal(await page.getByLabel('ChatGPT Cloud 思考程度', { exact: true }).inputValue(), 'high')
   await choose('chatgpt-images')
   assert.equal(await page.getByLabel('回复超时（分钟）').inputValue(), '120')
+  assert.equal(await page.getByLabel('异步回收', { exact: true }).isChecked(), true)
+  assert.equal(await page.getByLabel('自动回收延迟（分钟）').inputValue(), '7')
   if (process.env.SCREENSHOT_DIR) {
     await page.setViewportSize({ width: 320, height: 900 })
     await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/editor-runtime-mobile.png` })
@@ -311,6 +317,7 @@ try {
   assert.equal(writes.at(-1).runtimeConfig.schemaVersion, 4)
   assert.equal(writes.at(-1).runtimeConfig.defaultStartUrl, cloud)
   assert.equal(effective(writes.at(-1).runtimeConfig, images).browser.replyTimeoutMinutes, 120)
+  assert.deepEqual(effective(writes.at(-1).runtimeConfig, images).browser.deferredReply, { enabled: true, delayMinutes: 7 })
   assert.equal(
     effective(defaults.config).modelSelection.model,
     'GPT-6',

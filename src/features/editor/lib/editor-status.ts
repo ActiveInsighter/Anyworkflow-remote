@@ -6,6 +6,8 @@ import type { EditorIssue } from './editor-helpers'
 export interface EditorStatus {
   canUndo: boolean
   canRedo: boolean
+  /** Cursor offset in the document. */
+  head: number
   line: number
   column: number
   selected: number
@@ -16,6 +18,7 @@ export interface EditorStatus {
 export const EMPTY_STATUS: EditorStatus = {
   canUndo: false,
   canRedo: false,
+  head: 0,
   line: 1,
   column: 1,
   selected: 0,
@@ -29,6 +32,7 @@ export function readStatus(state: EditorState): EditorStatus {
   return {
     canUndo: undoDepth(state) > 0,
     canRedo: redoDepth(state) > 0,
+    head: selection.head,
     line: line.number,
     column: selection.head - line.from + 1,
     selected: Math.abs(selection.to - selection.from),

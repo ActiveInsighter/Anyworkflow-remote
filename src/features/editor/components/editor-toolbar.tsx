@@ -1,159 +1,157 @@
-import {
-  AlignLeft,
-  Braces,
-  Check,
-  ClipboardPaste,
-  Copy,
-  Link as LinkIcon,
-  ListTree,
-  Maximize2,
-  Minimize2,
-  Percent,
-  Redo2,
-  Repeat,
-  Save,
-  Trash2,
-  Undo2,
-  Variable,
-  Zap,
-  type LucideIcon,
-} from 'lucide-react'
-import { Fragment } from 'react'
+import { Check, Copy } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { IS_APPLE_PLATFORM } from '@/lib/platform/keyboard'
 import { cn } from '@/lib/utils'
-import type { StructuredInsertKind } from '../lib/anyworkflow-dsl'
+import { editorCommand, formatKey, type EditorCommandId } from '../lib/editor-command-registry'
+import { COMMAND_ICONS } from './command-icons'
 
-export interface EditorToolbarActions {
-  insertStructured: (kind: StructuredInsertKind) => void
-  insert: (text: string, cursorOffset?: number, selectionLength?: number) => void
-  insertVariable: () => void
-  insertLoop: () => void
-  smartDelete: () => void
-  undo: () => void
-  redo: () => void
-  paste: () => Promise<void>
-  format: () => void
-  copy: () => Promise<void>
-  toggleFullscreen: () => void
-  save?: () => void
+/** The inserts worth one tap; the rest are in the 更多 menu and completion. */
+const INSERTS: EditorCommandId[] = ['insert.task', 'insert.event', 'insert.act', 'insert.loop', 'insert.variable', 'insert.wait', 'insert.variable-ref']
+
+export function commandTooltip(id: EditorCommandId): string {
+  const command = editorCommand(id)
+  const keys = command.key ? ` · ${formatKey(command.key, IS_APPLE_PLATFORM)}` : ''
+  return `${command.label} · ${command.hint}${keys}`
 }
 
-interface ToolItem {
-  icon: LucideIcon
-  label: string
-  hint?: string
-  run: (actions: EditorToolbarActions) => void
+/** One registry command as a toolbar button; labelled buttons keep their text visible. */
+export function CommandButton({
+  id,
+  onRun,
+  labelled = false,
+  disabled,
+  pressed,
+  className,
+}: {
+  id: EditorCommandId
+  onRun: (id: EditorCommandId) => void
+  labelled?: boolean
   disabled?: boolean
-}
-
-/** Insert tools, in DSL nesting order. Hidden for read-only editors. */
-const INSERT_TOOLS: ToolItem[] = [
-  { icon: Braces, label: 'Task', hint: '追加到 Run 最外层', run: (a) => a.insertStructured('task') },
-  { icon: Zap, label: 'Event', hint: '添加到光标所在 Task', run: (a) => a.insertStructured('event') },
-  { icon: ListTree, label: 'Act', hint: '添加到光标所在 Event', run: (a) => a.insertStructured('act') },
-  { icon: Repeat, label: '循环', hint: '插入循环，嵌套时变量依次为 i、j、k，最多 3 层', run: (a) => a.insertLoop() },
-  { icon: Variable, label: '变量', hint: '添加到光标所在 Task 的变量区', run: (a) => a.insertStructured('variable') },
-  { icon: Percent, label: '使用变量', hint: '插入 %% 并选择当前位置可用变量', run: (a) => a.insertVariable() },
-  { icon: Braces, label: '消息块', hint: '插入 { }', run: (a) => a.insert('{\n\n}', 2) },
-  { icon: LinkIcon, label: '链接', hint: '插入 <>，直接粘贴链接', run: (a) => a.insert('<>', 1) },
-  {
-    icon: Trash2,
-    label: '智能删除',
-    hint: '选中结构括号删除整块，否则删除当前行或选中行',
-    run: (a) => a.smartDelete(),
-  },
-]
-
-function ToolButton({ item, actions }: { item: ToolItem; actions: EditorToolbarActions }) {
-  const Icon = item.icon
+  pressed?: boolean
+  className?: string
+}) {
+  const command = editorCommand(id)
+  const Icon = COMMAND_ICONS[id]
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
-          size="icon-sm"
+          type="button"
+          size={labelled ? 'sm' : 'icon-sm'}
           variant="ghost"
-          onClick={() => item.run(actions)}
-          disabled={item.disabled}
-          aria-label={item.label}
-          className="h-10 min-w-9 flex-1 shrink-0 sm:size-8 sm:min-w-0 sm:flex-none"
+          onClick={() => onRun(id)}
+          disabled={disabled}
+          aria-pressed={pressed}
+          aria-label={labelled ? undefined : command.label}
+          className={cn(
+            labelled
+              ? 'h-touch shrink-0 gap-1.5 px-2.5 text-xs font-medium sm:h-8'
+              : 'h-touch min-w-9 flex-1 shrink-0 sm:size-8 sm:min-w-0 sm:flex-none',
+            className,
+          )}
         >
-          <Icon />
+          <Icon aria-hidden="true" />
+          {labelled ? command.label : null}
         </Button>
       </TooltipTrigger>
-      <TooltipContent side="bottom">{item.hint ? `${item.label} · ${item.hint}` : item.label}</TooltipContent>
+      <TooltipContent side="bottom">{commandTooltip(id)}</TooltipContent>
     </Tooltip>
   )
 }
 
-function ToolRow({ groups, actions, className }: { groups: ToolItem[][]; actions: EditorToolbarActions; className?: string }) {
-  const visible = groups.filter((group) => group.length)
-  return (
-    <div className={cn('flex min-h-10 items-center gap-0.5 overflow-x-auto px-2 py-1 scrollbar-none', className)}>
-      {visible.map((group, index) => (
-        <Fragment key={index}>
-          {index > 0 ? <Separator orientation="vertical" className="mx-0.5 h-4! bg-cm-border" /> : null}
-          {group.map((item) => (
-            <ToolButton key={item.label} item={item} actions={actions} />
-          ))}
-        </Fragment>
-      ))}
-    </div>
-  )
+function ToolSeparator({ className }: { className?: string }) {
+  return <Separator orientation="vertical" className={cn('mx-0.5 h-4! bg-cm-border', className)} />
 }
 
 /**
- * Two rows: structural inserts on top, history/clipboard/view tools below. On mobile, buttons share
- * each row's width; from `sm` up the lower row is right-aligned with safe alignment so narrow
- * screens scroll it instead of clipping its first tools.
+ * Two rows on narrow containers (labelled inserts, then editing tools), one row when the editor
+ * is wide enough. Each row scrolls instead of clipping, so no tool is ever unreachable.
  */
 export function EditorToolbar({
   readOnly,
   canUndo,
   canRedo,
   copied,
-  fullscreen,
-  actions,
+  onRun,
+  startPage,
+  trailing,
 }: {
   readOnly: boolean
   canUndo: boolean
   canRedo: boolean
   copied: boolean
-  fullscreen: boolean
-  actions: EditorToolbarActions
+  onRun: (id: EditorCommandId) => void
+  /** Start page menu, first in the insert row. */
+  startPage?: ReactNode
+  /** View controls at the end of the tools row: more menu, outline, fullscreen. */
+  trailing: ReactNode
 }) {
-  const editTools: ToolItem[][] = readOnly
-    ? []
-    : [
-        [
-          { icon: Undo2, label: '撤销', hint: 'Ctrl/⌘ Z', run: (a) => a.undo(), disabled: !canUndo },
-          { icon: Redo2, label: '重做', hint: 'Ctrl/⌘ Shift Z', run: (a) => a.redo(), disabled: !canRedo },
-          { icon: ClipboardPaste, label: '粘贴', hint: '粘贴到当前光标位置', run: (a) => void a.paste() },
-        ],
-        [{ icon: AlignLeft, label: '格式化', hint: '按块结构重排缩进', run: (a) => a.format() }],
-        actions.save ? [{ icon: Save, label: '保存', hint: 'Ctrl/⌘ S', run: (a) => a.save?.() }] : [],
-      ]
-  const copyTool: ToolItem = {
-    icon: copied ? Check : Copy,
-    label: copied ? '已复制' : '智能复制',
-    hint: '选中结构括号复制整块，否则复制当前行或选中行',
-    run: (a) => void a.copy(),
-  }
-  const viewTool: ToolItem = {
-    icon: fullscreen ? Minimize2 : Maximize2,
-    label: fullscreen ? '退出全屏' : '全屏',
-    hint: 'Esc 退出',
-    run: (a) => a.toggleFullscreen(),
-  }
   return (
-    <div className="shrink-0 border-b border-cm-border bg-cm-toolbar-bg">
-      {readOnly ? null : <ToolRow groups={[INSERT_TOOLS]} actions={actions} />}
-      <ToolRow
-        className="sm:justify-end-safe border-t border-cm-border/70 bg-background/35"
-        groups={[...editTools, [copyTool], [viewTool]]}
-        actions={actions}
-      />
+    <div className="flex shrink-0 flex-col border-b border-cm-border bg-cm-toolbar-bg @min-[60rem]:flex-row @min-[60rem]:items-center">
+      {readOnly ? null : (
+        <div
+          role="toolbar"
+          aria-label="插入"
+          className="flex min-h-11 min-w-0 items-center gap-0.5 overflow-x-auto px-1.5 py-1 pe-8 scrollbar-none [mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)] @min-[60rem]:pe-1.5 @min-[60rem]:[mask-image:none]"
+        >
+          {startPage ? (
+            <>
+              {startPage}
+              <ToolSeparator />
+            </>
+          ) : null}
+          {INSERTS.map((id) => (
+            <CommandButton key={id} id={id} onRun={onRun} labelled />
+          ))}
+        </div>
+      )}
+      <div
+        role="toolbar"
+        aria-label="编辑"
+        className="flex min-h-11 min-w-0 items-center gap-0.5 overflow-x-auto border-t border-cm-border/70 bg-background/35 px-1.5 py-1 scrollbar-none @min-[60rem]:ms-auto @min-[60rem]:border-t-0 @min-[60rem]:bg-transparent"
+      >
+        {readOnly ? null : (
+          <>
+            <CommandButton id="history.undo" onRun={onRun} disabled={!canUndo} />
+            <CommandButton id="history.redo" onRun={onRun} disabled={!canRedo} />
+            <ToolSeparator />
+          </>
+        )}
+        <CopyButton copied={copied} onRun={onRun} />
+        {readOnly ? null : (
+          <>
+            <CommandButton id="structure.delete" onRun={onRun} />
+            {/* Phones reach 格式化 through 更多, keeping this row within 320px. */}
+            <ToolSeparator className="max-sm:hidden" />
+            <CommandButton id="structure.format" onRun={onRun} className="max-sm:hidden" />
+          </>
+        )}
+        <ToolSeparator />
+        {trailing}
+      </div>
     </div>
+  )
+}
+
+function CopyButton({ copied, onRun }: { copied: boolean; onRun: (id: EditorCommandId) => void }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          onClick={() => onRun('clipboard.copy')}
+          aria-label={copied ? '已复制' : '智能复制'}
+          className="h-touch min-w-9 flex-1 shrink-0 sm:size-8 sm:min-w-0 sm:flex-none"
+        >
+          {copied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom">{commandTooltip('clipboard.copy')}</TooltipContent>
+    </Tooltip>
   )
 }

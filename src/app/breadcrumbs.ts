@@ -1,4 +1,4 @@
-import { START_LINKS } from '@/lib/domain/start-links'
+import { RUNTIME_PAGES } from '@/lib/domain/runtime-pages'
 
 /** Top-bar trail and back target for each route; keep in step with router.tsx. */
 export interface BreadcrumbItem {
@@ -35,13 +35,13 @@ export function breadcrumbsFor(pathname: string): BreadcrumbItem[] {
   if (parts[0] === 'settings') {
     if (!parts[1]) return [{ label: '设置' }]
     const title =
-      ({ runtime: '运行配置', appearance: '外观', connection: '连接', shortcuts: '快捷键' } as Record<string, string>)[
+      ({ runtime: '运行配置', appearance: '外观', connection: '连接', shortcuts: '快捷键', 'start-links': '快捷链接' } as Record<string, string>)[
         parts[1]
       ] ?? '设置'
     return [
       { label: '设置', to: '/settings' },
       { label: title, ...(parts[2] ? { to: '/settings/runtime' } : {}) },
-      ...(parts[2] ? [{ label: START_LINKS.find((link) => link.id === parts[2])?.label ?? '页面配置' }] : []),
+      ...(parts[2] ? [{ label: RUNTIME_PAGES.find((link) => link.id === parts[2])?.label ?? '页面配置' }] : []),
     ]
   }
 

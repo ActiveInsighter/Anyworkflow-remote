@@ -112,7 +112,7 @@ function countMessages(source: string): number {
       const end = text.indexOf('>', cursor + 1)
       if (end >= 0) {
         const token = text.slice(cursor + 1, end).trim()
-        if (/^(?:https:\/\/|self$|current$|here$|本页$|当前页$|当前页面$)/iu.test(token)) total += 1
+        if (/^(?:https:\/\/|self$|current$|here$|本页$|当前页$|当前页面$|(?:sleep|wait)\s*\()/iu.test(token)) total += 1
         cursor = end + 1
         continue
       }
