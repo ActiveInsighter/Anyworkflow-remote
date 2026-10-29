@@ -65,7 +65,7 @@ export function defaultRuntimeConfig(): RuntimeConfig {
     schemaVersion: 1,
     browser: {
       replyTimeoutMinutes: 30,
-      randomWait: { enabled: false, minSeconds: 1, maxSeconds: 10 },
+      randomWait: { enabled: false, minSeconds: 0, maxSeconds: 0 },
       deferredReply: { enabled: false, delayMinutes: 10 },
     },
   }

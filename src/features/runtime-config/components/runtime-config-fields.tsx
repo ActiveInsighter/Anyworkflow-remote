@@ -201,7 +201,7 @@ function PageRuntimeFields({
   const browser = page.browser
   const update = (patch: Partial<BrowserConfig>) =>
     onChange(withPageRuntimeConfig(value, url, { ...page, browser: { ...browser, ...patch } }))
-  const waitDisabled = !browser.randomWait.enabled || browser.deferredReply.enabled
+  const waitDisabled = !browser.randomWait.enabled
   return (
     <FieldSet disabled={disabled} className="min-w-0 gap-4">
       <FieldGroup className="gap-4">
@@ -222,6 +222,23 @@ function PageRuntimeFields({
           max={1440}
           value={browser.replyTimeoutMinutes}
           onChange={(replyTimeoutMinutes) => update({ replyTimeoutMinutes })}
+        />
+        <FieldSeparator />
+        <SwitchField
+          id={`${id}-async-collection`}
+          label="异步回收"
+          description="发送后保持等待回复，由扩展后台独立回收。每个 Act 使用独立会话和一条消息。"
+          checked={browser.deferredReply.enabled}
+          onCheckedChange={(enabled) => update({ deferredReply: { ...browser.deferredReply, enabled } })}
+        />
+        <NumberField
+          id={`${id}-collection-delay`}
+          label="自动回收延迟（分钟）"
+          min={0}
+          max={1440}
+          disabled={!browser.deferredReply.enabled}
+          value={browser.deferredReply.delayMinutes}
+          onChange={(delayMinutes) => update({ deferredReply: { ...browser.deferredReply, delayMinutes } })}
         />
         <FieldSeparator />
         <SwitchField
@@ -250,23 +267,6 @@ function PageRuntimeFields({
             onChange={(maxSeconds) => update({ randomWait: { ...browser.randomWait, maxSeconds } })}
           />
         </div>
-        <FieldSeparator />
-        <SwitchField
-          id={`${id}-deferred`}
-          label="并发投递后回收"
-          description={browser.deferredReply.enabled ? '并发投递期间不使用随机等待。' : undefined}
-          checked={browser.deferredReply.enabled}
-          onCheckedChange={(enabled) => update({ deferredReply: { ...browser.deferredReply, enabled } })}
-        />
-        <NumberField
-          id={`${id}-delay`}
-          label="回收延迟（分钟）"
-          min={0}
-          max={1440}
-          disabled={!browser.deferredReply.enabled}
-          value={browser.deferredReply.delayMinutes}
-          onChange={(delayMinutes) => update({ deferredReply: { ...browser.deferredReply, delayMinutes } })}
-        />
       </FieldGroup>
     </FieldSet>
   )

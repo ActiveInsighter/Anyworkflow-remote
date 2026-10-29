@@ -63,6 +63,12 @@ try {
     const copiedText = () => page.evaluate(() => navigator.clipboard.readText())
     const expectClean = () => page.locator('.aw-editor-shell').getByText('无问题', { exact: true }).waitFor()
 
+    const waits = '@run=Waits\n@task T {\n  @let delay=2\n  @event E {\n    <sleep(%delay%)>\n    { first }\n    <wait(0.5)>\n    { second }\n  }\n}\n'
+    await replace(waits)
+    await expectClean()
+    assert.equal(await readSource(), waits, `${width}px preserves wait parameters and variable syntax`)
+    await replace(waits.replace('<wait(0.5)>', '<wait（0.5）>'))
+    await page.locator('.aw-editor-shell').getByText(/个错误/).first().waitFor()
     await replace(source)
     await expectClean()
     // An empty start_url only warns, and clicking after its `=` offers the common start links.
@@ -200,7 +206,7 @@ try {
     if (screenshotDir) await page.screenshot({ path: `${screenshotDir}/editor-${width}.png`, fullPage: true })
     assert.deepEqual(writes, [], 'editor interactions never publish fixture data')
     assert.deepEqual(errors, [])
-    console.log(`PASS ${width}px: Task variables, nested loop insertion, selection, smart copy/delete, undo/redo, clipboard denial, fullscreen and overflow`)
+    console.log(`PASS ${width}px: English sleep/wait syntax, Task variables, nested loop insertion, selection, smart copy/delete, undo/redo, clipboard denial, fullscreen and overflow`)
     await context.close()
   }
 } finally { await browser.close() }

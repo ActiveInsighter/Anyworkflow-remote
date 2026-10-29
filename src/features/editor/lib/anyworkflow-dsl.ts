@@ -51,6 +51,7 @@ export const anyWorkflowLanguage = StreamLanguage.define<DslState>({
     if (stream.match(/\bstart_url\b(?=\s*=)/)) return 'special'
     if (stream.match(/%[A-Za-z_][A-Za-z0-9_]*(?::[A-Za-z0-9_]+)?%/)) return 'variableName'
     if (stream.match(/<(?:https?:\/\/[^>]+|self|current|here|本页|当前页|当前页面)>/iu)) return 'link'
+    if (stream.match(/<\s*(?:sleep|wait)\s*\([^<>]*\)\s*>/iu)) return 'function'
     if (stream.match(/\b(?:serial|parallel)\b/)) return 'atom'
     if (stream.match(/\brange(?=\()/)) return 'function'
     if (stream.match(/\*\d+/)) return 'number'
@@ -156,6 +157,8 @@ function directiveOptions(context: DslContext, loopName: string | null): Complet
       ? [snippetCompletion('@for ${' + loopName + '} in range(1, 3) {\n  {\n    ${消息}\n  }\n}', { label: '@for', type: 'keyword', detail: '消息循环' })]
       : []),
     snippetCompletion('{\n  ${消息}\n}', { label: '{ message }', type: 'text', detail: '消息块' }),
+    snippetCompletion('<sleep(${秒数})>', { label: '<sleep(秒数)>', type: 'function', detail: '等待后继续，可使用变量' }),
+    snippetCompletion('<wait(${秒数})>', { label: '<wait(秒数)>', type: 'function', detail: '等待后继续，可使用变量' }),
     snippetCompletion('<${链接}>', { label: '<链接>', type: 'text', detail: '打开页面' }),
   ]
 }
