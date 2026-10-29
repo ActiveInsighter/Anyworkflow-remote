@@ -21,7 +21,7 @@ import {
   type RuntimeConfig,
   type RuntimePageUrl,
 } from '@/lib/domain/runtime-config'
-import { START_LINKS } from '@/lib/domain/start-links'
+import { RUNTIME_PAGES } from '@/lib/domain/runtime-pages'
 import { runtimeConfigError } from '../lib/runtime-config-error'
 import { withDefaultStartUrl } from '../lib/compose-config'
 import { StartUrlField } from './start-url-field'
@@ -109,7 +109,7 @@ export function RuntimeConfigFields({
   const [localPage, setLocalPage] = useState<string | null>(null)
   const pageId = selectedPage === undefined ? localPage : selectedPage
   const select = onSelectPage ?? setLocalPage
-  const page = START_LINKS.find((link) => link.id === pageId)
+  const page = RUNTIME_PAGES.find((link) => link.id === pageId)
   const id = useId()
   const error = runtimeConfigError(value)
   return (
@@ -160,7 +160,7 @@ export function RuntimeConfigFields({
           <div className="flex flex-col gap-3">
             <h2 className="text-sm font-medium">页面默认配置</h2>
             <div className="divide-y overflow-hidden rounded-lg border">
-              {START_LINKS.map((link) => {
+              {RUNTIME_PAGES.map((link) => {
                 const current = resolvePageRuntimeConfig(value, link.url)
                 return (
                   <SettingsRow

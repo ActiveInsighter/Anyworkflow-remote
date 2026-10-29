@@ -102,7 +102,7 @@ try {
   )
   assert.equal(config.schemaVersion, 1, 'editing page preferences never mutates old snapshots')
   const { composeRuntimeConfig } = await server.ssrLoadModule('/src/features/runtime-config/lib/compose-config.ts')
-  const { surfaceOfUrl, START_LINKS } = await server.ssrLoadModule('/src/lib/domain/start-links.ts')
+  const { surfaceOfUrl, RUNTIME_PAGES } = await server.ssrLoadModule('/src/lib/domain/runtime-pages.ts')
   assert.deepEqual(
     composeRuntimeConfig(config.browser, defaultModelSelection(), null),
     { schemaVersion: 1, browser: config.browser },
@@ -128,7 +128,7 @@ try {
     composeRuntimeConfig(config.browser, defaultModelSelection(), 'https://claude.ai/new').defaultStartUrl,
     'https://claude.ai/new',
   )
-  for (const link of START_LINKS) {
+  for (const link of RUNTIME_PAGES) {
     assert.equal(surfaceOfUrl(link.url), link.surface, `${link.label} maps to its model surface`)
     assert.doesNotThrow(
       () => normalizeRuntimeConfig(composeRuntimeConfig(config.browser, defaultModelSelection(), link.url)),

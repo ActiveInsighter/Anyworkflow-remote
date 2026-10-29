@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
-const { anyWorkflowCompletion, collectUsableVariables, planStructuredInsert, validateAnyWorkflowSource } = await import('../src/features/editor/lib/anyworkflow-dsl.ts')
+const { anyWorkflowCompletion, startLinkOptions } = await import('../src/features/editor/lib/dsl-completion.ts')
+const { planStructuredInsert } = await import('../src/features/editor/lib/editor-commands.ts')
+const { validateWorkflowSource: validateAnyWorkflowSource, collectWorkflowVariables: collectUsableVariables } = await import('../src/lib/workflow-dsl/index.ts')
 const { EditorState } = await import('@codemirror/state')
 
 function errors(source) {

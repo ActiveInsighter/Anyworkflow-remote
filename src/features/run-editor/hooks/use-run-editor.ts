@@ -2,35 +2,26 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 import { useNow } from '@/hooks/use-now'
-import { getRun, toErrorMessage } from '@/lib/api'
-import { getWorkflowTemplate, updateWorkflowTemplate } from '@/lib/api/library'
+import { toErrorMessage } from '@/lib/api'
+import { updateWorkflowTemplate } from '@/lib/api/library'
 import { reserveDefaultRunTitle } from '@/lib/api/run-name'
 import { useSession } from '@/lib/api/session'
 import { createStarterPlan, parsePlanMeta } from '@/lib/domain/plan'
 import { nextDailyInstant, normalizeRecurrence } from '@/lib/domain/recurrence'
-import { canEditRun } from '@/lib/domain/run-status'
 import { normalizeRuntimeConfig } from '@/lib/domain/runtime-config'
+import { validateWorkflowSource } from '@/lib/workflow-dsl'
 import type { DispatchRunRecord } from '@/types'
-import { validateAnyWorkflowSource } from '@/features/editor/lib/anyworkflow-dsl'
 import type { AnyWorkflowEditorHandle } from '@/features/editor/components/anyworkflow-editor'
 import { runtimeConfigError } from '@/features/runtime-config/lib/runtime-config-error'
 import { invalidateRuns } from '@/features/runs/lib/query-keys'
 import { shouldOfferRunDraft, shouldOfferTemplateDraft } from '../lib/draft-recovery'
 import { draftScopeFor, legacyDraftScopeFor } from '../lib/editor-draft'
+import { editorTargetFrom, loadEditorDocument, type LoadedDocument } from '../lib/editor-target'
 import { editorSaveErrorMessage } from '../lib/save-error'
 import { saveRunSource } from '../lib/save-run'
 import { useLocalDraft } from './use-local-draft'
 import { useRuntimeConfigState } from './use-runtime-config-state'
 import { useScheduleState } from './use-schedule-state'
-
-/** What the editor is editing, derived from the route. */
-function useEditorTarget() {
-  const { runId } = useParams()
-  const [searchParams] = useSearchParams()
-  const templateId = searchParams.get('templateId') || ''
-  const templateMode: '' | 'use' | 'edit' = searchParams.get('mode') === 'edit' ? 'edit' : templateId ? 'use' : ''
-  return { runId, templateId, templateMode }
-}
 
 /**
  * State and commands for the Run editor: loading the source (new Run, existing Run, or a
@@ -40,7 +31,13 @@ function useEditorTarget() {
  * async loads can never leak from one Run into another.
  */
 export function useRunEditor() {
-  const { runId, templateId, templateMode } = useEditorTarget()
+  const { runId } = useParams()
+  const [searchParams] = useSearchParams()
+  // The page remounts this hook per route, so the target is fixed for its lifetime.
+  const [target] = useState(() => editorTargetFrom(runId, searchParams))
+  const templateId = target.kind === 'template-use' || target.kind === 'template-edit' ? target.templateId : undefined
+  const editingTemplate = target.kind === 'template-edit'
+
   const navigate = useNavigate()
   const session = useSession()
   const now = useNow()
@@ -49,7 +46,7 @@ export function useRunEditor() {
   const scope = draftScopeFor(session?.baseUrl, session?.record.id, runId, templateId)
   const legacyScope = legacyDraftScopeFor(session?.record.id, runId, templateId)
 
-  const [starterReady, setStarterReady] = useState(Boolean(runId || templateId))
+  const [starterReady, setStarterReady] = useState(target.kind !== 'new')
   const [loadedRun, setLoadedRun] = useState<DispatchRunRecord | null>(null)
   const [source, setSource] = useState(() => createStarterPlan())
   const [templateTitle, setTemplateTitle] = useState('')
@@ -63,11 +60,11 @@ export function useRunEditor() {
 
   const schedule = useScheduleState({ now, onEdit: markDirty })
   const runtime = useRuntimeConfigState({
-    loadsFromRun: Boolean(runId),
-    skipDefaults: templateMode === 'edit',
+    loadsFromRun: target.kind === 'run',
+    skipDefaults: editingTemplate,
     onDefaultsReloaded: markDirty,
   })
-  const scheduleEditable = templateMode !== 'edit'
+  const scheduleEditable = !editingTemplate
 
   const draft = useLocalDraft({
     scope,
@@ -92,94 +89,72 @@ export function useRunEditor() {
   })
 
   const meta = useMemo(() => parsePlanMeta(source), [source])
-  const diagnostics = useMemo(() => validateAnyWorkflowSource(source), [source])
-  const errorCount = diagnostics.filter((item) => item.severity === 'error').length
+  const errorCount = useMemo(
+    () => validateWorkflowSource(source).filter((item) => item.severity === 'error').length,
+    [source],
+  )
   const scheduleInvalid = scheduleEditable && schedule.invalid
 
-  // Template in use or being edited.
-  useEffect(() => {
-    if (!templateId || runId) return
-    let active = true
-    setLoading(true)
-    getWorkflowTemplate(templateId)
-      .then((template) => {
-        if (!active) return
-        setSource(template.planText)
-        setTemplateTitle(template.title)
-        setDirty(false)
-        const { draft: stored, legacy } = draft.readCandidate()
-        draft.offerIf(stored, shouldOfferTemplateDraft(stored, legacy, template))
-      })
-      .catch((cause: unknown) => active && setError(toErrorMessage(cause)))
-      .finally(() => active && setLoading(false))
-    return () => {
-      active = false
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [templateId, runId, scope])
-
-  // Existing Run: drafts edit in place, finished Runs fork a new version on save.
-  useEffect(() => {
-    if (!runId) return
-    let active = true
-    setLoading(true)
-    getRun(runId)
-      .then((run) => {
-        if (!active) return
-        if (!canEditRun(run)) throw new Error('进行中的 Run 不能编辑，请等待执行结束')
-        setLoadedRun(run)
-        runtime.adopt(run.runtimeConfig ?? null)
-        const initialSchedule = run.status === 'draft' ? run.scheduledAt : ''
-        const initialRule = run.status === 'draft' ? run.recurrence : null
-        setSource(run.planText)
-        schedule.load({ scheduledAt: initialSchedule, recurrence: initialRule })
-        setDirty(false)
-        const { draft: stored, legacy } = draft.readCandidate()
-        draft.offerIf(
-          stored,
-          shouldOfferRunDraft(stored, legacy, {
-            planText: run.planText,
-            scheduledAt: initialSchedule,
-            recurrence: initialRule,
-            runtimeConfig: run.runtimeConfig,
-          }),
-        )
-      })
-      .catch((cause: unknown) => active && setError(toErrorMessage(cause)))
-      .finally(() => active && setLoading(false))
-    return () => {
-      active = false
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runId, scope])
-
-  // New Run: reserve a default name, unless a local draft can be restored (works offline).
-  useEffect(() => {
-    if (runId || templateId) return
-    let active = true
-    setLoading(true)
-    const { draft: stored } = draft.readCandidate()
-    if (stored) {
-      draft.offer(stored)
-      setSource(createStarterPlan(stored.title || parsePlanMeta(stored.source).title))
+  /** Shows what loaded, then offers a stored draft when it differs from it. */
+  function adopt(document: LoadedDocument) {
+    if (document.kind === 'new') {
+      setSource(createStarterPlan(document.title))
       setStarterReady(true)
-      setLoading(false)
       return
     }
-    starterName.current ??= reserveDefaultRunTitle()
-    starterName.current
-      .then((title) => {
-        if (!active) return
-        setSource(createStarterPlan(title))
+    if (document.kind === 'template') {
+      setSource(document.planText)
+      setTemplateTitle(document.title)
+      setDirty(false)
+      const { draft: stored, legacy } = draft.readCandidate()
+      draft.offerIf(stored, shouldOfferTemplateDraft(stored, legacy, document))
+      return
+    }
+    // Existing Run: drafts edit in place, finished Runs fork a new version on save.
+    const { run } = document
+    setLoadedRun(run)
+    runtime.adopt(run.runtimeConfig ?? null)
+    const initialSchedule = run.status === 'draft' ? run.scheduledAt : ''
+    const initialRule = run.status === 'draft' ? run.recurrence : null
+    setSource(run.planText)
+    schedule.load({ scheduledAt: initialSchedule, recurrence: initialRule })
+    setDirty(false)
+    const { draft: stored, legacy } = draft.readCandidate()
+    draft.offerIf(
+      stored,
+      shouldOfferRunDraft(stored, legacy, {
+        planText: run.planText,
+        scheduledAt: initialSchedule,
+        recurrence: initialRule,
+        runtimeConfig: run.runtimeConfig,
+      }),
+    )
+  }
+
+  useEffect(() => {
+    // A new Run with a local draft restores without the network, so it also works offline.
+    if (target.kind === 'new') {
+      const { draft: stored } = draft.readCandidate()
+      if (stored) {
+        draft.offer(stored)
+        setSource(createStarterPlan(stored.title || parsePlanMeta(stored.source).title))
         setStarterReady(true)
-      })
+        setLoading(false)
+        return
+      }
+    }
+    let active = true
+    setLoading(true)
+    loadEditorDocument(target, () => (starterName.current ??= reserveDefaultRunTitle()))
+      .then((document) => active && adopt(document))
       .catch((cause: unknown) => active && setError(toErrorMessage(cause)))
       .finally(() => active && setLoading(false))
     return () => {
       active = false
     }
+    // `adopt` and `draft` read the latest render; the load runs once per target and draft scope.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runId, scope, templateId])
+  }, [target, scope])
 
   function changeSource(next: string) {
     setSource(next)
@@ -204,14 +179,14 @@ export function useRunEditor() {
   }
 
   async function persist(publish: boolean) {
-    if (!session || saving || loading || (runId && !loadedRun)) return
-    if (!runtime.ready || runtime.loading || runtime.invalid) {
+    if (!session || saving || loading || (target.kind === 'run' && !loadedRun)) return
+    if (!editingTemplate && (!runtime.ready || runtime.loading || runtime.invalid)) {
       setRuntimeOpen(true)
       return
     }
     if (errorCount > 0) {
-      setError(`DSL 有 ${errorCount} 个错误`)
-      editorRef.current?.focus()
+      setError(`DSL 有 ${errorCount} 个错误，已定位到第一个`)
+      if (!editorRef.current?.revealFirstError()) editorRef.current?.focus()
       return
     }
     if (scheduleInvalid) {
@@ -227,17 +202,17 @@ export function useRunEditor() {
       const rule = schedule.mode === 'daily' ? normalizeRecurrence(schedule.recurrence) : null
       const scheduledAt = scheduleEditable ? (rule ? nextDailyInstant(rule) : schedule.scheduledAt) : ''
 
-      if (templateMode === 'edit' && templateId) {
-        await updateWorkflowTemplate(templateId, { title: templateTitle || meta.title || '未命名模板', planText })
+      if (target.kind === 'template-edit') {
+        await updateWorkflowTemplate(target.templateId, { title: templateTitle || meta.title || '未命名模板', planText })
         draft.clearAfterSave()
         setDirty(false)
         toast.success('模板已保存')
-        navigate(`/templates/${templateId}`, { replace: true })
+        navigate(`/templates/${target.templateId}`, { replace: true })
         return
       }
 
       const saved = await saveRunSource({
-        sourceRun: runId ? loadedRun : null,
+        sourceRun: target.kind === 'run' ? loadedRun : null,
         planText,
         publish,
         scheduledAt,
@@ -263,12 +238,14 @@ export function useRunEditor() {
     session,
     now,
     editorRef,
-    target: { runId, templateId, templateMode },
+    target,
+    editingTemplate,
     loadedRun,
     starterReady,
     loading,
     saving,
     error,
+    dismissError: () => setError(''),
     dirty,
     source,
     meta,
@@ -293,7 +270,8 @@ export function useRunEditor() {
     },
     restoreDraft,
     persist,
-    blocked: saving || errorCount > 0 || scheduleInvalid || !runtime.ready || runtime.loading || runtime.invalid,
+    /** Saving cannot start; the buttons stay enabled for DSL errors so a click can point at them. */
+    blocked: saving || scheduleInvalid || (!editingTemplate && (!runtime.ready || runtime.loading || runtime.invalid)),
   }
 }
 

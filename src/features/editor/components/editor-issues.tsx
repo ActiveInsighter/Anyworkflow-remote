@@ -16,8 +16,8 @@ export function countIssues(issues: readonly EditorIssue[]) {
   return { errors, warnings, hints: issues.length - errors - warnings }
 }
 
-/** Lint results below the editor; each row jumps to and selects its range. */
-export function EditorIssuesPanel({
+/** Lint results; each row jumps to and selects its range. */
+export function EditorIssuesList({
   issues,
   onReveal,
 }: {
@@ -25,9 +25,9 @@ export function EditorIssuesPanel({
   onReveal: (from: number, to: number) => void
 }) {
   return (
-    <div className="max-h-56 shrink-0 overflow-y-auto border-t border-cm-border bg-cm-toolbar-bg">
+    <div>
       {issues.length === 0 ? (
-        <p className="px-2.5 py-3 text-caption text-muted-foreground">没有发现问题。</p>
+        <p className="px-3 py-6 text-center text-caption text-muted-foreground">没有发现问题。</p>
       ) : (
         <ul className="divide-y divide-cm-border">
           {issues.map((issue, index) => {
@@ -56,6 +56,15 @@ export function EditorIssuesPanel({
   )
 }
 
+export function issueSummary(issues: readonly EditorIssue[]): string {
+  const { errors, warnings, hints } = countIssues(issues)
+  const parts: string[] = []
+  if (errors > 0) parts.push(`${errors} 个错误`)
+  if (warnings > 0) parts.push(`${warnings} 个警告`)
+  if (hints > 0) parts.push(`${hints} 条提示`)
+  return parts.length ? parts.join(' · ') : '无问题'
+}
+
 /** Status-bar toggle summarising lint results, e.g. "1 个错误 · 2 个警告". */
 export function EditorIssuesToggle({
   issues,
@@ -66,11 +75,7 @@ export function EditorIssuesToggle({
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
-  const { errors, warnings, hints } = countIssues(issues)
-  const parts: string[] = []
-  if (errors > 0) parts.push(`${errors} 个错误`)
-  if (warnings > 0) parts.push(`${warnings} 个警告`)
-  if (hints > 0) parts.push(`${hints} 条提示`)
+  const { errors, warnings } = countIssues(issues)
 
   return (
     <button
@@ -89,7 +94,7 @@ export function EditorIssuesToggle({
       ) : (
         <Check className="size-3.5" aria-hidden="true" />
       )}
-      <span>{parts.length ? parts.join(' · ') : '无问题'}</span>
+      <span>{issueSummary(issues)}</span>
       <ChevronDown
         className={cn('size-3.5 transition-transform duration-fast', open && 'rotate-180')}
         aria-hidden="true"

@@ -62,7 +62,8 @@ src/
 │   ├── runs/             工作流列表、Run 详情与 Task → Event → Act → Message 层级
 │   ├── run-exports/      Run 对话导出、处理进度、结果下载
 │   ├── run-editor/       新建/编辑 Run：草稿、执行计划、运行配置、保存与运行
-│   ├── editor/           CodeMirror DSL 编辑器、工具栏与命令
+│   ├── editor/           CodeMirror DSL 编辑器：命令注册表、工具栏、大纲与问题、显示偏好（见 docs/editor.md）
+│   ├── start-links/      start_url 快捷链接：按账号同步的列表、设置页与编辑面板
 │   ├── library/          收藏、模板与目录
 │   ├── files/            持久文件资料库、共享上传与文件选择
 │   ├── schedules/        每天重复计划

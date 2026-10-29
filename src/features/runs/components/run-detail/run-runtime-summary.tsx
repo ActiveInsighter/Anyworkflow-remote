@@ -2,7 +2,7 @@ import type * as React from 'react'
 import { ChevronRight } from 'lucide-react'
 import { DescriptionList } from '@/components/data-display/description-list'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { START_LINKS } from '@/lib/domain/start-links'
+import { RUNTIME_PAGES } from '@/lib/domain/runtime-pages'
 import { resolvePageRuntimeConfig } from '@/lib/domain/runtime-config'
 import type { DispatchRunRecord } from '@/types'
 
@@ -38,7 +38,7 @@ export function RunRuntimeSummary({ run, aside }: { run: DispatchRunRecord; asid
               run.runtimeConfig?.schemaVersion === 4
                 ? [
                     { label: '默认开始链接', value: run.runtimeConfig.defaultStartUrl ?? 'https://chatgpt.com/' },
-                    ...START_LINKS.map((link) => {
+                    ...RUNTIME_PAGES.map((link) => {
                       const page = resolvePageRuntimeConfig(run.runtimeConfig!, link.url)
                       const browser = page.browser
                       return {

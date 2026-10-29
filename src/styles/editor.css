@@ -33,11 +33,11 @@
   outline: none;
 }
 
-.aw-code-editor .cm-searchMatch {
+.aw-code-editor .cm-panel.cm-searchMatch {
   background: color-mix(in srgb, var(--warning) 28%, transparent);
 }
 
-.aw-code-editor .cm-searchMatch.cm-searchMatch-selected {
+.aw-code-editor .cm-panel.cm-searchMatch.cm-searchMatch-selected {
   background: color-mix(in srgb, var(--warning) 48%, transparent);
 }
 
@@ -73,5 +73,85 @@
 
   .aw-editor-shell[data-fullscreen='true'] .aw-code-editor .cm-content {
     padding-bottom: max(104px, calc(88px + env(safe-area-inset-bottom)));
+  }
+}
+
+/* Find / replace panel: CodeMirror's own markup, restyled onto the control tokens. */
+.aw-code-editor .cm-panel.cm-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  padding: 8px 40px 8px 10px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+}
+
+.aw-code-editor .cm-panel.cm-search br {
+  flex-basis: 100%;
+  height: 0;
+}
+
+.aw-code-editor .cm-panel.cm-search .cm-textfield {
+  height: 32px;
+  min-width: min(16rem, 100%);
+  margin: 0;
+  padding: 0 10px;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-md);
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.aw-code-editor .cm-panel.cm-search .cm-textfield:focus-visible {
+  outline: none;
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 35%, transparent);
+}
+
+.aw-code-editor .cm-panel.cm-search .cm-button {
+  height: 30px;
+  margin: 0;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--card);
+  background-image: none;
+  color: var(--foreground);
+  font-size: 12px;
+}
+
+.aw-code-editor .cm-panel.cm-search .cm-button:hover {
+  background: var(--muted);
+}
+
+.aw-code-editor .cm-panel.cm-search label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted-foreground);
+}
+
+.aw-code-editor .cm-panel.cm-search button[name='close'] {
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  color: var(--muted-foreground);
+  font-size: 18px;
+}
+
+@media (max-width: 640px) {
+  .aw-code-editor .cm-panel.cm-search .cm-textfield {
+    flex: 1 1 100%;
+    height: 40px;
+    font-size: 16px;
+  }
+
+  .aw-code-editor .cm-panel.cm-search .cm-button {
+    height: 36px;
   }
 }

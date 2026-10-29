@@ -11,6 +11,8 @@ const testFiles = [
   'history-selection.test.mjs',
   'editor-helpers.test.mjs',
   'editor-commands.test.mjs',
+  'editor-structure.test.mjs',
+  'start-links.test.mjs',
   'library-tree.test.mjs',
   'session-storage.test.mjs',
   'run-family-api.test.mjs',
