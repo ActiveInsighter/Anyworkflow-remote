@@ -33,12 +33,23 @@
   outline: none;
 }
 
-.aw-code-editor .cm-panel.cm-searchMatch {
-  background: color-mix(in srgb, var(--warning) 28%, transparent);
+/* The tint over text just copied or duplicated (editor-flash.ts). */
+@keyframes aw-cm-flash {
+  0%,
+  35% {
+    background-color: var(--cm-flash);
+  }
+  100% {
+    background-color: transparent;
+  }
 }
 
-.aw-code-editor .cm-panel.cm-searchMatch.cm-searchMatch-selected {
-  background: color-mix(in srgb, var(--warning) 48%, transparent);
+@media (prefers-reduced-motion: reduce) {
+  .aw-code-editor .cm-flash,
+  .aw-code-editor .cm-flash-line {
+    animation: none !important;
+    background-color: var(--cm-flash);
+  }
 }
 
 .aw-code-editor .cm-tooltip-autocomplete {

@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 
-const { loopScopeAt, planLoopInsert, planStructuredInsert, planSmartDelete, planSmartCopy, planSmartDuplicate, planQueueLineInsert } =
+const { loopScopeAt, planLoopInsert, planSelectBlock, planStructuredInsert, planSmartDelete, planSmartCopy, planSmartDuplicate, planQueueLineInsert } =
   await import('../src/features/editor/lib/editor-commands.ts')
-const { validateWorkflowSource: validateAnyWorkflowSource } = await import('../src/lib/workflow-dsl/index.ts')
+const { inspectWorkflowSource, validateWorkflowSource: validateAnyWorkflowSource } = await import('../src/lib/workflow-dsl/index.ts')
 
 const source = `@run=Editor
 @task First {
@@ -60,10 +60,22 @@ for (const header of ['@task First {', '@task Second {', '@event E {', '@act {',
 }
 const lineCopy = planSmartCopy(source, source.indexOf('hello'), source.indexOf('hello'))
 assert.equal(lineCopy.text, '      { hello }\n', 'plain cursor copies the current line')
-const selectedLines = planSmartCopy('first\nsecond\nthird', 1, 7)
-assert.equal(selectedLines.text, 'first\nsecond\n')
-assert.equal(planSmartCopy('first\nsecond\nthird', 0, 6).text, 'first\n', 'end at next line start excludes it')
+const selected = planSmartCopy('first\nsecond\nthird', 1, 7)
+assert.equal(selected.text, 'irst\ns', 'a selection is copied exactly as selected')
+assert.equal(selected.kind, 'selection')
+assert.equal(selected.message, '已复制选中内容 · 2 行')
+assert.equal(planSmartCopy('first\nsecond\nthird', 0, 6).text, 'first\n')
+const helloLine = source.indexOf('      { hello }')
+assert.equal(planSmartCopy(source, helloLine, helloLine + '      { hello'.length).text, '      { hello',
+  'a selection holding one brace among other text stays exact')
+const braceWithSpaces = source.indexOf('{ hello }') + '{ hello '.length
+assert.equal(planSmartCopy(source, braceWithSpaces - 1, braceWithSpaces + 1).kind, 'block', 'a lone brace with spaces still means its block')
 assert.equal(planSmartCopy(source, source.length, 0).text, source, 'reversed full selection copies everything')
+assert.equal(planSmartCopy(source, source.length, 0).message.startsWith('已复制全部内容'), true)
+const eventCopy = planSmartCopy(source, source.indexOf('@event E {') + 9, source.indexOf('@event E {') + 9)
+assert.match(eventCopy.message, /^已复制Event「E」 · \d+ 行$/u, 'block copies name the block and its size')
+const duplicateSelection = planSmartDuplicate('ab cd', 0, 2)
+assert.deepEqual([duplicateSelection.from, duplicateSelection.text], [2, 'ab'], 'a selection duplicates inline')
 assert.equal(planSmartCopy('', 0, 0).ok, false)
 assert.equal(planSmartCopy('first\nsecond', 0, 0).text, 'first\n', 'offset zero is the first line')
 
@@ -81,7 +93,8 @@ assert.equal(planSmartCopy(nestedPoll, nestedOpen, nestedOpen + 1).text, '      
 
 const fenced = '@task T {\n  @event E {\n    ~~~\n@task Fake {\n}\n    ~~~\n    { real }\n  }\n}'
 const fake = fenced.indexOf('@task Fake') + '@task Fake '.length
-assert.equal(planSmartCopy(fenced, fake, fake + 1).text, '@task Fake {\n', 'fenced braces are plain text')
+assert.equal(planSmartCopy(fenced, fake, fake + 1).text, '{', 'fenced braces are plain text')
+assert.equal(planSmartCopy(fenced, fake, fake).text, '@task Fake {\n', 'a cursor on a fenced brace copies its line')
 const taskOpen = fenced.indexOf('{')
 assert.equal(planSmartCopy(fenced, taskOpen, taskOpen + 1).text, fenced, 'fenced braces do not close the enclosing Task')
 const fakeVariable = planStructuredInsert(fenced, fake, 'variable')
@@ -130,7 +143,8 @@ for (const header of ['@for i in range(1, 2) {', '@for j in range(1, 2) {', '@fo
   }
 }
 const withoutInnerLoop = (() => {
-  const plan = planSmartDelete(nestedLoops, nestedLoops.indexOf('@for k') + 15, nestedLoops.indexOf('@for k') + 16)
+  const brace = nestedLoops.indexOf('@for k') + '@for k in range(1, 2) '.length
+  const plan = planSmartDelete(nestedLoops, brace, brace + 1)
   return nestedLoops.slice(0, plan.from) + nestedLoops.slice(plan.to)
 })()
 assert.ok(!withoutInnerLoop.includes('@for k'), 'deleting the innermost loop leaves its parents')
@@ -184,5 +198,63 @@ assert.ok(headerPlan.text.startsWith('    @for i'), 'after an opener line the lo
 const noTrailingNewline = planLoopInsert('@task T {\n  @event E {', '@task T {\n  @event E {'.length)
 assert.equal(noTrailingNewline.ok, true)
 assert.ok(noTrailingNewline.text.startsWith('\n'), 'a missing final newline is added first')
+
+// Select block widens one level at a time: message -> loop -> Event -> Task.
+const widen = (from, to) => planSelectBlock(source, from, to)
+const nextAt = source.indexOf('next %i%')
+const message = widen(nextAt, nextAt)
+assert.equal(source.slice(message.from, message.to), '      { next %i% }\n')
+const loop = widen(message.from, message.to)
+assert.equal(loop.label, '循环')
+assert.ok(source.slice(loop.from, loop.to).startsWith('    @for i in range(1, 3) {'))
+const event = widen(loop.from, loop.to)
+assert.equal(event.label, 'Event「E」')
+const task = widen(event.from, event.to)
+assert.equal(task.label, 'Task「First」')
+assert.equal(widen(0, source.length).ok, false, 'nothing is wider than the whole source')
+assert.equal(widen(0, 0).ok, false, 'the Run header line is in no block')
+
+// Loop templates land valid in every context and select the part to edit first.
+const contexts = {
+  event: ['@task T {\n  @event E {\n    \n  }\n}', '@event E {\n    '],
+  task: ['@task T {\n  \n}', '@task T {\n  '],
+  run: ['@run=R\n', '@run=R\n'],
+}
+const expectedActs = { range: { event: 3 }, list: { event: 3 }, outline: { event: 3, task: 3, run: 3 } }
+for (const [context, [base, marker]] of Object.entries(contexts)) {
+  for (const template of ['range', 'list', 'outline']) {
+    const at = base.indexOf(marker) + marker.length
+    const plan = planLoopInsert(base, at, template)
+    assert.equal(plan.ok, true, `${template} in ${context}`)
+    const edited = base.slice(0, plan.from) + plan.text + base.slice(plan.from)
+    const picked = plan.text.slice(plan.cursorOffset, plan.cursorOffset + plan.selectionLength)
+    assert.equal(picked, { range: 'i', list: '甲, 乙, 丙', outline: '1, 第一章, [小节一, 小节二]' }[template])
+    const acts = expectedActs[template][context]
+    if (!acts) continue
+    const filled = edited.replace(/\{\n(\s*)\n(\s*)\}/u, `{\n$1{ %${template === 'list' ? 'item' : 'i'}% }\n$2}`)
+    const inspection = inspectWorkflowSource(filled)
+    assert.deepEqual(inspection.diagnostics, [], `${template} in ${context} validates`)
+    assert.equal(inspection.events.reduce((sum, item) => sum + item.actCount, 0), acts, `${template} in ${context} expands`)
+  }
+}
+const outline = planLoopInsert(contexts.event[0], contexts.event[0].indexOf('    \n') + 4, 'outline')
+const outlined = contexts.event[0].slice(0, outline.from) + outline.text + contexts.event[0].slice(outline.from)
+const [preview] = inspectWorkflowSource(outlined).events
+assert.match(JSON.stringify(preview.acts), /写第1章《第一章》第2节：小节二/u, 'chapters bind their own sections')
+assert.match(JSON.stringify(preview.acts), /写第2章《第二章》第1节：小节一/u)
+const deepQueue = '@task T {\n  @event E {\n    @for a in range(1, 2) {\n      @for b in range(1, 2) {\n        \n      }\n    }\n  }\n}'
+const tooDeep = planLoopInsert(deepQueue, deepQueue.indexOf('        \n') + 8, 'outline')
+assert.equal(tooDeep.ok, false, 'an outline needs two free loop levels inside a queue')
+assert.match(tooDeep.message, /两层循环/u)
+
+// A list header spanning lines is one loop block that starts on its `@for` line.
+const listLoop = '@task T {\n  @event E {\n    @for ch, t in [\n      (1, 甲)\n      (2, 乙)\n    ] {\n      { %t% }\n    }\n  }\n}'
+assert.deepEqual(validateAnyWorkflowSource(listLoop), [])
+const listOpen = listLoop.indexOf('] {') + 2
+const listCopy = planSmartCopy(listLoop, listOpen, listOpen)
+assert.equal(listCopy.text, listLoop.slice(listLoop.indexOf('    @for'), listLoop.indexOf('  }\n}')), 'the copy spans header lines and body')
+const insideList = planSelectBlock(listLoop, listLoop.indexOf('(2, 乙)'), listLoop.indexOf('(2, 乙)'))
+assert.equal(insideList.label, '循环')
+assert.equal(loopScopeAt(listLoop, listLoop.indexOf('{ %t% }')).name, 'i')
 
 console.log('editor command assertions passed')

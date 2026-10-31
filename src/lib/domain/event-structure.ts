@@ -1,4 +1,6 @@
-import { loopBlockRanges } from '../workflow-dsl/text.ts'
+import { DiagnosticCollector } from '../workflow-dsl/diagnostics.ts'
+import { removeLeadingEventHeaders } from '../workflow-dsl/cloud-parser.ts'
+import { queueNodeCount, walkEventQueue } from '../workflow-dsl/queue-validator.ts'
 
 export interface EventActStructure {
   id: string
@@ -21,235 +23,29 @@ export interface EventProgressStructure {
   totalMessages: number
 }
 
-function normalize(source: string): string {
-  return source.replace(/\r\n?/gu, '\n')
-}
-
-function lineEnd(text: string, at: number): number {
-  const end = text.indexOf('\n', at)
-  return end < 0 ? text.length : end
-}
-
-function nextLine(text: string, at: number): number {
-  const end = lineEnd(text, at)
-  return end < text.length ? end + 1 : end
-}
-
-function isLineStart(text: string, at: number): boolean {
-  let cursor = at - 1
-  while (cursor >= 0 && (text[cursor] === ' ' || text[cursor] === '\t')) cursor -= 1
-  return cursor < 0 || text[cursor] === '\n'
-}
-
-function fenceAt(text: string, at: number): string {
-  if (!isLineStart(text, at)) return ''
-  if (text.startsWith('```', at)) return '```'
-  if (text.startsWith('~~~', at)) return '~~~'
-  return ''
-}
-
-function skipFence(text: string, at: number): number {
-  const marker = fenceAt(text, at)
-  if (!marker) return at
-  let cursor = nextLine(text, at)
-  while (cursor < text.length) {
-    const end = lineEnd(text, cursor)
-    if (text.slice(cursor, end).trim() === marker) return end < text.length ? end + 1 : end
-    cursor = end < text.length ? end + 1 : end
-  }
-  return text.length
-}
-
-function matchingBrace(text: string, openAt: number): number {
-  let depth = 0
-  for (let cursor = openAt; cursor < text.length; cursor += 1) {
-    const fenceNext = skipFence(text, cursor)
-    if (fenceNext !== cursor) {
-      cursor = fenceNext - 1
-      continue
-    }
-    if (text[cursor] === '{') depth += 1
-    else if (text[cursor] === '}') {
-      depth -= 1
-      if (depth === 0) return cursor
-    }
-  }
-  return -1
-}
-
-function repeatAfter(text: string, at: number): number {
-  const match = text.slice(at).match(/^\s*\*(\d+)/u)
-  if (!match) return 1
-  const value = Number(match[1])
-  return Number.isSafeInteger(value) && value > 0 ? value : 1
-}
-
-function looksStructured(text: string): boolean {
-  const trimmed = text.trimStart()
-  return trimmed.startsWith('{') || trimmed.startsWith('<') || trimmed.startsWith('```') || trimmed.startsWith('~~~')
-}
-
-function countMessages(source: string): number {
-  const text = normalize(source)
-  let total = 0
-  let cursor = 0
-
-  while (cursor < text.length) {
-    while (cursor < text.length && /\s/u.test(text[cursor] ?? '')) cursor += 1
-    if (cursor >= text.length) break
-
-    const marker = fenceAt(text, cursor)
-    if (marker) {
-      const end = skipFence(text, cursor)
-      const bodyStart = nextLine(text, cursor)
-      const body = text.slice(bodyStart, Math.max(bodyStart, end - marker.length - 1)).trim()
-      if (body) total += 1
-      cursor = end
-      continue
-    }
-
-    if (text[cursor] === '<') {
-      const end = text.indexOf('>', cursor + 1)
-      if (end >= 0) {
-        const token = text.slice(cursor + 1, end).trim()
-        if (/^(?:https:\/\/|self$|current$|here$|本页$|当前页$|当前页面$|(?:sleep|wait)\s*\()/iu.test(token)) total += 1
-        cursor = end + 1
-        continue
-      }
-    }
-
-    if (text[cursor] === '{') {
-      const close = matchingBrace(text, cursor)
-      const end = close >= 0 ? close : text.length
-      const inner = text.slice(cursor + 1, end).trim()
-      const base = inner ? (looksStructured(inner) ? countMessages(inner) : 1) : 0
-      total += base * repeatAfter(text, end + 1)
-      cursor = end + 1
-      const repeat = text.slice(cursor).match(/^\s*\*\d+/u)?.[0] ?? ''
-      cursor += repeat.length
-      continue
-    }
-
-    const end = lineEnd(text, cursor)
-    cursor = end < text.length ? end + 1 : end
-  }
-
-  return total
-}
-
-function eventTitle(body: string, fallback: string): string {
-  const match = body.match(/^\s*@event\s*=\s*(.*?)\s*$/imu)
-  return match?.[1]?.trim() || fallback
-}
-
-function rangeCount(header: string): number {
-  const match = header.match(/range\((.*?)\)/iu)
-  if (!match) return 1
-  const parts = match[1].split(',').map((item) => Number(item.trim()))
-  if (parts.some((value) => !Number.isSafeInteger(value))) return 1
-  const start = parts.length === 1 ? 0 : parts[0]
-  const stop = parts.length === 1 ? parts[0] : parts[1]
-  const step = parts.length === 3 ? parts[2] : 1
-  if (!step) return 1
-  const distance = step > 0 ? stop - start : start - stop
-  return distance < 0 ? 0 : Math.max(0, Math.floor(distance / Math.abs(step)) + 1)
-}
-
-interface LoopAct {
-  title: string
-  messageCount: number
-}
-
-/** The `@event=` title set by the directives that open a body, before any message or block. */
-function leadingEventTitle(body: string): string {
-  for (const raw of normalize(body).split('\n')) {
-    const line = raw.trim()
-    if (!line) continue
-    const match = line.match(/^@event\s*=\s*(.*?)\s*$/iu)
-    if (match) return match[1]?.trim() ?? ''
-    if (!/^@(?:task|repeat|start|step|let|var)\b/iu.test(line)) break
-  }
-  return ''
-}
-
 /**
- * Acts produced by one `@for`, in the order the browser runs them. A body holding further loops
- * multiplies by their acts; the innermost body supplies the messages and, unless it names itself,
- * inherits the nearest enclosing `@event=` title.
+ * The Acts of a stored Event queue, in run order, with the executor nodes each one sends. The
+ * same walk as the editor's validator, so loops (lists, tuples, dependent ranges) count exactly
+ * as the browser expands them. Acts without their own `@event=` are numbered.
  */
-function loopActs(header: string, body: string, inheritedTitle: string): LoopAct[] {
-  const iterations = Math.max(1, rangeCount(header))
-  const nested = loopBlockRanges(body)
-  if (!nested.length) {
-    const act = { title: eventTitle(body, '') || inheritedTitle, messageCount: countMessages(body) }
-    return Array.from({ length: iterations }, () => act)
-  }
-
-  const title = leadingEventTitle(body) || inheritedTitle
-  const inner = nested.flatMap(([from, to]) => {
-    const block = body.slice(from, to)
-    const openAt = block.indexOf('{')
-    const headerLine = block.slice(0, openAt + 1).trim()
-    return loopActs(headerLine, block.slice(openAt + 1, block.endsWith('}') ? block.length - 1 : block.length), title)
-  })
-  return Array.from({ length: iterations }, () => inner).flat()
-}
-
 export function parseEventActs(queueText: string): EventActStructure[] {
-  const text = normalize(queueText)
-  const acts: EventActStructure[] = []
-  const consumed: Array<[number, number]> = []
-  let cursor = 0
-
-  while (cursor < text.length) {
-    const end = lineEnd(text, cursor)
-    const rawLine = text.slice(cursor, end)
-    const line = rawLine.trim()
-    const act = line.match(/^@act\s*\{\s*$/iu)
-    const loop = line.match(/^@for\s+[A-Za-z_][A-Za-z0-9_]*\s+in\s+range\(.*?\)\s*\{\s*$/iu)
-
-    if (!act && !loop) {
-      cursor = end < text.length ? end + 1 : end
-      continue
-    }
-
-    const openAt = cursor + rawLine.indexOf('{')
-    const closeAt = matchingBrace(text, openAt)
-    const bodyEnd = closeAt >= 0 ? closeAt : text.length
-    const body = text.slice(openAt + 1, bodyEnd)
-    consumed.push([cursor, bodyEnd + 1])
-
-    const generated: LoopAct[] = loop
-      ? loopActs(line, body, '')
-      : [{ title: eventTitle(body, ''), messageCount: countMessages(body) }]
-    for (const item of generated) {
-      const number = acts.length + 1
-      acts.push({
-        id: `act-${number}`,
-        title: item.title || `Act ${number}`,
-        messageCount: item.messageCount,
-      })
-    }
-    cursor = bodyEnd + 1
+  const { body } = removeLeadingEventHeaders(queueText)
+  if (!body) return []
+  const walked = walkEventQueue(body, {
+    eventTitle: '',
+    line: 1,
+    collector: new DiagnosticCollector(body),
+    activeVariables: new Set<string>(),
+  })
+  if (!walked.acts.length) {
+    const nodes = queueNodeCount(body)
+    return nodes ? [{ id: 'act-1', title: 'Act 1', messageCount: nodes }] : []
   }
-
-  if (!acts.length) {
-    const messageCount = countMessages(text)
-    return messageCount ? [{ id: 'act-1', title: 'Act 1', messageCount }] : []
-  }
-
-  const loose = consumed.reduce((value, [from, to]) => value.slice(0, from) + ' '.repeat(to - from) + value.slice(to), text)
-  const looseMessages = countMessages(loose)
-  if (looseMessages > 0) {
-    acts.unshift({ id: 'act-0', title: 'Act 1', messageCount: looseMessages })
-    return acts.map((act, index) => ({
-      ...act,
-      id: `act-${index + 1}`,
-      title: act.title.replace(/^Act \d+$/u, `Act ${index + 1}`),
-    }))
-  }
-
-  return acts
+  return walked.acts.map((act, index) => ({
+    id: `act-${index + 1}`,
+    title: act.title || `Act ${index + 1}`,
+    messageCount: act.nodes,
+  }))
 }
 
 function progressNumber(progress: Record<string, unknown> | null, key: 'index' | 'total'): number | null {

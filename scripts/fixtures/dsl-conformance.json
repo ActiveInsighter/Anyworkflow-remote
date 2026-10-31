@@ -1,40 +1,45 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "cases": [
     {
       "name": "editor starter",
       "executor": "browser",
       "valid": true,
       "plan": "@run=新工作流\n@mode=serial\n@task Task {\n  @mode=serial\n  @event Event {\n    {\n      在这里写第一条消息\n    }\n  }\n}",
-      "queue": "@task=Task\n@event=Event\n{\n      在这里写第一条消息\n    }"
+      "queue": "@task=Task\n@event=Event\n{\n      在这里写第一条消息\n    }",
+      "acts": 1
     },
     {
       "name": "Event local variable in Act",
       "executor": "browser",
       "valid": true,
       "plan": "@run=Variables\n@task T {\n  @event E {\n    @act {\n      @var query=browser syntax\n      @event=Search %query%\n      { find %query% }\n    }\n  }\n}",
-      "queue": "@task=T\n@event=E\n@act {\n      @var query=browser syntax\n      @event=Search %query%\n      { find %query% }\n    }"
+      "queue": "@task=T\n@event=E\n@act {\n      @var query=browser syntax\n      @event=Search %query%\n      { find %query% }\n    }",
+      "acts": 1
     },
     {
       "name": "Event local variable in direct message",
       "executor": "browser",
       "valid": true,
       "plan": "@run=Variables\n@task T {\n  @event E {\n    @var query=browser syntax\n    { find %query% }\n  }\n}",
-      "queue": "@task=T\n@event=E\n@var query=browser syntax\n    { find %query% }"
+      "queue": "@task=T\n@event=E\n@var query=browser syntax\n    { find %query% }",
+      "acts": 1
     },
     {
       "name": "browser loop",
       "executor": "browser",
       "valid": true,
       "plan": "@run=Loop\n@task T {\n  @event E {\n    @for i in range(1, 2) {\n      { find %i% }\n    }\n  }\n}",
-      "queue": "@task=T\n@event=E\n@for i in range(1, 2) {\n      { find %i% }\n    }"
+      "queue": "@task=T\n@event=E\n@for i in range(1, 2) {\n      { find %i% }\n    }",
+      "acts": 2
     },
     {
       "name": "browser repeat",
       "executor": "browser",
       "valid": true,
       "plan": "@run=Repeat\n@task T {\n  @event E {\n    @repeat=3\n    { repeated }\n  }\n}",
-      "queue": "@task=T\n@event=E\n@repeat=3\n    { repeated }"
+      "queue": "@task=T\n@event=E\n@repeat=3\n    { repeated }",
+      "acts": 3
     },
     {
       "name": "browser repeat beyond limit",
@@ -48,7 +53,8 @@
       "executor": "browser",
       "valid": true,
       "plan": "@run=F\n@task T {\n@event E {\n@act {\n@event=Search %query%\n@var query=browser syntax\n{ find %query% }\n}\n}\n}",
-      "queue": "@task=T\n@event=E\n@act {\n@event=Search %query%\n@var query=browser syntax\n{ find %query% }\n}"
+      "queue": "@task=T\n@event=E\n@act {\n@event=Search %query%\n@var query=browser syntax\n{ find %query% }\n}",
+      "acts": 1
     },
     {
       "name": "bare browser message",
@@ -76,28 +82,32 @@
       "executor": "browser",
       "valid": true,
       "plan": "@run=Let\n@task T {\n  @let who=world\n  @event E {\n    { hello %who% }\n  }\n}",
-      "queue": "@task=T\n@event=E\n{ hello world }"
+      "queue": "@task=T\n@event=E\n{ hello world }",
+      "acts": 1
     },
     {
       "name": "@let inside an Event queue is kept for the browser",
       "executor": "browser",
       "valid": true,
       "plan": "@run=Let\n@task T {\n  @event E {\n    @let query=browser syntax\n    { find %query% }\n  }\n}",
-      "queue": "@task=T\n@event=E\n@let query=browser syntax\n    { find %query% }"
+      "queue": "@task=T\n@event=E\n@let query=browser syntax\n    { find %query% }",
+      "acts": 1
     },
     {
       "name": "start_url opens the chosen page",
       "executor": "browser",
       "valid": true,
       "plan": "@run=Start\n@task T {\n  @let start_url=https://claude.ai/new\n  @event E {\n    <%start_url%>\n    { hello }\n  }\n}",
-      "queue": "@task=T\n@event=E\n<https://claude.ai/new>\n    { hello }"
+      "queue": "@task=T\n@event=E\n<https://claude.ai/new>\n    { hello }",
+      "acts": 1
     },
     {
       "name": "an empty start_url falls back to the default link instead of failing",
       "executor": "browser",
       "valid": true,
       "plan": "@run=Start\n@task T {\n  @let start_url=\n  @event E {\n    <%start_url%>\n    { hello }\n  }\n}",
-      "queue": "@task=T\n@event=E\n<https://chatgpt.com/>\n    { hello }"
+      "queue": "@task=T\n@event=E\n<https://chatgpt.com/>\n    { hello }",
+      "acts": 1
     },
     {
       "name": "start_url must be an https link",
@@ -111,21 +121,24 @@
       "executor": "browser",
       "valid": true,
       "plan": "@run=Loops\n@task T {\n  @event E {\n    @for i in range(1, 2) {\n      @for j in range(1, 3) {\n        { find %i% %j% }\n      }\n    }\n  }\n}",
-      "queue": "@task=T\n@event=E\n@for i in range(1, 2) {\n      @for j in range(1, 3) {\n        { find %i% %j% }\n      }\n    }"
+      "queue": "@task=T\n@event=E\n@for i in range(1, 2) {\n      @for j in range(1, 3) {\n        { find %i% %j% }\n      }\n    }",
+      "acts": 6
     },
     {
       "name": "nested three level browser loop",
       "executor": "browser",
       "valid": true,
       "plan": "@run=Loops\n@task T {\n  @event E {\n    @for i in range(1, 2) {\n      @for j in range(1, 2) {\n        @for k in range(1, 2) {\n          @event=Cell %i%-%j%-%k%\n          { find %i% %j% %k% }\n        }\n      }\n    }\n  }\n}",
-      "queue": "@task=T\n@event=E\n@for i in range(1, 2) {\n      @for j in range(1, 2) {\n        @for k in range(1, 2) {\n          @event=Cell %i%-%j%-%k%\n          { find %i% %j% %k% }\n        }\n      }\n    }"
+      "queue": "@task=T\n@event=E\n@for i in range(1, 2) {\n      @for j in range(1, 2) {\n        @for k in range(1, 2) {\n          @event=Cell %i%-%j%-%k%\n          { find %i% %j% %k% }\n        }\n      }\n    }",
+      "acts": 8
     },
     {
       "name": "nested loop directives and innermost repeat",
       "executor": "browser",
       "valid": true,
       "plan": "@run=Loops\n@task T {\n  @event E {\n    @for i in range(1, 2) {\n      @let book=Vol\n      @for j in range(1, 2) {\n        @repeat=2\n        { %book% %j% }\n      }\n    }\n  }\n}",
-      "queue": "@task=T\n@event=E\n@for i in range(1, 2) {\n      @let book=Vol\n      @for j in range(1, 2) {\n        @repeat=2\n        { %book% %j% }\n      }\n    }"
+      "queue": "@task=T\n@event=E\n@for i in range(1, 2) {\n      @let book=Vol\n      @for j in range(1, 2) {\n        @repeat=2\n        { %book% %j% }\n      }\n    }",
+      "acts": 8
     },
     {
       "name": "four level browser loop is rejected",
@@ -149,25 +162,28 @@
       "queue": ""
     },
     {
-      "name": "Act inside a browser loop is rejected",
+      "name": "an Act inside a browser loop runs once per iteration",
       "executor": "browser",
-      "valid": false,
+      "valid": true,
       "plan": "@run=Loops\n@task T {\n  @event E {\n    @for i in range(1, 2) {\n      @act {\n        { %i% }\n      }\n    }\n  }\n}",
-      "queue": ""
+      "queue": "@task=T\n@event=E\n@for i in range(1, 2) {\n      @act {\n        { %i% }\n      }\n    }",
+      "acts": 2
     },
     {
-      "name": "messages beside a nested loop are rejected",
+      "name": "messages beside a nested loop run in source order",
       "executor": "browser",
-      "valid": false,
+      "valid": true,
       "plan": "@run=Loops\n@task T {\n  @event E {\n    @for i in range(1, 2) {\n      { intro }\n      @for j in range(1, 2) {\n        { %j% }\n      }\n    }\n  }\n}",
-      "queue": ""
+      "queue": "@task=T\n@event=E\n@for i in range(1, 2) {\n      { intro }\n      @for j in range(1, 2) {\n        { %j% }\n      }\n    }",
+      "acts": 6
     },
     {
-      "name": "@repeat beside a nested loop is rejected",
+      "name": "@repeat beside a nested loop applies to messages, not loops",
       "executor": "browser",
-      "valid": false,
+      "valid": true,
       "plan": "@run=Loops\n@task T {\n  @event E {\n    @for i in range(1, 2) {\n      @repeat=2\n      @for j in range(1, 2) {\n        { %j% }\n      }\n    }\n  }\n}",
-      "queue": ""
+      "queue": "@task=T\n@event=E\n@for i in range(1, 2) {\n      @repeat=2\n      @for j in range(1, 2) {\n        { %j% }\n      }\n    }",
+      "acts": 4
     },
     {
       "name": "queue loop reusing a Task variable is rejected",
@@ -181,7 +197,107 @@
       "executor": "browser",
       "valid": true,
       "plan": "@run=Loops\n@task T {\n  @for c in range(1, 1) {\n    @event E {\n      @for i in range(1, 2) {\n        { %c% %i% %index% %count% }\n      }\n    }\n  }\n}",
-      "queue": "@task=T\n@event=E\n@for i in range(1, 2) {\n        { 1 %i% %index% %count% }\n      }"
+      "queue": "@task=T\n@event=E\n@for i in range(1, 2) {\n        { 1 %i% %index% %count% }\n      }",
+      "acts": 2
+    },
+    {
+      "name": "list loop over topics",
+      "executor": "browser",
+      "valid": true,
+      "plan": "@run=Loops\n@task T {\n  @event E {\n    @for topic in [函数, 极限，\"带,逗号\"] {\n      { 讲解%topic%（%index%/%count%） }\n    }\n  }\n}",
+      "queue": "@task=T\n@event=E\n@for topic in [函数, 极限，\"带,逗号\"] {\n      { 讲解%topic%（%index%/%count%） }\n    }",
+      "acts": 3
+    },
+    {
+      "name": "ragged chapters from tuples with nested section lists",
+      "executor": "browser",
+      "valid": true,
+      "plan": "@run=Loops\n@task T {\n  @event E {\n    @for ch, title, secs in [(1, 绪论, [背景, 意义, 方法]), (2, 函数, [定义, 性质])] {\n      @for sec in %secs% {\n        { 写第%ch%章《%title%》第%index%节：%sec% }\n      }\n    }\n  }\n}",
+      "queue": "@task=T\n@event=E\n@for ch, title, secs in [(1, 绪论, [背景, 意义, 方法]), (2, 函数, [定义, 性质])] {\n      @for sec in %secs% {\n        { 写第%ch%章《%title%》第%index%节：%sec% }\n      }\n    }",
+      "acts": 5
+    },
+    {
+      "name": "a multi-line list header",
+      "executor": "browser",
+      "valid": true,
+      "plan": "@run=Loops\n@task T {\n  @event E {\n    @for ch, title, secs in [\n      (1, 绪论, [背景, 意义])\n      (2, 函数, [定义])\n    ] {\n      @for sec in %secs% {\n        { %ch%.%index% %title% %sec% }\n      }\n    }\n  }\n}",
+      "queue": "@task=T\n@event=E\n@for ch, title, secs in [\n      (1, 绪论, [背景, 意义])\n      (2, 函数, [定义])\n    ] {\n      @for sec in %secs% {\n        { %ch%.%index% %title% %sec% }\n      }\n    }",
+      "acts": 3
+    },
+    {
+      "name": "a dependent range reads the outer tuple",
+      "executor": "browser",
+      "valid": true,
+      "plan": "@run=Loops\n@task T {\n  @event E {\n    @for ch, n in [(1, 3), (2, 1)] {\n      @for s in range(1, %n%) {\n        { 第%ch%章第%s%节 }\n      }\n    }\n  }\n}",
+      "queue": "@task=T\n@event=E\n@for ch, n in [(1, 3), (2, 1)] {\n      @for s in range(1, %n%) {\n        { 第%ch%章第%s%节 }\n      }\n    }",
+      "acts": 4
+    },
+    {
+      "name": "an empty inner list skips that chapter",
+      "executor": "browser",
+      "valid": true,
+      "plan": "@run=Loops\n@task T {\n  @event E {\n    @for ch, secs in [(1, [a, b]), (2, [])] {\n      @for sec in %secs% {\n        { %ch% %sec% }\n      }\n    }\n  }\n}",
+      "queue": "@task=T\n@event=E\n@for ch, secs in [(1, [a, b]), (2, [])] {\n      @for sec in %secs% {\n        { %ch% %sec% }\n      }\n    }",
+      "acts": 2
+    },
+    {
+      "name": "a loop body mixes an intro, nested sections and a summary",
+      "executor": "browser",
+      "valid": true,
+      "plan": "@run=Loops\n@task T {\n  @event E {\n    @for ch, secs in [(1, [a, b]), (2, [c])] {\n      { 第%ch%章概述 }\n      @for sec in %secs% {\n        { %sec% }\n      }\n      @act {\n        { 第%ch%章小结 }\n      }\n    }\n  }\n}",
+      "queue": "@task=T\n@event=E\n@for ch, secs in [(1, [a, b]), (2, [c])] {\n      { 第%ch%章概述 }\n      @for sec in %secs% {\n        { %sec% }\n      }\n      @act {\n        { 第%ch%章小结 }\n      }\n    }",
+      "acts": 7
+    },
+    {
+      "name": "@let in a loop body feeds an inner header",
+      "executor": "browser",
+      "valid": true,
+      "plan": "@run=Loops\n@task T {\n  @event E {\n    @for ch, n in [(1, 2), (2, 1)] {\n      @let total=%n%\n      @for s in range(1, %total%) {\n        { %ch%-%s% }\n      }\n    }\n  }\n}",
+      "queue": "@task=T\n@event=E\n@for ch, n in [(1, 2), (2, 1)] {\n      @let total=%n%\n      @for s in range(1, %total%) {\n        { %ch%-%s% }\n      }\n    }",
+      "acts": 3
+    },
+    {
+      "name": "a Task-level list loop hands its values to the Event queue",
+      "executor": "browser",
+      "valid": true,
+      "plan": "@run=Loops\n@task T {\n  @for ch, secs in [(1, [背景, 意义])] {\n    @event 第%ch%章 {\n      @for sec in %secs% {\n        { %sec% }\n      }\n    }\n  }\n}",
+      "queue": "@task=T\n@event=第1章\n@for sec in [背景, 意义] {\n        { %sec% }\n      }",
+      "acts": 2
+    },
+    {
+      "name": "a tuple with the wrong number of values is rejected",
+      "executor": "browser",
+      "valid": false,
+      "plan": "@run=Loops\n@task T {\n  @event E {\n    @for ch, title in [(1, 绪论, x)] {\n      { %title% }\n    }\n  }\n}",
+      "queue": ""
+    },
+    {
+      "name": "braces inside a loop list are rejected",
+      "executor": "browser",
+      "valid": false,
+      "plan": "@run=Loops\n@task T {\n  @event E {\n    @for t in [a, \"{b}\"] {\n      { %t% }\n    }\n  }\n}",
+      "queue": ""
+    },
+    {
+      "name": "a loop over an undefined variable is rejected",
+      "executor": "browser",
+      "valid": false,
+      "plan": "@run=Loops\n@task T {\n  @event E {\n    @for s in %secs% {\n      { %s% }\n    }\n  }\n}",
+      "queue": ""
+    },
+    {
+      "name": "a queue whose loops are all empty is rejected",
+      "executor": "browser",
+      "valid": false,
+      "plan": "@run=Loops\n@task T {\n  @event E {\n    @for s in [] {\n      { %s% }\n    }\n  }\n}",
+      "queue": ""
+    },
+    {
+      "name": "ragged loops over 200 acts are rejected",
+      "executor": "browser",
+      "valid": false,
+      "plan": "@run=Loops\n@task T {\n  @event E {\n    @for n in [150, 60] {\n      @for s in range(1, %n%) {\n        { %s% }\n      }\n    }\n  }\n}",
+      "queue": ""
     }
   ]
 }

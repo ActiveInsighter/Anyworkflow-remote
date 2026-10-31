@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { displayStartUrl as displayUrl } from '@/lib/domain/start-links'
+import { keepEditorFocus, useToolbarMenuFocus } from '../hooks/use-editor-focus'
 import type { StartLinkOption } from '../lib/dsl-completion'
 
 export interface StartPageState {
@@ -42,16 +43,18 @@ export function StartPageMenu({
   const known = current ? links.some((link) => link.url === current) : true
   const canAdd = Boolean(onAddLink && current && !known && /^https:\/\/\S+$/u.test(current))
 
+  const { onCloseAutoFocus } = useToolbarMenuFocus()
+
   return (
-    <DropdownMenu onOpenChange={(open) => open && setState(readState())}>
+    <DropdownMenu modal={false} onOpenChange={(open) => open && setState(readState())}>
       <DropdownMenuTrigger asChild>
-        <Button type="button" variant="ghost" size="sm" className="h-touch shrink-0 gap-1.5 px-2.5 text-xs font-medium sm:h-8">
+        <Button type="button" variant="ghost" size="sm" onMouseDown={keepEditorFocus} className="h-touch shrink-0 gap-1.5 px-2.5 text-xs font-medium sm:h-8">
           <Globe aria-hidden="true" />
           起始页
           <ChevronDown className="size-3.5 opacity-60" aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-[min(22rem,calc(100vw-1.5rem))]">
+      <DropdownMenuContent align="start" className="w-[min(22rem,calc(100vw-1.5rem))]" onCloseAutoFocus={onCloseAutoFocus}>
         <DropdownMenuLabel>{state.inTask ? '设为当前 Task 的 start_url' : '先把光标放到某个 Task 中'}</DropdownMenuLabel>
         {links.map((link) => {
           const selected = current === link.url

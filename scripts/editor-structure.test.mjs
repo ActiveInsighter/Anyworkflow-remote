@@ -49,6 +49,9 @@ assert.deepEqual(outline[0].children[0].children.map((node) => [node.kind, node.
   ['for', 'i in range(1, 3)', '', null, 1],
 ])
 assert.deepEqual(countOutline(outline), { task: 2, event: 2, act: 1, for: 1, messages: 3 })
+const listOutline = readOutline('@task T {\n  @event E {\n    @for ch, t in [\n      (1, 甲)\n      (2, 乙)\n    ] {\n      { %t% }\n    }\n  }\n}')
+assert.deepEqual(listOutline[0].children[0].children.map((node) => [node.kind, node.title, node.messages]), [['for', 'ch, t in [2 项]', 1]],
+  'a list loop spanning lines is one outline node named by its size')
 assert.deepEqual(outlinePathAt(outline, plan.indexOf('next %i%')).map((node) => node.kind), ['task', 'event', 'for'])
 assert.deepEqual(outlinePathAt(outline, 0), [], 'the @run line belongs to no Task')
 assert.equal(readOutline('@task Open {\n  @event E {\n').length, 1, 'unclosed blocks still appear while typing')

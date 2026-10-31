@@ -5,11 +5,15 @@ import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { IS_APPLE_PLATFORM } from '@/lib/platform/keyboard'
 import { cn } from '@/lib/utils'
+import { keepEditorFocus, useEditorFocus } from '../hooks/use-editor-focus'
 import { editorCommand, formatKey, type EditorCommandId } from '../lib/editor-command-registry'
 import { COMMAND_ICONS } from './command-icons'
+import { EditorLoopMenu } from './editor-loop-menu'
+import { TOOL_ICON_CLASS, TOOL_LABEL_CLASS } from './editor-tool-button'
 
-/** The inserts worth one tap; the rest are in the 更多 menu and completion. */
-const INSERTS: EditorCommandId[] = ['insert.task', 'insert.event', 'insert.act', 'insert.loop', 'insert.variable', 'insert.wait', 'insert.variable-ref']
+/** The inserts worth one tap, around the 循环 menu; the rest are in 更多 and completion. */
+const INSERTS_BEFORE_LOOP: EditorCommandId[] = ['insert.task', 'insert.event', 'insert.act']
+const INSERTS_AFTER_LOOP: EditorCommandId[] = ['insert.variable', 'insert.wait', 'insert.variable-ref']
 
 export function commandTooltip(id: EditorCommandId): string {
   const command = editorCommand(id)
@@ -25,6 +29,7 @@ export function CommandButton({
   disabled,
   pressed,
   className,
+  children,
 }: {
   id: EditorCommandId
   onRun: (id: EditorCommandId) => void
@@ -32,6 +37,8 @@ export function CommandButton({
   disabled?: boolean
   pressed?: boolean
   className?: string
+  /** Replaces the command's icon, e.g. a check mark after copying. */
+  children?: ReactNode
 }) {
   const command = editorCommand(id)
   const Icon = COMMAND_ICONS[id]
@@ -42,18 +49,14 @@ export function CommandButton({
           type="button"
           size={labelled ? 'sm' : 'icon-sm'}
           variant="ghost"
+          onMouseDown={keepEditorFocus}
           onClick={() => onRun(id)}
           disabled={disabled}
           aria-pressed={pressed}
           aria-label={labelled ? undefined : command.label}
-          className={cn(
-            labelled
-              ? 'h-touch shrink-0 gap-1.5 px-2.5 text-xs font-medium sm:h-8'
-              : 'h-touch min-w-9 flex-1 shrink-0 sm:size-8 sm:min-w-0 sm:flex-none',
-            className,
-          )}
+          className={cn(labelled ? TOOL_LABEL_CLASS : TOOL_ICON_CLASS, className)}
         >
-          <Icon aria-hidden="true" />
+          {children ?? <Icon aria-hidden="true" />}
           {labelled ? command.label : null}
         </Button>
       </TooltipTrigger>
@@ -68,7 +71,8 @@ function ToolSeparator({ className }: { className?: string }) {
 
 /**
  * Two rows on narrow containers (labelled inserts, then editing tools), one row when the editor
- * is wide enough. Each row scrolls instead of clipping, so no tool is ever unreachable.
+ * is wide enough. Each row scrolls instead of clipping, so no tool is ever unreachable. No tool
+ * takes focus from the text (see use-editor-focus.ts), so tapping one never moves the page.
  */
 export function EditorToolbar({
   readOnly,
@@ -89,8 +93,12 @@ export function EditorToolbar({
   /** View controls at the end of the tools row: more menu, outline, fullscreen. */
   trailing: ReactNode
 }) {
+  const focus = useEditorFocus()
   return (
-    <div className="flex shrink-0 flex-col border-b border-cm-border bg-cm-toolbar-bg @min-[60rem]:flex-row @min-[60rem]:items-center">
+    <div
+      onPointerDownCapture={focus?.note}
+      className="flex shrink-0 flex-col border-b border-cm-border bg-cm-toolbar-bg @min-[60rem]:flex-row @min-[60rem]:items-center"
+    >
       {readOnly ? null : (
         <div
           role="toolbar"
@@ -103,7 +111,11 @@ export function EditorToolbar({
               <ToolSeparator />
             </>
           ) : null}
-          {INSERTS.map((id) => (
+          {INSERTS_BEFORE_LOOP.map((id) => (
+            <CommandButton key={id} id={id} onRun={onRun} labelled />
+          ))}
+          <EditorLoopMenu onRun={onRun} />
+          {INSERTS_AFTER_LOOP.map((id) => (
             <CommandButton key={id} id={id} onRun={onRun} labelled />
           ))}
         </div>
@@ -120,7 +132,10 @@ export function EditorToolbar({
             <ToolSeparator />
           </>
         )}
-        <CopyButton copied={copied} onRun={onRun} />
+        <CommandButton id="structure.select-block" onRun={onRun} />
+        <CommandButton id="clipboard.copy" onRun={onRun} className={copied ? 'text-success' : undefined}>
+          {copied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
+        </CommandButton>
         {readOnly ? null : (
           <>
             <CommandButton id="structure.delete" onRun={onRun} />
@@ -133,25 +148,5 @@ export function EditorToolbar({
         {trailing}
       </div>
     </div>
-  )
-}
-
-function CopyButton({ copied, onRun }: { copied: boolean; onRun: (id: EditorCommandId) => void }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          type="button"
-          size="icon-sm"
-          variant="ghost"
-          onClick={() => onRun('clipboard.copy')}
-          aria-label={copied ? '已复制' : '智能复制'}
-          className="h-touch min-w-9 flex-1 shrink-0 sm:size-8 sm:min-w-0 sm:flex-none"
-        >
-          {copied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side="bottom">{commandTooltip('clipboard.copy')}</TooltipContent>
-    </Tooltip>
   )
 }

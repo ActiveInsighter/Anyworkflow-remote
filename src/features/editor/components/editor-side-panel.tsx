@@ -1,14 +1,16 @@
-import { CircleAlert, ListTree } from 'lucide-react'
+import { CircleAlert, ListTree, ScanEye } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import type { EditorIssue } from '../lib/editor-helpers'
+import type { ActPreviewModel } from '../lib/act-preview'
 import type { OutlineNode } from '../lib/outline'
+import { EditorActPreview } from './editor-act-preview'
 import { countIssues, EditorIssuesList } from './editor-issues'
 import { EditorOutline } from './editor-outline'
 
-export type SidePanelTab = 'outline' | 'issues'
+export type SidePanelTab = 'outline' | 'preview' | 'issues'
 
-/** Outline and problems, shared by the wide-screen aside and the phone sheet. */
+/** Outline, Act preview and problems, shared by the wide-screen aside and the phone sheet. */
 export function EditorSidePanel({
   variant = 'aside',
   tab,
@@ -16,8 +18,11 @@ export function EditorSidePanel({
   outline,
   activePath,
   issues,
+  preview,
+  actCounts,
   onRevealAt,
   onRevealRange,
+  onRevealLine,
 }: {
   /** `aside` scrolls each tab itself; in a `sheet` the sheet body scrolls. */
   variant?: 'aside' | 'sheet'
@@ -26,8 +31,11 @@ export function EditorSidePanel({
   outline: readonly OutlineNode[]
   activePath: readonly OutlineNode[]
   issues: readonly EditorIssue[]
+  preview: ActPreviewModel
+  actCounts: ReadonlyMap<number, { events: number; acts: number }>
   onRevealAt: (at: number) => void
   onRevealRange: (from: number, to: number) => void
+  onRevealLine: (line: number) => void
 }) {
   const { errors, warnings } = countIssues(issues)
   const flagged = errors + warnings
@@ -45,6 +53,10 @@ export function EditorSidePanel({
             <ListTree aria-hidden="true" />
             大纲
           </TabsTrigger>
+          <TabsTrigger value="preview">
+            <ScanEye aria-hidden="true" />
+            预览
+          </TabsTrigger>
           <TabsTrigger value="issues">
             <CircleAlert aria-hidden="true" className={errors ? 'text-danger' : undefined} />
             问题
@@ -53,7 +65,10 @@ export function EditorSidePanel({
         </TabsList>
       </div>
       <TabsContent value="outline" className={content}>
-        <EditorOutline nodes={outline} activePath={activePath} onReveal={onRevealAt} />
+        <EditorOutline nodes={outline} activePath={activePath} actCounts={actCounts} onReveal={onRevealAt} />
+      </TabsContent>
+      <TabsContent value="preview" className={content}>
+        <EditorActPreview preview={preview} onRevealLine={onRevealLine} />
       </TabsContent>
       <TabsContent value="issues" className={content}>
         <EditorIssuesList issues={issues} onReveal={onRevealRange} />

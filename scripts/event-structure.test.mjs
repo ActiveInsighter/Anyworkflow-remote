@@ -46,7 +46,7 @@ const nested = deriveEventProgress(
 )
 assert.equal(nested.totalActs, 14, '2*3 acts from the first nest plus 2*2*2 from the second')
 assert.deepEqual(nested.acts.slice(0, 6).map((act) => act.title), Array(6).fill('卷'), 'inner loops inherit the enclosing @event title')
-assert.deepEqual(nested.acts.slice(6).map((act) => act.title), Array(8).fill('格 %c%'))
+assert.deepEqual(nested.acts.slice(6).map((act) => act.title), ['格 1', '格 2', '格 1', '格 2', '格 1', '格 2', '格 1', '格 2'], 'titles are rendered like the browser renders them')
 assert.ok(nested.acts.slice(0, 6).every((act) => act.messageCount === 2), 'each nested act counts the messages of the innermost body')
 assert.equal(nested.acts[3]?.completedMessages, 1, 'progress runs through nested acts in loop order')
 assert.equal(nested.totalMessages, 28)

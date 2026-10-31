@@ -1,16 +1,18 @@
-import { useEffect, useRef, useState, type RefObject } from 'react'
+import { useEffect, useState, type RefObject } from 'react'
 import { EditorView } from '@codemirror/view'
 
 /**
  * Fullscreen editing: Escape exits, the page behind stops scrolling, and on mobile the surface
  * tracks the visual viewport so the virtual keyboard never covers the caret.
+ *
+ * Outside fullscreen the editor is part of the page and the browser keeps the caret visible on
+ * its own; following the visual viewport there made the text jump whenever the page scrolled.
  */
 export function useEditorFullscreen(
   shellRef: RefObject<HTMLDivElement | null>,
   viewRef: RefObject<EditorView | null>,
 ) {
   const [fullscreen, setFullscreen] = useState(false)
-  const frameRef = useRef<number | null>(null)
 
   useEffect(() => {
     if (!fullscreen) return
@@ -32,29 +34,31 @@ export function useEditorFullscreen(
     const body = document.body.style.overflow
     document.documentElement.style.overflow = 'hidden'
     document.body.style.overflow = 'hidden'
-    viewRef.current?.focus()
     return () => {
       document.removeEventListener('keydown', onKeyDown, true)
       document.documentElement.style.overflow = html
       document.body.style.overflow = body
     }
-  }, [fullscreen, viewRef])
+  }, [fullscreen])
 
   useEffect(() => {
     const viewport = window.visualViewport
-    if (!viewport) return
+    const shell = shellRef.current
+    if (!fullscreen || !viewport || !shell) return
+    let height = viewport.height
+    let frame: number | null = null
 
-    const syncViewport = () => {
-      const shell = shellRef.current
-      if (fullscreen && shell) {
-        // A fixed element sized with 100dvh can still sit behind Android's virtual keyboard.
-        // VisualViewport reports the actually visible area, including keyboard/browser chrome.
-        shell.style.top = `${viewport.offsetTop}px`
-        shell.style.height = `${viewport.height}px`
-      }
-      if (frameRef.current !== null) window.cancelAnimationFrame(frameRef.current)
-      frameRef.current = window.requestAnimationFrame(() => {
-        frameRef.current = null
+    const sync = () => {
+      // A fixed element sized with 100dvh can still sit behind Android's virtual keyboard.
+      // VisualViewport reports the actually visible area, including keyboard/browser chrome.
+      shell.style.top = `${viewport.offsetTop}px`
+      shell.style.height = `${viewport.height}px`
+      // Only the keyboard opening or closing changes the height; keep the caret above it then.
+      if (Math.abs(viewport.height - height) < 1) return
+      height = viewport.height
+      if (frame !== null) window.cancelAnimationFrame(frame)
+      frame = window.requestAnimationFrame(() => {
+        frame = null
         const view = viewRef.current
         if (!view?.hasFocus) return
         view.dispatch({
@@ -63,20 +67,26 @@ export function useEditorFullscreen(
       })
     }
 
-    syncViewport()
-    viewport.addEventListener('resize', syncViewport)
-    viewport.addEventListener('scroll', syncViewport)
+    sync()
+    viewport.addEventListener('resize', sync)
+    viewport.addEventListener('scroll', sync)
     return () => {
-      viewport.removeEventListener('resize', syncViewport)
-      viewport.removeEventListener('scroll', syncViewport)
-      if (frameRef.current !== null) {
-        window.cancelAnimationFrame(frameRef.current)
-        frameRef.current = null
-      }
-      shellRef.current?.style.removeProperty('top')
-      shellRef.current?.style.removeProperty('height')
+      viewport.removeEventListener('resize', sync)
+      viewport.removeEventListener('scroll', sync)
+      if (frame !== null) window.cancelAnimationFrame(frame)
+      shell.style.removeProperty('top')
+      shell.style.removeProperty('height')
     }
   }, [fullscreen, shellRef, viewRef])
 
-  return { fullscreen, toggleFullscreen: () => setFullscreen((value) => !value) }
+  const toggleFullscreen = () => {
+    setFullscreen((value) => !value)
+    // Entering keeps editing where it was; focusing here (not in an effect) is a user gesture,
+    // so a phone opens the keyboard only when the user asked for fullscreen.
+    if (viewRef.current?.hasFocus === false && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+      viewRef.current.focus()
+    }
+  }
+
+  return { fullscreen, toggleFullscreen }
 }

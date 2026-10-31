@@ -1,4 +1,9 @@
-import { WORKFLOW_DSL_LIMITS, collectWorkflowVariables } from '../../../lib/workflow-dsl/index.ts'
+import {
+  WORKFLOW_DSL_LIMITS,
+  collectWorkflowVariables,
+  workflowContextAt,
+  type WorkflowDslContext,
+} from '../../../lib/workflow-dsl/index.ts'
 import {
   containingBlock,
   lineEndAfter,
@@ -49,12 +54,55 @@ export type LoopInsertPlan =
   | { ok: true; from: number; text: string; cursorOffset: number; selectionLength: number }
   | { ok: false; message: string }
 
+/** What the 循环 menu inserts: numbers, a list of items, or chapters with their own sections. */
+export type LoopTemplate = 'range' | 'list' | 'outline'
+
+function freeName(base: string, used: Set<string>): string {
+  let name = base
+  for (let suffix = 2; used.has(name); suffix += 1) name = `${base}${suffix}`
+  used.add(name)
+  return name
+}
+
 /**
- * Inserts an empty loop on its own lines, indented like the line it lands beside. A cursor in the
- * middle of a line drops the loop on the next line (inside the block when that line opens one), so
- * existing text is never split or replaced.
+ * Lines of a loop template and the part to select. The outline template nests a section loop
+ * inside a chapter list; outside an Event it also writes the Task/Event that holds the sections.
  */
-export function planLoopInsert(source: string, at: number): LoopInsertPlan {
+function loopTemplateLines(
+  template: LoopTemplate,
+  context: WorkflowDslContext,
+  used: Set<string>,
+  rangeName: string,
+): { lines: string[]; select: string } {
+  if (template === 'range') return { lines: [`@for ${rangeName} in range(1, 3) {`, '  ', '}'], select: rangeName }
+  if (template === 'list') {
+    return { lines: [`@for ${freeName('item', used)} in [甲, 乙, 丙] {`, '  ', '}'], select: '甲, 乙, 丙' }
+  }
+  const [ch, title, secs, sec] = ['ch', 'title', 'secs', 'sec'].map((name) => freeName(name, used))
+  const indent = (lines: string[]) => lines.map((line) => `  ${line}`)
+  const sections = [`@for ${sec} in %${secs}% {`, `  { 写第%${ch}%章《%${title}%》第%index%节：%${sec}% }`, '}']
+  const event = [`@event 第%${ch}%章 %${title}% {`, ...indent(sections), '}']
+  const task = [`@task 第%${ch}%章 {`, ...indent(event), '}']
+  const body = context === 'event' ? sections : context === 'task' ? event : task
+  return {
+    lines: [
+      `@for ${ch}, ${title}, ${secs} in [`,
+      '  (1, 第一章, [小节一, 小节二])',
+      '  (2, 第二章, [小节一])',
+      '] {',
+      ...indent(body),
+      '}',
+    ],
+    select: '1, 第一章, [小节一, 小节二]',
+  }
+}
+
+/**
+ * Inserts a loop template on its own lines, indented like the line it lands beside. A cursor in
+ * the middle of a line drops the loop on the next line (inside the block when that line opens one),
+ * so existing text is never split or replaced. The part worth editing first is selected.
+ */
+export function planLoopInsert(source: string, at: number, template: LoopTemplate = 'range'): LoopInsertPlan {
   const point = Math.max(0, Math.min(at, source.length))
   const scope = loopScopeAt(source, point)
   if (!scope.ok) return scope
@@ -67,18 +115,25 @@ export function planLoopInsert(source: string, at: number): LoopInsertPlan {
   const indent = atLineStart ? prefix : lineIndent + (line.trimEnd().endsWith('{') ? '  ' : '')
 
   const from = atLineStart ? point : lineEndAfter(source, point)
+  const context = workflowContextAt(source, from)
+  // Chapters and sections are two loops on one level only inside an Event queue.
+  if (template === 'outline' && context === 'event' && scope.depth + 2 > WORKFLOW_DSL_LIMITS.maxLoopNesting) {
+    return { ok: false, message: `章节模板需要两层循环，这里已经嵌套了 ${scope.depth} 层。` }
+  }
   const separator = !atLineStart && !source.endsWith('\n') && from === source.length ? '\n' : ''
   // At a line start the indentation already in the document leads the first line.
   const firstIndent = atLineStart ? '' : indent
   // Text after the cursor keeps its indentation on the line below the loop.
   const restIndent = atLineStart && source.slice(point, lineEndAfter(source, point)).trim() ? indent : ''
-  const text = `${separator}${firstIndent}@for ${scope.name} in range(1, 3) {\n${indent}  \n${indent}}\n${restIndent}`
+  const shape = loopTemplateLines(template, context, new Set(collectWorkflowVariables(source, point)), scope.name)
+  const body = shape.lines.map((text, index) => (index === 0 ? firstIndent : indent) + text).join('\n')
+  const text = `${separator}${body}\n${restIndent}`
   return {
     ok: true,
     from,
     text,
-    cursorOffset: separator.length + firstIndent.length + '@for '.length,
-    selectionLength: scope.name.length,
+    cursorOffset: text.indexOf(shape.select, separator.length),
+    selectionLength: shape.select.length,
   }
 }
 
@@ -205,17 +260,15 @@ export function planStructuredInsert(
   }
 }
 
+/** The brace a bare cursor touches, or the brace that is all a selection holds besides spaces. */
 function selectedStructuralBrace(source: string, from: number, to: number): number | null {
   const start = Math.max(0, Math.min(from, source.length))
   const end = Math.max(start, Math.min(to, source.length))
 
   if (end > start) {
-    const braces: number[] = []
-    for (let index = start; index < end; index += 1) {
-      if (source[index] === '{' || source[index] === '}') braces.push(index)
-      if (braces.length > 1) return null
-    }
-    return braces[0] ?? null
+    const selected = source.slice(start, end)
+    const trimmed = selected.trim()
+    return trimmed === '{' || trimmed === '}' ? start + selected.indexOf(trimmed) : null
   }
 
   if (source[start] === '{' || source[start] === '}') return start
@@ -227,11 +280,33 @@ const BLOCK_LABELS: Record<SourceBlockKind, string> = {
   task: 'Task', event: 'Event', act: 'Act', for: '循环', message: '消息块',
 }
 
+type SmartRangeKind = 'block' | 'selection' | 'line'
+
 type SmartRangePlan =
-  | { ok: true; from: number; to: number; label: string }
+  | { ok: true; from: number; to: number; label: string; kind: SmartRangeKind }
   | { ok: false; message: string }
 
-/** Resolve once for both commands: a structural delimiter targets its block, otherwise lines. */
+/** Block label with its name, e.g. `Event「第一章」`. */
+function blockLabel(source: string, block: SourceBlock): string {
+  const label = BLOCK_LABELS[block.kind ?? 'message']
+  if (block.kind !== 'task' && block.kind !== 'event') return label
+  const name = source.slice(block.headerFrom, block.openAt).trim().replace(/^@(?:task|event)\b/iu, '').trim()
+  return name ? `${label}「${[...name].slice(0, 16).join('')}」` : label
+}
+
+/** `[from, to)` of a whole block: its header line through `}` and any `*N`, plus the line break. */
+function blockRange(source: string, block: SourceBlock): { from: number; to: number } {
+  // Include a repeat suffix, but never swallow a sibling sharing this line.
+  const suffix = source.slice(block.closeAt + 1).match(/^[ \t]*\*\d+/u)?.[0] ?? ''
+  const contentEnd = block.closeAt + 1 + suffix.length
+  const lineEnd = lineEndAfter(source, contentEnd)
+  return { from: block.headerFrom, to: source.slice(contentEnd, lineEnd).trim() ? contentEnd : lineEnd }
+}
+
+/**
+ * Resolve once for copy, delete and duplicate: a structural brace (at the cursor, or selected on
+ * its own) targets its block; any other selection is taken exactly; a bare cursor takes its line.
+ */
 function planSmartRange(source: string, from: number, to: number): SmartRangePlan {
   if (!source) return { ok: false, message: '当前没有内容。' }
   const selectionFrom = Math.max(0, Math.min(from, to, source.length))
@@ -242,21 +317,36 @@ function planSmartRange(source: string, from: number, to: number): SmartRangePla
     const block = readSourceStructure(source).blocks.find((item) =>
       item.kind !== null && item.closeAt >= 0 && (item.openAt === braceAt || item.closeAt === braceAt),
     )
-    if (block?.kind) {
-      // Include a repeat suffix, but never swallow a sibling sharing this line.
-      const suffix = source.slice(block.closeAt + 1).match(/^[ \t]*\*\d+/u)?.[0] ?? ''
-      const contentEnd = block.closeAt + 1 + suffix.length
-      const lineEnd = lineEndAfter(source, contentEnd)
-      const to = source.slice(contentEnd, lineEnd).trim() ? contentEnd : lineEnd
-      return { ok: true, from: block.headerFrom, to, label: BLOCK_LABELS[block.kind] }
-    }
+    if (block?.kind) return { ok: true, ...blockRange(source, block), label: blockLabel(source, block), kind: 'block' }
   }
 
-  const touchedEnd = selectionTo > selectionFrom ? selectionTo - 1 : selectionFrom
-  const lineFrom = lineStartAt(source, selectionFrom)
-  const lineTo = lineEndAfter(source, touchedEnd)
-  const label = lineFrom === lineStartAt(source, touchedEnd) ? '当前行' : '选中行'
-  return { ok: true, from: lineFrom, to: lineTo, label }
+  if (selectionTo > selectionFrom) {
+    const label = selectionFrom === 0 && selectionTo === source.length ? '全部内容' : '选中内容'
+    return { ok: true, from: selectionFrom, to: selectionTo, label, kind: 'selection' }
+  }
+  const lineTo = lineEndAfter(source, selectionFrom)
+  return { ok: true, from: lineStartAt(source, selectionFrom), to: lineTo, label: '当前行', kind: 'line' }
+}
+
+export type SelectBlockPlan = { ok: true; from: number; to: number; label: string } | { ok: false; message: string }
+
+/**
+ * The smallest whole block (message, Act, loop, Event, Task) larger than the selection. Repeating
+ * it widens the selection one block at a time, which is how a phone selects a block.
+ */
+export function planSelectBlock(source: string, from: number, to: number): SelectBlockPlan {
+  const start = Math.max(0, Math.min(from, to, source.length))
+  const end = Math.max(start, Math.min(Math.max(from, to), source.length))
+  const blocks = readSourceStructure(source).blocks
+  let best: { from: number; to: number; block: SourceBlock } | null = null
+  for (const block of blocks) {
+    if (!block.kind || block.closeAt < 0) continue
+    const range = blockRange(source, block)
+    const contains = range.from <= start && end <= range.to && (range.from < start || end < range.to)
+    if (contains && (!best || range.to - range.from < best.to - best.from)) best = { ...range, block }
+  }
+  if (!best) return { ok: false, message: start === end ? '光标不在任何块里。' : '选区外面没有更大的块了。' }
+  return { ok: true, from: best.from, to: best.to, label: blockLabel(source, best.block) }
 }
 
 export type SmartDeletePlan =
@@ -268,20 +358,22 @@ export function planSmartDelete(source: string, from: number, to: number): Smart
   if (!plan.ok) return plan
   return {
     ok: true, from: plan.from, to: plan.to,
-    message: `已删除 ${plan.label}`,
+    message: `已删除${plan.label}`,
   }
 }
 
 export type SmartCopyPlan =
-  | { ok: true; from: number; to: number; text: string; message: string }
+  | { ok: true; from: number; to: number; text: string; message: string; kind: SmartRangeKind }
   | { ok: false; message: string }
 
 export function planSmartCopy(source: string, from: number, to: number): SmartCopyPlan {
   const plan = planSmartRange(source, from, to)
   if (!plan.ok) return plan
+  const text = source.slice(plan.from, plan.to)
+  const lines = text.replace(/\n$/u, '').split('\n').length
   return {
-    ok: true, from: plan.from, to: plan.to, text: source.slice(plan.from, plan.to),
-    message: `已复制 ${plan.label}`,
+    ok: true, from: plan.from, to: plan.to, text, kind: plan.kind,
+    message: `已复制${plan.label}${lines > 1 ? ` · ${lines} 行` : ''}`,
   }
 }
 
@@ -289,11 +381,14 @@ export type SmartDuplicatePlan =
   | { ok: true; from: number; text: string; anchor: number; message: string }
   | { ok: false; message: string }
 
-/** Inserts a copy of the block (or lines) the smart range resolves to right after it. */
+/** Inserts a copy of what the smart range resolves to right after it; blocks and lines keep whole lines. */
 export function planSmartDuplicate(source: string, from: number, to: number): SmartDuplicatePlan {
   const plan = planSmartRange(source, from, to)
   if (!plan.ok) return plan
   const body = source.slice(plan.from, plan.to)
+  if (plan.kind === 'selection') {
+    return { ok: true, from: plan.to, text: body, anchor: plan.to, message: `已复制一份${plan.label}` }
+  }
   const leading = plan.to > 0 && source[plan.to - 1] !== '\n' ? '\n' : ''
   const text = `${leading}${body}${body.endsWith('\n') ? '' : '\n'}`
   return { ok: true, from: plan.to, text, anchor: plan.to + leading.length, message: `已复制一份${plan.label}` }

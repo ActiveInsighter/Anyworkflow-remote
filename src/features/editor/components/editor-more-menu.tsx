@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { IS_APPLE_PLATFORM } from '@/lib/platform/keyboard'
+import { keepEditorFocus, useToolbarMenuFocus } from '../hooks/use-editor-focus'
 import { editorCommand, formatKey, type EditorCommandId } from '../lib/editor-command-registry'
 import { EDITOR_FONT_SIZES, type EditorFontSize, type EditorPreferences } from '../lib/editor-preferences'
 import { COMMAND_ICONS } from './command-icons'
@@ -54,8 +55,10 @@ export function EditorMoreMenu({
   onPreferencesChange: (patch: Partial<EditorPreferences>) => void
   onRun: (id: EditorCommandId) => void
 }) {
+  const { onCloseAutoFocus } = useToolbarMenuFocus()
   return (
-    <DropdownMenu>
+    // Not modal: a modal menu locks page scroll, and removing the scrollbar shifts the editor.
+    <DropdownMenu modal={false}>
       <Tooltip>
         <TooltipTrigger asChild>
           <DropdownMenuTrigger asChild>
@@ -64,6 +67,7 @@ export function EditorMoreMenu({
               size="icon-sm"
               variant="ghost"
               aria-label="更多"
+              onMouseDown={keepEditorFocus}
               className="h-touch min-w-9 flex-1 shrink-0 sm:size-8 sm:min-w-0 sm:flex-none"
             >
               <Ellipsis aria-hidden="true" />
@@ -72,7 +76,7 @@ export function EditorMoreMenu({
         </TooltipTrigger>
         <TooltipContent side="bottom">更多操作与显示设置</TooltipContent>
       </Tooltip>
-      <DropdownMenuContent align="end" className="w-60">
+      <DropdownMenuContent align="end" className="w-60" onCloseAutoFocus={onCloseAutoFocus}>
         {readOnly ? null : (
           <>
             <DropdownMenuGroup>

@@ -8,11 +8,14 @@ import { formatAnyWorkflowSource } from './dsl-format.ts'
 import {
   planLoopInsert,
   planQueueLineInsert,
+  planSelectBlock,
   planSmartCopy,
   planSmartDelete,
   planSmartDuplicate,
   planStructuredInsert,
+  type LoopTemplate,
 } from './editor-commands.ts'
+import { flashRange } from './editor-flash.ts'
 import { offsetForLineColumn } from './editor-helpers.ts'
 import { EDITOR_COMMAND_META, type EditorCommandId, type EditorCommandMeta } from './editor-command-meta.ts'
 import { planSetStartUrl } from './start-url.ts'
@@ -65,17 +68,23 @@ function structured(kind: 'task' | 'event' | 'act' | 'variable') {
   }
 }
 
-const RUNS: Record<EditorCommandId, CommandRun> = {
-  'insert.task': structured('task'),
-  'insert.event': structured('event'),
-  'insert.act': structured('act'),
-  'insert.loop': (view) => {
-    const plan = planLoopInsert(view.state.doc.toString(), view.state.selection.main.head)
+function loop(template: LoopTemplate) {
+  return (view: EditorView): CommandOutcome => {
+    const plan = planLoopInsert(view.state.doc.toString(), view.state.selection.main.head, template)
     if (!plan.ok) return info(plan.message)
     const anchor = plan.from + plan.cursorOffset
     apply(view, plan.from, plan.from, plan.text, anchor, anchor + plan.selectionLength)
     return null
-  },
+  }
+}
+
+const RUNS: Record<EditorCommandId, CommandRun> = {
+  'insert.task': structured('task'),
+  'insert.event': structured('event'),
+  'insert.act': structured('act'),
+  'insert.loop': loop('range'),
+  'insert.loop-list': loop('list'),
+  'insert.loop-outline': loop('outline'),
   'insert.variable': structured('variable'),
   'insert.variable-ref': (view) => {
     const from = view.state.selection.main.from
@@ -124,13 +133,23 @@ const RUNS: Record<EditorCommandId, CommandRun> = {
     if (!(await writeClipboard(plan.text))) {
       return { tone: 'error', message: '复制失败', description: '浏览器拒绝了剪贴板写入，请手动选择后复制。' }
     }
+    flashRange(view, plan.from, plan.to)
     return { tone: 'success', message: plan.message }
+  },
+  'structure.select-block': (view) => {
+    const selection = view.state.selection.main
+    const plan = planSelectBlock(view.state.doc.toString(), selection.from, selection.to)
+    if (!plan.ok) return info(plan.message)
+    // Head at the start keeps the block's header in view on a phone.
+    view.dispatch({ selection: { anchor: plan.to, head: plan.from }, scrollIntoView: true })
+    return { tone: 'info', message: `已选择${plan.label}` }
   },
   'structure.duplicate': (view) => {
     const selection = view.state.selection.main
     const plan = planSmartDuplicate(view.state.doc.toString(), selection.from, selection.to)
     if (!plan.ok) return info(plan.message)
     apply(view, plan.from, plan.from, plan.text, plan.anchor)
+    flashRange(view, plan.anchor, plan.from + plan.text.length)
     return { tone: 'success', message: plan.message }
   },
   'structure.delete': (view) => {
@@ -173,7 +192,7 @@ export function editorCommand(id: EditorCommandId): EditorCommand {
  * search) are documented here but left to the standard keymaps.
  */
 export function registryKeymap(report: (outcome: CommandOutcome) => void): KeyBinding[] {
-  const own: EditorCommandId[] = ['structure.duplicate', 'structure.format']
+  const own: EditorCommandId[] = ['structure.duplicate', 'structure.select-block', 'structure.format']
   return own.map((id) => {
     const command = editorCommand(id)
     return {

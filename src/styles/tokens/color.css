@@ -72,8 +72,13 @@
   --cm-gutter-fg: #737783;
   --cm-toolbar-bg: #f8f8fa;
   --cm-border: #e5e5ec;
-  --cm-active-line: #f0f0f7;
-  --cm-selection: #e1e3fa;
+  /* Translucent, so the selection layer drawn beneath the text stays visible on the current line. */
+  --cm-active-line: rgb(94 106 210 / 6%);
+  --cm-selection: #c3c8f6;
+  --cm-selection-blur: #dcdff6;
+  --cm-selection-match: rgb(214 158 16 / 22%);
+  --cm-bracket-match: rgb(94 106 210 / 20%);
+  --cm-flash: rgb(22 163 106 / 26%);
   --cm-tooltip-bg: #ffffff;
   --cm-caret: #5e6ad2;
   --cm-keyword: #8058aa;
@@ -140,8 +145,12 @@
   --cm-gutter-fg: #9699a6;
   --cm-toolbar-bg: #191a20;
   --cm-border: #2a2b35;
-  --cm-active-line: #1d1f2c;
-  --cm-selection: #30345b;
+  --cm-active-line: rgb(163 175 255 / 6%);
+  --cm-selection: #3d4486;
+  --cm-selection-blur: #2b2f58;
+  --cm-selection-match: rgb(250 204 21 / 18%);
+  --cm-bracket-match: rgb(163 175 255 / 24%);
+  --cm-flash: rgb(52 211 153 / 26%);
   --cm-tooltip-bg: #22232d;
   --cm-caret: #a3afff;
   --cm-keyword: #c7a5ef;

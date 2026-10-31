@@ -1,5 +1,5 @@
 /** Source-text primitives: newline normalisation, line lookup, fenced blocks, braces, templates. */
-import { BACKTICK_FENCE, LOOP_ALIAS_VARIABLES, TILDE_FENCE, VARIABLE_TOKEN, type LineIndex, type TemplateValue, type TemplateVars } from './types.ts'
+import { BACKTICK_FENCE, TILDE_FENCE, type LineIndex } from './types.ts'
 
 export const UTF8_ENCODER = new TextEncoder()
 
@@ -97,95 +97,10 @@ export function stripQuotes(value: string): string {
   return text
 }
 
-export function formatTemplateValue(value: TemplateValue, pad: string | undefined): string {
-  const raw = String(value)
-  if (!pad) return raw
-  const width = Number(pad)
-  if (!Number.isSafeInteger(width) || width < 1 || width > 12) return raw
-  return raw.padStart(width, '0')
-}
-
-export function substitute(text: string, vars: TemplateVars): string {
-  return text.replace(VARIABLE_TOKEN, (whole, name: string, pad: string | undefined) => {
-    if (!Object.prototype.hasOwnProperty.call(vars, name)) return whole
-    return formatTemplateValue(vars[name] ?? '', pad)
-  })
-}
-
-/** Names bound by `@for` headers in a body, ignoring fenced prompt text. */
-export function loopHeaderNames(body: string): string[] {
-  const names: string[] = []
-  let fence = ''
-  for (const raw of normalizeNewlines(body).split('\n')) {
-    const line = raw.trim()
-    const marker = line.startsWith(BACKTICK_FENCE) ? BACKTICK_FENCE : line.startsWith(TILDE_FENCE) ? TILDE_FENCE : ''
-    if (fence) {
-      if (line === fence) fence = ''
-      continue
-    }
-    if (marker) {
-      fence = marker
-      continue
-    }
-    const name = line.match(/^@for\s+([A-Za-z_][A-Za-z0-9_]*)\s+in\s+range\(/iu)?.[1]
-    if (name) names.push(name)
-  }
-  return names
-}
-
-/**
- * `[from, to)` ranges of the `@for ... { ... }` blocks in a body: header line through closing brace.
- * Fences and `{ ... }` messages are skipped whole, so header-looking prompt text never counts.
- */
-export function loopBlockRanges(text: string): Array<[number, number]> {
-  const ranges: Array<[number, number]> = []
-  let cursor = 0
-  while (cursor < text.length) {
-    const end = lineEnd(text, cursor)
-    const rawLine = text.slice(cursor, end)
-    const trimmed = rawLine.trim()
-    const next = end < text.length ? end + 1 : end
-    if (!trimmed) {
-      cursor = next
-      continue
-    }
-    const contentAt = cursor + rawLine.indexOf(trimmed)
-    if (fenceAt(text, contentAt)) {
-      cursor = skipFence(text, contentAt)
-      continue
-    }
-    if (trimmed.startsWith('{')) {
-      const closeAt = matchingBrace(text, contentAt)
-      cursor = closeAt < 0 ? text.length : closeAt + 1
-      continue
-    }
-    if (/^@for\s+[A-Za-z_][A-Za-z0-9_]*\s+in\s+range\(.*?\)\s*\{$/iu.test(trimmed)) {
-      const closeAt = matchingBrace(text, cursor + rawLine.indexOf('{'))
-      const stop = closeAt < 0 ? text.length : closeAt + 1
-      ranges.push([cursor, stop])
-      cursor = stop
-      continue
-    }
-    cursor = next
-  }
-  return ranges
-}
-
-/**
- * Substitutes `%name%` like {@link substitute}, except inside nested `@for` blocks where the
- * implicit `index` and `count` are left alone: they belong to the innermost loop, which binds them
- * itself when it expands (or, for Event queue loops, when the browser compiles them).
- */
-export function substituteScoped(text: string, vars: TemplateVars): string {
-  const ranges = loopBlockRanges(text)
-  if (!ranges.length) return substitute(text, vars)
-  const nestedVars: TemplateVars = { ...vars }
-  for (const alias of LOOP_ALIAS_VARIABLES) delete nestedVars[alias]
-  let out = ''
-  let at = 0
-  for (const [from, to] of ranges) {
-    out += substitute(text.slice(at, from), vars) + substitute(text.slice(from, to), nestedVars)
-    at = to
-  }
-  return out + substitute(text.slice(at), vars)
-}
+export {
+  formatTemplateValue,
+  loopBlockRanges,
+  loopHeaderNames,
+  substituteScoped,
+  substituteTemplate as substitute,
+} from '../../../shared/dsl-kit/loops.mjs'
