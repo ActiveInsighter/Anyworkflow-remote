@@ -1,39 +1,20 @@
-import {
-  forwardRef,
-  useCallback,
-  useDeferredValue,
-  useEffect,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-  type ReactNode,
-} from 'react'
+import { forwardRef, useImperativeHandle, type CSSProperties } from 'react'
 import { Maximize2, Minimize2, PanelRight, Save } from 'lucide-react'
-import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
 import { Modal, ModalBody, ModalContent, ModalHeader, ModalTitle } from '@/components/ui/modal'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { useMediaQuery } from '@/hooks/use-media-query'
 import { IS_APPLE_PLATFORM } from '@/lib/platform/keyboard'
 import { cn } from '@/lib/utils'
-import { useCodeMirror } from '../hooks/use-code-mirror'
-import { useEditorCommands } from '../hooks/use-editor-commands'
-import { useEditorFullscreen } from '../hooks/use-editor-fullscreen'
-import { useEditorPreferences } from '../hooks/use-editor-preferences'
+import { useEditorController } from '../hooks/use-editor-controller'
+import { EditorFocusProvider } from '../hooks/use-editor-focus'
 import type { StartLinkOption } from '../lib/dsl-completion'
-import { formatKey, setTaskStartUrl, type CommandOutcome, type EditorCommandId } from '../lib/editor-command-registry'
-import type { EditorConfig } from '../lib/editor-extensions'
+import { formatKey } from '../lib/editor-command-registry'
 import { fontSizePx } from '../lib/editor-preferences'
-import { outlinePathAt, readOutline } from '../lib/outline'
-import { taskStartUrlAt } from '../lib/start-url'
 import { EditorIssuesToggle } from './editor-issues'
 import { EditorMoreMenu } from './editor-more-menu'
-import { EditorSidePanel, type SidePanelTab } from './editor-side-panel'
+import { EditorSidePanel } from './editor-side-panel'
 import { EditorStatusBar } from './editor-status-bar'
+import { ToolIconButton } from './editor-tool-button'
 import { EditorToolbar } from './editor-toolbar'
-import { StartPageMenu, type StartPageState } from './start-page-menu'
+import { StartPageMenu } from './start-page-menu'
 
 export type { EditorIssue } from '../lib/editor-helpers'
 
@@ -62,171 +43,54 @@ interface AnyWorkflowEditorProps {
   className?: string
 }
 
-const NO_LINKS: readonly StartLinkOption[] = []
-/** Wide enough for the outline beside the code. */
-const WIDE_QUERY = '(min-width: 1280px)'
-
-function reportOutcome(outcome: CommandOutcome) {
-  if (!outcome) return
-  const options = outcome.description ? { description: outcome.description } : undefined
-  if (outcome.tone === 'success') toast.success(outcome.message, options)
-  else if (outcome.tone === 'error') toast.error(outcome.message, options)
-  else toast.info(outcome.message, options)
-}
-
-function ToolIconButton({
-  label,
-  hint,
-  pressed,
-  onClick,
-  className,
-  children,
-}: {
-  label: string
-  hint: string
-  pressed?: boolean
-  onClick: () => void
-  className?: string
-  children: ReactNode
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          type="button"
-          size="icon-sm"
-          variant="ghost"
-          aria-label={label}
-          aria-pressed={pressed}
-          onClick={onClick}
-          className={cn('h-touch min-w-9 flex-1 shrink-0 aria-pressed:bg-muted sm:size-8 sm:min-w-0 sm:flex-none', className)}
-        >
-          {children}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side="bottom">{hint}</TooltipContent>
-    </Tooltip>
-  )
-}
-
 /**
- * AnyWorkflow DSL editor: toolbar, CodeMirror surface, outline and problems, status bar.
+ * AnyWorkflow DSL editor: toolbar, CodeMirror surface, side panel (outline, Act preview,
+ * problems) and status bar. Behaviour lives in `useEditorController`; this component is layout.
  * Everything account-specific (start links, saving) comes from the host through props.
  */
 export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflowEditorProps>(function AnyWorkflowEditor(
   { value, onChange, onSave, readOnly = false, startLinks, className },
   ref,
 ) {
-  const shellRef = useRef<HTMLDivElement | null>(null)
-  const [preferences, updatePreferences] = useEditorPreferences()
-  const wide = useMediaQuery(WIDE_QUERY)
-  const [tab, setTab] = useState<SidePanelTab>('outline')
-  const [sheetOpen, setSheetOpen] = useState(false)
-  const [copied, setCopied] = useState(false)
-  const copiedTimer = useRef<number | null>(null)
-
-  const links = startLinks?.links ?? NO_LINKS
-  const config = useMemo<EditorConfig>(
-    () => ({ readOnly, startLinks: links, lineNumbers: preferences.lineNumbers, lineWrap: preferences.lineWrap }),
-    [readOnly, links, preferences.lineNumbers, preferences.lineWrap],
-  )
-  const { mountRef, viewRef, status, issues } = useCodeMirror({ value, onChange, onSave, onOutcome: reportOutcome, config })
-  const { fullscreen, toggleFullscreen } = useEditorFullscreen(shellRef, viewRef)
-  const commands = useEditorCommands(viewRef, reportOutcome)
-
-  // The outline lags typing slightly rather than slowing it down.
-  const deferredValue = useDeferredValue(value)
-  const outline = useMemo(() => readOutline(deferredValue), [deferredValue])
-  const activePath = useMemo(() => outlinePathAt(outline, status.head), [outline, status.head])
-  const panelVisible = wide && preferences.panel
-
-  useEffect(
-    () => () => {
-      if (copiedTimer.current !== null) window.clearTimeout(copiedTimer.current)
-    },
-    [],
-  )
-
-  const runCommand = useCallback(
-    async (id: EditorCommandId) => {
-      const outcome = await commands.run(id)
-      if (id === 'clipboard.copy' && outcome?.tone === 'success') {
-        setCopied(true)
-        if (copiedTimer.current !== null) window.clearTimeout(copiedTimer.current)
-        copiedTimer.current = window.setTimeout(() => setCopied(false), 1800)
-      }
-    },
-    [commands],
-  )
-
-  const reveal = useCallback(
-    (from: number, to: number) => {
-      const view = viewRef.current
-      if (!view) return
-      const max = view.state.doc.length
-      const start = Math.max(0, Math.min(from, max))
-      const end = Math.max(start, Math.min(to, max))
-      view.dispatch({ selection: { anchor: start, head: end }, scrollIntoView: true })
-      view.focus()
-    },
-    [viewRef],
-  )
-
-  const showPanel = useCallback(
-    (next: SidePanelTab) => {
-      setTab(next)
-      if (wide) updatePreferences({ panel: true })
-      else setSheetOpen(true)
-    },
-    [wide, updatePreferences],
-  )
-
-  const revealFromSheet = (from: number, to = from) => {
-    setSheetOpen(false)
-    // Let the sheet release focus before the editor takes it.
-    window.setTimeout(() => reveal(from, to), 0)
-  }
+  const editor = useEditorController({ value, onChange, onSave, readOnly, startLinks: startLinks?.links })
+  const { panel, status, issues, fullscreen, wide } = editor
 
   useImperativeHandle(
     ref,
     () => ({
-      focus: () => viewRef.current?.focus(),
-      reveal,
+      focus: () => editor.viewRef.current?.focus(),
+      reveal: editor.reveal,
       revealFirstError() {
         const first = issues.find((issue) => issue.severity === 'error')
         if (!first) return false
-        reveal(first.from, first.to)
-        if (wide) showPanel('issues')
+        editor.reveal(first.from, first.to)
+        if (wide) panel.show('issues')
         return true
       },
-      getSource: () => viewRef.current?.state.doc.toString() ?? '',
+      getSource: () => editor.viewRef.current?.state.doc.toString() ?? '',
     }),
-    [issues, reveal, showPanel, viewRef, wide],
+    [editor.reveal, editor.viewRef, issues, panel, wide],
   )
 
-  const readStartPage = (): StartPageState => {
-    const view = viewRef.current
-    if (!view) return { inTask: false, url: null }
-    const found = taskStartUrlAt(view.state.doc.toString(), view.state.selection.main.head)
-    return { inTask: Boolean(found), url: found?.declaration?.value ?? null }
-  }
-
   const panelProps = {
-    tab,
-    onTabChange: setTab,
-    outline,
-    activePath,
+    tab: panel.tab,
+    onTabChange: panel.setTab,
+    outline: editor.outline,
+    activePath: editor.activePath,
     issues,
+    preview: editor.preview,
+    actCounts: editor.actCounts,
   }
+  const expanded = editor.preview.eventCount ? { events: editor.preview.eventCount, acts: editor.preview.actCount } : null
 
   return (
-    <>
+    <EditorFocusProvider value={editor.focus}>
       <div
-        ref={shellRef}
+        ref={editor.shellRef}
         data-fullscreen={fullscreen ? 'true' : undefined}
-        style={{ '--editor-font-size': `${fontSizePx(preferences.fontSize)}px` } as CSSProperties}
+        style={{ '--editor-font-size': `${fontSizePx(editor.preferences.fontSize)}px` } as CSSProperties}
         className={cn(
-          'aw-editor-shell @container flex flex-col overflow-hidden border border-cm-border bg-cm-bg',
+          'aw-editor-shell @container flex flex-col overflow-hidden border border-cm-border bg-cm-bg shadow-xs',
           fullscreen
             ? 'fixed inset-x-0 top-0 z-overlay h-dvh rounded-none'
             : 'h-[min(64dvh,840px)] min-h-[280px] rounded-lg sm:h-[clamp(560px,70dvh,760px)]',
@@ -237,14 +101,14 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
           readOnly={readOnly}
           canUndo={status.canUndo}
           canRedo={status.canRedo}
-          copied={copied}
-          onRun={(id) => void runCommand(id)}
+          copied={editor.copied}
+          onRun={(id) => void editor.runCommand(id)}
           startPage={
             startLinks ? (
               <StartPageMenu
-                links={links}
-                readState={readStartPage}
-                onPick={(url) => void commands.runWith((view) => setTaskStartUrl(view, url), true)}
+                links={startLinks.links}
+                readState={editor.startPage.read}
+                onPick={editor.startPage.pick}
                 onAddLink={startLinks.onAdd}
                 onManage={startLinks.onManage}
               />
@@ -265,22 +129,22 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
               ) : null}
               <EditorMoreMenu
                 readOnly={readOnly}
-                preferences={preferences}
-                onPreferencesChange={updatePreferences}
-                onRun={(id) => void runCommand(id)}
+                preferences={editor.preferences}
+                onPreferencesChange={editor.updatePreferences}
+                onRun={(id) => void editor.runCommand(id)}
               />
               <ToolIconButton
                 label="结构"
-                hint={wide ? (panelVisible ? '隐藏大纲与问题' : '显示大纲与问题') : '大纲与问题'}
-                pressed={wide ? panelVisible : undefined}
-                onClick={() => (wide ? updatePreferences({ panel: !preferences.panel }) : showPanel('outline'))}
+                hint={wide ? (panel.visible ? '隐藏大纲、预览与问题' : '显示大纲、预览与问题') : '大纲、预览与问题'}
+                pressed={wide ? panel.visible : undefined}
+                onClick={panel.toggle}
               >
                 <PanelRight aria-hidden="true" />
               </ToolIconButton>
               <ToolIconButton
                 label={fullscreen ? '退出全屏' : '全屏'}
                 hint={fullscreen ? '退出全屏 · Esc' : '全屏编辑'}
-                onClick={toggleFullscreen}
+                onClick={editor.toggleFullscreen}
               >
                 {fullscreen ? <Minimize2 aria-hidden="true" /> : <Maximize2 aria-hidden="true" />}
               </ToolIconButton>
@@ -288,40 +152,48 @@ export const AnyWorkflowEditor = forwardRef<AnyWorkflowEditorHandle, AnyWorkflow
           }
         />
         <div className="flex min-h-0 flex-1">
-          <div ref={mountRef} className="aw-code-editor min-h-0 min-w-0 flex-1 overflow-hidden" />
-          {panelVisible ? (
-            <aside aria-label="大纲与问题" className="flex w-72 shrink-0 flex-col border-s border-cm-border bg-cm-toolbar-bg">
-              <EditorSidePanel {...panelProps} onRevealAt={(at) => reveal(at, at)} onRevealRange={reveal} />
+          <div ref={editor.mountRef} className="aw-code-editor min-h-0 min-w-0 flex-1 overflow-hidden" />
+          {panel.visible ? (
+            <aside aria-label="大纲、预览与问题" className="flex w-80 shrink-0 flex-col border-s border-cm-border bg-cm-toolbar-bg">
+              <EditorSidePanel
+                {...panelProps}
+                onRevealAt={(at) => editor.reveal(at, at)}
+                onRevealRange={editor.reveal}
+                onRevealLine={editor.revealLine}
+              />
             </aside>
           ) : null}
         </div>
         <EditorStatusBar
           status={status}
+          expanded={expanded}
           trailing={
             <EditorIssuesToggle
               issues={issues}
-              open={tab === 'issues' && (wide ? panelVisible : sheetOpen)}
-              onOpenChange={(open) => {
-                if (open) showPanel('issues')
-                else if (wide) setTab('outline')
-                else setSheetOpen(false)
-              }}
+              open={panel.tab === 'issues' && (wide ? panel.visible : panel.sheetOpen)}
+              onOpenChange={editor.setIssuesOpen}
             />
           }
         />
       </div>
       {wide ? null : (
-        <Modal open={sheetOpen} onOpenChange={(open) => setSheetOpen(open)}>
+        <Modal open={panel.sheetOpen} onOpenChange={panel.setSheetOpen}>
           <ModalContent size="sm" height="fixed">
             <ModalHeader>
-              <ModalTitle>大纲与问题</ModalTitle>
+              <ModalTitle>大纲、预览与问题</ModalTitle>
             </ModalHeader>
             <ModalBody>
-              <EditorSidePanel variant="sheet" {...panelProps} onRevealAt={(at) => revealFromSheet(at)} onRevealRange={revealFromSheet} />
+              <EditorSidePanel
+                variant="sheet"
+                {...panelProps}
+                onRevealAt={panel.fromSheet((at: number) => editor.reveal(at, at))}
+                onRevealRange={panel.fromSheet(editor.reveal)}
+                onRevealLine={panel.fromSheet(editor.revealLine)}
+              />
             </ModalBody>
           </ModalContent>
         </Modal>
       )}
-    </>
+    </EditorFocusProvider>
   )
 })

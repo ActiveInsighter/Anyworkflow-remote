@@ -22,7 +22,8 @@ import { anyWorkflowCompletion, startLinkOptions, type StartLinkOption } from '.
 import { anyWorkflowFolding } from './dsl-folding.ts'
 import { anyWorkflowHighlighting, anyWorkflowLanguage } from './dsl-language.ts'
 import { registryKeymap, type CommandOutcome } from './editor-command-registry.ts'
-import { editorTheme } from './editor-theme.ts'
+import { editorFlash } from './editor-flash.ts'
+import { editorTheme, foldMarker } from './editor-theme.ts'
 import { isStartUrlValuePosition } from './start-url.ts'
 
 /** Settings the host can change while the editor is open, without rebuilding the view. */
@@ -78,7 +79,7 @@ const startLinksExtension = (links: readonly StartLinkOption[]) => startLinkOpti
 const wrapExtension = (wrap: boolean) => (wrap ? EditorView.lineWrapping : [])
 const gutterExtension = (numbers: boolean): Extension => [
   ...(numbers ? [lineNumbers(), highlightActiveLineGutter()] : []),
-  foldGutter({ openText: '▾', closedText: '▸' }),
+  foldGutter({ markerDOM: foldMarker }),
 ]
 
 /** Effects that move a running view to `next`; only changed settings are reconfigured. */
@@ -126,8 +127,10 @@ export function anyWorkflowExtensions({
     anyWorkflowHighlighting,
     compartments.startLinks.of(startLinksExtension(config.startLinks)),
     autocompletion({ override: [anyWorkflowCompletion], activateOnTyping: true, icons: true }),
+    // Memoized per text: the Act preview and the save guard read the same inspection.
     linter((view) => validateWorkflowSource(view.state.doc.toString()), { delay: 200 }),
     editorTheme,
+    editorFlash,
     // Clicking after the `=` of `@let start_url=` offers the start links.
     EditorView.domEventHandlers({
       mouseup: (_event, view) => {

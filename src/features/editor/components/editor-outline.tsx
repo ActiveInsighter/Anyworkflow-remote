@@ -9,15 +9,19 @@ const KIND: Record<OutlineKind, { Icon: LucideIcon; tone: string }> = {
   for: { Icon: Repeat, tone: 'text-muted-foreground' },
 }
 
+type ActCounts = ReadonlyMap<number, { events: number; acts: number }>
+
 function OutlineItems({
   nodes,
   depth,
   activePath,
+  actCounts,
   onReveal,
 }: {
   nodes: readonly OutlineNode[]
   depth: number
   activePath: readonly OutlineNode[]
+  actCounts: ActCounts
   onReveal: (at: number) => void
 }) {
   return (
@@ -26,6 +30,7 @@ function OutlineItems({
         const { Icon, tone } = KIND[node.kind]
         const onPath = activePath.includes(node)
         const current = activePath.at(-1) === node
+        const expanded = node.kind === 'event' ? actCounts.get(node.line) : undefined
         return (
           <li key={`${node.kind}:${node.from}`} role="treeitem" aria-expanded={node.children.length ? true : undefined} aria-selected={current}>
             <button
@@ -46,12 +51,20 @@ function OutlineItems({
                 {node.detail ? <span className="ms-1.5 font-mono text-micro text-muted-foreground">{node.detail}</span> : null}
               </span>
               {node.repeat ? <span className="shrink-0 font-mono text-micro tabular-nums">×{node.repeat}</span> : null}
-              {node.messages ? (
+              {expanded ? (
+                <span
+                  title={expanded.events > 1 ? `循环生成 ${expanded.events} 个 Event，共 ${expanded.acts} 个 Act` : `${expanded.acts} 个 Act`}
+                  className="shrink-0 rounded-full bg-muted px-1.5 text-micro text-muted-foreground tabular-nums"
+                >
+                  {expanded.events > 1 ? `${expanded.events}×` : ''}
+                  {expanded.acts} Act
+                </span>
+              ) : node.messages ? (
                 <span className="shrink-0 text-micro text-muted-foreground tabular-nums">{node.messages} 条</span>
               ) : null}
             </button>
             {node.children.length ? (
-              <OutlineItems nodes={node.children} depth={depth + 1} activePath={activePath} onReveal={onReveal} />
+              <OutlineItems nodes={node.children} depth={depth + 1} activePath={activePath} actCounts={actCounts} onReveal={onReveal} />
             ) : null}
           </li>
         )
@@ -64,10 +77,13 @@ function OutlineItems({
 export function EditorOutline({
   nodes,
   activePath,
+  actCounts,
   onReveal,
 }: {
   nodes: readonly OutlineNode[]
   activePath: readonly OutlineNode[]
+  /** Acts per Event header line after loops are unrolled. */
+  actCounts: ActCounts
   onReveal: (at: number) => void
 }) {
   if (!nodes.length) {
@@ -79,7 +95,7 @@ export function EditorOutline({
       <p className="px-2 pt-1 text-micro text-muted-foreground tabular-nums">
         {counts.task} 个 Task · {counts.event} 个 Event · {counts.messages} 条消息
       </p>
-      <OutlineItems nodes={nodes} depth={0} activePath={activePath} onReveal={onReveal} />
+      <OutlineItems nodes={nodes} depth={0} activePath={activePath} actCounts={actCounts} onReveal={onReveal} />
     </div>
   )
 }

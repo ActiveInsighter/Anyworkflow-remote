@@ -1,3 +1,5 @@
+import { isLoopHeaderLine, readLoopHeader } from '../../../../shared/dsl-kit/loops.mjs'
+
 export type SourceBlockKind = 'task' | 'event' | 'act' | 'for' | 'message'
 
 export interface SourceBlock {
@@ -29,14 +31,15 @@ function blockKind(prefix: string): SourceBlockKind | null {
   const directive = prefix.match(/^@(task|event)(?:\s+.*?)?\s*\{$/iu)?.[1]
   if (directive) return directive.toLowerCase() as 'task' | 'event'
   if (/^@act\s*\{$/iu.test(prefix)) return 'act'
-  if (/^@for\s+[A-Za-z_][A-Za-z0-9_]*\s+in\s+range\(.*?\)\s*\{$/iu.test(prefix)) return 'for'
   return null
 }
 
 /**
  * One scan supplies insertion scopes and copy/delete ranges. Like the executor, matching
  * ignores braces in fenced text; directive-looking prompt text never creates a Task scope.
- * Incomplete blocks retain closeAt=-1 so commands can reject unsafe edits while typing.
+ * A `@for` header is read by the shared loop kit, so a list spanning lines still opens one loop
+ * whose header starts on the `@for` line. Incomplete blocks retain closeAt=-1 so commands can
+ * reject unsafe edits while typing.
  */
 export function readSourceStructure(source: string): SourceStructure {
   const blocks: SourceBlock[] = []
@@ -50,6 +53,8 @@ export function readSourceStructure(source: string): SourceStructure {
   let indent = ''
   let firstOpenOnLine = true
   let lastClosed: SourceBlock | undefined
+  /** A `@for` header read at its first line: where it starts and where its body opens. */
+  let pendingLoop = null as { from: number; openAt: number; indent: string } | null
 
   for (let index = 0; index < source.length; index += 1) {
     if (index === lineFrom) {
@@ -67,11 +72,35 @@ export function readSourceStructure(source: string): SourceStructure {
         lineFrom = headerEnd
         continue
       }
+      if (messageDepth === 0 && !pendingLoop && isLoopHeaderLine(line)) {
+        const header = readLoopHeader(source, contentFrom)
+        if (header?.ok) {
+          pendingLoop = { from: lineFrom, openAt: header.openAt, indent }
+          // List lines hold no braces; resume at the body's `{`.
+          index = header.openAt - 1
+          continue
+        }
+      }
     }
 
     const char = source[index]
     if (char === '\n') {
       lineFrom = index + 1
+      continue
+    }
+    if (char === '{' && pendingLoop?.openAt === index) {
+      const block: SourceBlock = {
+        kind: 'for',
+        headerFrom: pendingLoop.from,
+        headerEnd: lineEndAfter(source, index),
+        openAt: index,
+        closeAt: -1,
+        indent: pendingLoop.indent,
+      }
+      pendingLoop = null
+      firstOpenOnLine = false
+      blocks.push(block)
+      stack.push(block)
       continue
     }
     if (char === '{') {

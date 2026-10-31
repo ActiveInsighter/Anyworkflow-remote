@@ -12,6 +12,7 @@ const testFiles = [
   'editor-helpers.test.mjs',
   'editor-commands.test.mjs',
   'editor-structure.test.mjs',
+  'editor-dsl.test.mjs',
   'start-links.test.mjs',
   'library-tree.test.mjs',
   'session-storage.test.mjs',
@@ -24,6 +25,7 @@ const testFiles = [
   'conversation-url.test.mjs',
   'chunk-reload.test.mjs',
   'task-kit.test.mjs',
+  'dsl-kit.test.mjs',
 ]
 
 for (const file of testFiles) {

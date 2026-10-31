@@ -1,9 +1,19 @@
 import { HighlightStyle, StreamLanguage, syntaxHighlighting } from '@codemirror/language'
 import { tags } from '@lezer/highlight'
+import { isLoopHeaderLine } from '../../../../shared/dsl-kit/loops.mjs'
 
 interface DslState {
   inFence: boolean
   fence: string
+}
+
+const LOOP_NAMES_BEFORE_IN = /^(\s*@for\s+[A-Za-z_][A-Za-z0-9_]*(?:\s*,\s*[A-Za-z_][A-Za-z0-9_]*)*\s+)in(?![A-Za-z0-9_])/iu
+
+/** Offset of the `in` that separates a `@for` header's names from its source, or -1 on other lines. */
+function loopInOffset(line: string): number {
+  if (!isLoopHeaderLine(line.trim())) return -1
+  const match = LOOP_NAMES_BEFORE_IN.exec(line)
+  return match ? match[1].length : -1
 }
 
 /** Token-level highlighting for the plan DSL. Structure and validity come from `lib/workflow-dsl`. */
@@ -32,6 +42,7 @@ export const anyWorkflowLanguage = StreamLanguage.define<DslState>({
       return 'string'
     }
 
+    if (stream.pos === loopInOffset(stream.string) && stream.match(/in(?![A-Za-z0-9_])/iu)) return 'keyword'
     if (stream.match(/@[A-Za-z][A-Za-z0-9]*/)) return 'keyword'
     // start_url is the one variable the compiler gives a meaning to, so it is drawn differently.
     if (stream.match(/\bstart_url\b(?=\s*=)/)) return 'special'

@@ -1,3 +1,4 @@
+import { parseLoopList, readLoopHeader } from '../../../../shared/dsl-kit/loops.mjs'
 import { readSourceStructure, type SourceBlock } from './source-structure.ts'
 import { displayStartUrl } from '../../../lib/domain/start-links.ts'
 import { findStartUrlDeclaration } from './start-url.ts'
@@ -7,10 +8,12 @@ export type OutlineKind = 'task' | 'event' | 'act' | 'for'
 export interface OutlineNode {
   kind: OutlineKind
   title: string
-  /** Secondary text: a Task's start page, a loop's range, an Act's event name. */
+  /** Secondary text: a Task's start page, an Act's event name. */
   detail: string
   /** Header start, where navigation lands. */
   from: number
+  /** 1-based line of the header; the Act preview keys Events by it. */
+  line: number
   /** End of the block (its closing brace), or the document end while unclosed. */
   to: number
   /** `}*n` after the block. */
@@ -44,8 +47,12 @@ function describe(source: string, block: SourceBlock, kind: OutlineKind): Pick<O
     return { title: clip(name || (kind === 'task' ? '未命名 Task' : '未命名 Event')), detail: '' }
   }
   if (kind === 'for') {
-    const loop = header.replace(/^@for\b/iu, '').trim()
-    return { title: clip(loop || '循环'), detail: '' }
+    const loop = readLoopHeader(source, source.indexOf('@for', block.headerFrom))
+    if (!loop?.ok) return { title: clip(header.replace(/^@for\b/iu, '').replace(/\s+/gu, ' ').trim() || '循环'), detail: '' }
+    // A list may span many lines; the outline names it by size instead.
+    const list = parseLoopList(loop.source)
+    const from = list.ok ? `[${list.items.length} 项]` : loop.source.replace(/\s+/gu, ' ')
+    return { title: clip(`${loop.names.join(', ')} in ${from}`), detail: '' }
   }
   const end = block.closeAt < 0 ? source.length : block.closeAt
   const event = source.slice(block.openAt + 1, end).match(/^[ \t]*@event[ \t]*=[ \t]*(.*?)[ \t]*$/imu)?.[1] ?? ''
@@ -62,6 +69,16 @@ export function readOutline(source: string): OutlineNode[] {
   const roots: OutlineNode[] = []
   const stack: Array<{ block: SourceBlock; node: OutlineNode | null }> = []
   const end = (block: SourceBlock) => (block.closeAt < 0 ? source.length : block.closeAt)
+  let line = 1
+  let counted = 0
+  const lineOf = (at: number) => {
+    // Blocks arrive in source order, so lines are counted once from the previous header.
+    for (let index = source.indexOf('\n', counted); index >= 0 && index < at; index = source.indexOf('\n', index + 1)) {
+      line += 1
+      counted = index + 1
+    }
+    return line
+  }
 
   for (const block of structure.blocks) {
     while (stack.length && block.openAt > end(stack[stack.length - 1].block)) stack.pop()
@@ -81,6 +98,7 @@ export function readOutline(source: string): OutlineNode[] {
       kind: block.kind,
       ...describe(source, block, block.kind),
       from: block.headerFrom,
+      line: lineOf(block.headerFrom),
       to: end(block),
       repeat: repeatAfter(source, block),
       messages: 0,

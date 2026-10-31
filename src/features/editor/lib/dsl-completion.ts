@@ -43,9 +43,11 @@ function applyVariableCompletion(view: EditorView, completion: Completion, from:
 function variableCompletionInfo(variable: WorkflowVariable): Pick<Completion, 'detail' | 'boost'> {
   if (variable.origin === 'loop') return { detail: '循环变量' }
   if (variable.origin === 'declared') return { detail: '变量' }
-  return variable.name === 'index'
-    ? { detail: `循环值，同 %${variable.loop}%`, boost: -50 }
-    : { detail: '循环次数', boost: -50 }
+  if (variable.name === 'index') {
+    const detail = variable.loopKind === 'list' ? '第几项，从 1 开始' : `循环值，同 %${variable.loop}%`
+    return { detail, boost: -50 }
+  }
+  return { detail: '本层循环的总次数', boost: -50 }
 }
 
 function variableOptions(source: string, at: number): Completion[] {
@@ -68,7 +70,10 @@ function directiveOptions(context: WorkflowDslContext, loopName: string | null):
       ...shared,
       snippetCompletion('@task ${任务名称} {\n  @mode=serial\n\n  ${}\n}', { label: '@task', type: 'keyword', detail: 'Task 块' }),
       ...(loopName
-        ? [snippetCompletion('@for ${' + loopName + '} in range(1, 3) {\n  @task ${任务名称} {\n    ${}\n  }\n}', { label: '@for', type: 'keyword', detail: 'Task 循环' })]
+        ? [
+            snippetCompletion('@for ${' + loopName + '} in range(1, 3) {\n  @task ${任务名称} {\n    ${}\n  }\n}', { label: '@for', type: 'keyword', detail: '数字循环（Task）' }),
+            snippetCompletion('@for ${' + loopName + '} in [${甲, 乙, 丙}] {\n  @task %' + loopName + '% {\n    ${}\n  }\n}', { label: '@for … in [列表]', type: 'keyword', detail: '列表循环' }),
+          ]
         : []),
     ]
   }
@@ -80,7 +85,10 @@ function directiveOptions(context: WorkflowDslContext, loopName: string | null):
       snippetCompletion('@let start_url=${}', { label: '@let start_url', type: 'keyword', detail: '起始链接' }),
       snippetCompletion('@event ${执行单元} {\n  {\n    ${消息}\n  }\n}', { label: '@event', type: 'keyword', detail: 'Event 块' }),
       ...(loopName
-        ? [snippetCompletion('@for ${' + loopName + '} in range(1, 3) {\n  @event ${执行单元} {\n    {\n      ${消息}\n    }\n  }\n}', { label: '@for', type: 'keyword', detail: 'Event 循环' })]
+        ? [
+            snippetCompletion('@for ${' + loopName + '} in range(1, 3) {\n  @event ${执行单元} {\n    {\n      ${消息}\n    }\n  }\n}', { label: '@for', type: 'keyword', detail: '数字循环（Event）' }),
+            snippetCompletion('@for ${' + loopName + '} in [${甲, 乙, 丙}] {\n  @event %' + loopName + '% {\n    {\n      ${消息}\n    }\n  }\n}', { label: '@for … in [列表]', type: 'keyword', detail: '列表循环' }),
+          ]
         : []),
     ]
   }
@@ -88,7 +96,10 @@ function directiveOptions(context: WorkflowDslContext, loopName: string | null):
   return [
     snippetCompletion('@act {\n  @event=${事件名称}\n  {\n    ${消息}\n  }\n}', { label: '@act', type: 'keyword', detail: 'Act 块' }),
     ...(loopName
-      ? [snippetCompletion('@for ${' + loopName + '} in range(1, 3) {\n  {\n    ${消息}\n  }\n}', { label: '@for', type: 'keyword', detail: '消息循环' })]
+      ? [
+          snippetCompletion('@for ${' + loopName + '} in range(1, 3) {\n  {\n    ${消息}\n  }\n}', { label: '@for', type: 'keyword', detail: '数字循环' }),
+          snippetCompletion('@for ${' + loopName + '} in [${甲, 乙, 丙}] {\n  {\n    ${%' + loopName + '%}\n  }\n}', { label: '@for … in [列表]', type: 'keyword', detail: '列表循环' }),
+        ]
       : []),
     snippetCompletion('{\n  ${消息}\n}', { label: '{ message }', type: 'text', detail: '消息块' }),
     snippetCompletion('<sleep(${秒数})>', { label: '<sleep(秒数)>', type: 'function', detail: '等待后继续，可使用变量' }),

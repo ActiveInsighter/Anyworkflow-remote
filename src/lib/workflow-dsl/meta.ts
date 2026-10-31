@@ -29,7 +29,7 @@ export function readRunPlanMeta(source: string): PlanMeta {
         if (Number.isSafeInteger(parsed) && parsed >= 1 && parsed <= 16) maxConcurrency = parsed
         continue
       }
-      if (/^@(task)(?:\s+.*?)?\s*\{\s*$/iu.test(line) || /^@for\s+.*\{\s*$/iu.test(line)) {
+      if (/^@(task)(?:\s+.*?)?\s*\{\s*$/iu.test(line) || /^@for[ \t]/iu.test(line)) {
         seenBlock = true
       }
     }

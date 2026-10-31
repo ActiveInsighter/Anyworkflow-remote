@@ -129,7 +129,7 @@ assert.deepEqual(completionDetails, {
   '%file%': '变量',
   '%i%': '循环变量',
   '%index%': '循环值，同 %i%',
-  '%count%': '循环次数',
+  '%count%': '本层循环的总次数',
 }, 'completions say what each loop name is instead of calling everything a plain variable')
 assert.ok(completionResult.options.filter((option) => /index|count/u.test(option.label)).every((option) => option.boost < 0),
   'implicit aliases sort after the plan\'s own variables')
@@ -291,10 +291,11 @@ assertHasError(
   'a variable of a loop that does not enclose the body',
 )
 assertHasError(queueLoops('@for i in range(1, 2) {\n@for i in range(1, 2) {\n{ %i% }\n}\n}'), 'inner loop reusing an enclosing name')
-assertHasError(queueLoops('@for i in range(1, 2) {\n@act {\n{ x }\n}\n}'), 'Act inside a loop')
+assert.equal(errors(queueLoops('@for i in range(1, 2) {\n@act {\n{ x }\n}\n}')).length, 0, 'an Act inside a loop runs per iteration')
 assertHasError(queueLoops('@act {\n@for i in range(1, 2) {\n{ x }\n}\n}'), 'loop inside an Act')
-assertHasError(queueLoops('@for i in range(1, 2) {\n{ intro }\n@for j in range(1, 2) {\n{ %j% }\n}\n}'), 'messages beside a nested loop')
-assertHasError(queueLoops('@for i in range(1, 2) {\n@repeat=2\n@for j in range(1, 2) {\n{ %j% }\n}\n}'), '@repeat beside a nested loop')
+assert.equal(errors(queueLoops('@for i in range(1, 2) {\n{ intro }\n@for j in range(1, 2) {\n{ %j% }\n}\n}')).length, 0, 'messages beside a nested loop run in source order')
+assert.equal(errors(queueLoops('@for i in range(1, 2) {\n@repeat=2\n@for j in range(1, 2) {\n{ %j% }\n}\n}')).length, 0, '@repeat beside a nested loop applies to messages only')
+assert.equal(errors(queueLoops('@repeat=3\n{ %i% of %count% }')).length, 0, '@repeat numbers its Acts with %i%, %index% and %count%')
 assert.equal(errors(queueLoops('@for i in range(1, 2) {\n@let book=Vol\n@event=%book% %i%\n@for j in range(1, 2) {\n@repeat=2\n{ %book% %j% }\n}\n}')).length, 0,
   'directives before a nested loop and @repeat in the innermost body are fine')
 assertHasError(queueLoops('{\n<https://chatgpt.com/>\n@for i in range(1, 2) {\n{ x }\n}\n}'), 'loop header inside a polling group')
@@ -302,7 +303,7 @@ const nestedLoopBudget = (a, b, c, repeat = '') =>
   queueLoops(`@for i in range(1, ${a}) {\n@for j in range(1, ${b}) {\n@for k in range(1, ${c}) {\n${repeat}{ %i%%j%%k% }\n}\n}\n}`)
 assert.equal(errors(nestedLoopBudget(5, 5, 8)).length, 0, '5 x 5 x 8 is exactly the 200 act limit')
 assertHasError(nestedLoopBudget(5, 5, 9), 'nested product over 200 acts')
-assertHasError(nestedLoopBudget(200, 200, 200), 'huge nested product is rejected without walking it')
+assertHasError(nestedLoopBudget(200, 200, 200), 'huge nested product stops at the first Act over the limit')
 assertHasError(nestedLoopBudget(5, 5, 4, '@repeat=3\n'), '@repeat multiplies the nested product')
 assert.equal(errors(nestedLoopBudget(5, 5, 4, '@repeat=2\n')).length, 0, '5 x 5 x 4 x 2 stays within 200')
 assert.equal(errors(`@run=Aliases\n@task T {\n  @event E {\n    @for a in range(1, 2) {\n      @for b in range(1, 2) {\n        { %a%%b% %index% %count% }\n      }\n    }\n  }\n}`).length, 0)
@@ -320,6 +321,40 @@ assert.equal(errors('@task T {\n@event E {\n@for a in range(1, 2) {\n{ x }\n}\n@
 assertHasError('@for a in range(1, 2) {\n@for b in range(1, 2) {\n@for c in range(1, 2) {\n@for d in range(1, 2) {\n@task T%a%%b%%c%%d% {\n@event E {\n{ x }\n}\n}\n}\n}\n}\n}', 'four Run level loops')
 assert.equal(errors('@for a in range(1, 2) {\n@for b in range(1, 2) {\n@for c in range(1, 2) {\n@task T%a%%b%%c% {\n@event E {\n{ x }\n}\n}\n}\n}\n}').length, 0, 'three Run level loops')
 assertHasError('@task T {\n@for a in range(1, 2) {\n@for b in range(1, 2) {\n@for c in range(1, 2) {\n@for d in range(1, 2) {\n@event E%a%%b%%c%%d% {\n{ x }\n}\n}\n}\n}\n}\n}', 'four Task level loops')
+
+// List loops: positions, tuples, ragged nesting and previews.
+const { inspectWorkflowSource } = await import('../src/lib/workflow-dsl/index.ts')
+const book = queueLoops(`@for ch, title, secs in [
+  (1, 绪论, [背景, 意义])
+  (2, 函数, [])
+  (3, 极限, [定义])
+] {
+{ 第%ch%章《%title%》概述 }
+@for sec in %secs% {
+@event=%title% · %sec%
+{ 写第%ch%章第%index%节：%sec% }
+}
+}`)
+assert.deepEqual(errors(book), [], 'a multi-line tuple list with nested section lists is valid')
+const bookActs = inspectWorkflowSource(book).events[0].acts
+assert.deepEqual(bookActs.map((act) => act.text), [
+  '第1章《绪论》概述', '写第1章第1节：背景', '写第1章第2节：意义',
+  '第2章《函数》概述',
+  '第3章《极限》概述', '写第3章第1节：定义',
+], 'previews follow the browser order with values filled in')
+assert.deepEqual(bookActs.map((act) => act.title), ['', '绪论 · 背景', '绪论 · 意义', '', '', '极限 · 定义'])
+const scopeInList = collectWorkflowVariableScope(book, book.indexOf('写第'))
+assert.deepEqual(scopeInList.map((variable) => variable.name), ['ch', 'title', 'secs', 'sec', 'index', 'count'], 'multi-name loops bring every name into scope')
+assert.equal(scopeInList.find((variable) => variable.name === 'index')?.loopKind, 'list')
+assertHasError(queueLoops('@for a, b in [(1, 2, 3)] {\n{ %a% }\n}'), 'tuple size mismatch')
+assertHasError(queueLoops('@for s in %nothing% {\n{ %s% }\n}'), 'undefined loop source')
+assertHasError(queueLoops('@for s in [] {\n{ %s% }\n}'), 'a queue whose only loop is empty')
+assert.equal(errors('@run=R\n@for ch, title in [(1, 绪论), (2, 函数)] {\n@task 第%ch%章 %title% {\n@event E {\n{ %title% }\n}\n}\n}').length, 0, 'Run-level list loops')
+assert.deepEqual(
+  inspectWorkflowSource('@task T {\n@for i in range(9, 10) {\n@event 第%i:zh%章 {\n{ x }\n}\n}\n}').events.map((event) => event.title),
+  ['第九章', '第十章'],
+  'Task-level loops honour :zh like the browser',
+)
 
 console.log('workflow DSL assertions passed')
 

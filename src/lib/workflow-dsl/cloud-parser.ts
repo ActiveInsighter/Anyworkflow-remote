@@ -1,47 +1,8 @@
 /** Run/Task level parsing: directives, `@for` ranges and block extraction, as the cloud compiler sees them. */
 import { DiagnosticCollector } from './diagnostics.ts'
+import { expandLoop, readLoopHeader } from '../../../shared/dsl-kit/loops.mjs'
 import { UTF8_ENCODER, globalLine, lineEnd, loopHeaderNames, matchingBrace, normalizeNewlines, stripQuotes, substitute, substituteScoped } from './text.ts'
 import { DEFAULT_START_URL, START_URL_VARIABLE, VARIABLE_DECLARATION, WORKFLOW_DSL_LIMITS, type CloudBlock, type CloudBlockKind, type CloudConfig, type CloudLevel, type CloudLevelResult, type ParseBudget, type TemplateVars } from './types.ts'
-
-export function parseRangeValues(
-  args: string,
-  collector: DiagnosticCollector,
-  line: number,
-  maxItems: number,
-  emptyMessage?: string,
-): number[] | null {
-  const parts = args.split(',').map((part) => part.trim())
-  if (parts.length < 1 || parts.length > 3 || parts.some((part) => part === '')) {
-    collector.add(line, 'range 必须使用 range(stop)、range(start, stop) 或 range(start, stop, step)。')
-    return null
-  }
-
-  const numbers = parts.map((part) => Number(part))
-  if (numbers.some((value) => !Number.isSafeInteger(value))) {
-    collector.add(line, 'range 参数必须全部是整数。')
-    return null
-  }
-
-  const start = numbers.length === 1 ? 0 : numbers[0] as number
-  const stop = numbers.length === 1 ? numbers[0] as number : numbers[1] as number
-  const step = numbers.length === 3 ? numbers[2] as number : 1
-  if (step === 0) {
-    collector.add(line, 'range 的 step 不能为 0。')
-    return null
-  }
-
-  if ((step > 0 && start > stop) || (step < 0 && start < stop)) {
-    if (emptyMessage) collector.add(line, emptyMessage)
-    return []
-  }
-
-  const count = Math.floor(Math.abs(stop - start) / Math.abs(step)) + 1
-  if (!Number.isSafeInteger(count) || count > maxItems) {
-    collector.add(line, `range 最多只能生成 ${maxItems} 项。`)
-    return null
-  }
-  return Array.from({ length: count }, (_, index) => start + index * step)
-}
 
 export function parseClosingLine(line: string): { braceCount: number; repeatCount: number | null } | null {
   const match = line.match(/^(\}+)(?:\*(\d+))?$/u)
@@ -182,10 +143,16 @@ export function parseCloudLevel(
     }
 
     const blockMatch = trimmed.match(blockPatternMatcher)
-    const loopMatch = trimmed.match(/^@for\s+([A-Za-z_][A-Za-z0-9_]*)\s+in\s+range\((.*?)\)\s*\{\s*$/iu)
-    if (blockMatch || loopMatch) {
+    const loopHeader = blockMatch ? null : readLoopHeader(text, cursor + rawLine.indexOf(trimmed))
+    if (loopHeader && !loopHeader.ok) {
+      options.collector.add(currentLine, `@for：${loopHeader.error}。`)
+      failed = true
+      cursor = loopHeader.end < text.length ? loopHeader.end + 1 : text.length
+      continue
+    }
+    if (blockMatch || loopHeader) {
       seenBlock = true
-      const openAt = cursor + rawLine.indexOf('{')
+      const openAt = loopHeader ? loopHeader.openAt : cursor + rawLine.indexOf('{')
       const closeAt = matchingBrace(text, openAt)
       if (closeAt < 0) {
         options.collector.add(currentLine, `@${blockMatch?.[1] ?? 'for'} 块缺少结束的 }。`)
@@ -225,35 +192,31 @@ export function parseCloudLevel(
           break
         }
       } else {
-        const name = loopMatch?.[1] ?? ''
-        if (options.loopNames?.includes(name)) {
-          options.collector.add(currentLine, `@for 变量 ${name} 已被外层 @for 使用，请换一个名称。`)
+        const names = loopHeader?.names ?? []
+        const reused = names.find((name) => options.loopNames?.includes(name))
+        if (reused) {
+          options.collector.add(currentLine, `@for 变量 ${reused} 已被外层 @for 使用，请换一个名称。`)
           failed = true
           break
         }
-        const args = substitute(loopMatch?.[2] ?? '', vars)
-        const values = parseRangeValues(args, options.collector, currentLine, WORKFLOW_DSL_LIMITS.maxLoopItems)
-        if (values === null) {
+        const expansion = expandLoop(loopHeader!, vars, { maxItems: WORKFLOW_DSL_LIMITS.maxLoopItems })
+        if (!expansion.ok) {
+          options.collector.add(currentLine, `@for：${expansion.error}。`)
           failed = true
           break
         }
-        for (const value of values) {
+        for (const binding of expansion.iterations) {
           budget.iterations += 1
           if (budget.iterations > WORKFLOW_DSL_LIMITS.maxExpansionIterations) {
             options.collector.add(currentLine, '循环展开次数过多，已停止校验。')
             failed = true
             break
           }
-          const loopVars: TemplateVars = {
-            ...vars,
-            [name]: value,
-            index: value,
-            count: values.length,
-          }
+          const loopVars: TemplateVars = { ...vars, ...binding }
           const nested = parseCloudLevel(substituteScoped(body, loopVars), {
             ...options,
             inheritedVars: loopVars,
-            loopNames: [...(options.loopNames ?? []), name],
+            loopNames: [...(options.loopNames ?? []), ...names],
             lineBase: bodyLineBase,
             depth: options.depth + 1,
           })

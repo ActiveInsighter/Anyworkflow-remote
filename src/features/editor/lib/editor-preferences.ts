@@ -8,7 +8,7 @@ export interface EditorPreferences {
   fontSize: EditorFontSize
   lineWrap: boolean
   lineNumbers: boolean
-  /** Outline/issues side panel on wide screens. */
+  /** Outline, preview and issues side panel on wide screens. */
   panel: boolean
 }
 

@@ -2,12 +2,17 @@ import { useCallback } from 'react'
 import type { EditorView } from '@codemirror/view'
 import type { RefObject } from 'react'
 import { editorCommand, type CommandOutcome, type EditorCommandId } from '../lib/editor-command-registry'
+import type { EditorFocus } from './use-editor-focus'
 
 /**
- * Runs registry commands against the mounted view. Edits are refused on read-only editors, focus
- * returns to the text afterwards, and outcomes go to `report` (the shell shows them as toasts).
+ * Runs registry commands against the mounted view. Edits are refused on read-only editors,
+ * outcomes go to `report` (the shell shows them as toasts), and focus follows `focus.restore`.
  */
-export function useEditorCommands(viewRef: RefObject<EditorView | null>, report: (outcome: CommandOutcome) => void) {
+export function useEditorCommands(
+  viewRef: RefObject<EditorView | null>,
+  focus: EditorFocus,
+  report: (outcome: CommandOutcome) => void,
+) {
   const runWith = useCallback(
     async (action: (view: EditorView) => CommandOutcome | Promise<CommandOutcome>, edits: boolean) => {
       const view = viewRef.current
@@ -16,10 +21,10 @@ export function useEditorCommands(viewRef: RefObject<EditorView | null>, report:
       // The view may have been replaced while an async command (clipboard) was waiting.
       if (viewRef.current !== view) return null
       report(outcome)
-      view.focus()
+      focus.restore()
       return outcome
     },
-    [viewRef, report],
+    [viewRef, focus, report],
   )
 
   const run = useCallback(

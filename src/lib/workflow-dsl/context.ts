@@ -1,17 +1,58 @@
 /** Cursor context and in-scope variables for completions and insertion tools. */
+import { isLoopHeaderLine, readLoopHeader } from '../../../shared/dsl-kit/loops.mjs'
 import { parseClosingLine } from './cloud-parser.ts'
-import { normalizeNewlines } from './text.ts'
+import { lineEnd, normalizeNewlines } from './text.ts'
 import { LOOP_ALIAS_VARIABLES, type WorkflowDslContext } from './types.ts'
+
+interface ScanLine {
+  /** The trimmed line; a multi-line `@for` header is one entry. */
+  text: string
+  /** Names bound by the `@for` header this line opens. */
+  loop?: string[]
+}
+
+/**
+ * Lines before `at`, trimmed, with each `@for` header (which may span lines when its list does)
+ * folded into one entry. A cursor inside an unfinished header stops the scan there.
+ */
+function scanLines(source: string, at: number): ScanLine[] {
+  const text = normalizeNewlines(source)
+  const stop = Math.max(0, Math.min(at, text.length))
+  const lines: ScanLine[] = []
+  let fence = ''
+  let cursor = 0
+  while (cursor <= stop && cursor < text.length) {
+    const end = lineEnd(text, cursor)
+    const raw = text.slice(cursor, Math.min(end, stop))
+    const trimmed = raw.trim()
+    const marker = trimmed.match(/^(?:```|~~~)/u)?.[0] ?? ''
+    if (fence) {
+      if (trimmed === fence) fence = ''
+    } else if (marker) {
+      fence = marker
+    } else if (isLoopHeaderLine(trimmed)) {
+      const header = readLoopHeader(text, cursor + raw.indexOf(trimmed))
+      if (header?.ok) {
+        if (header.openAt >= stop) break
+        lines.push({ text: trimmed, loop: header.names })
+        cursor = lineEnd(text, header.openAt) + 1
+        continue
+      }
+    }
+    lines.push({ text: trimmed })
+    if (end >= stop) break
+    cursor = end + 1
+  }
+  return lines
+}
 
 /** Context used by completions and insertion tools; it recognizes the same block forms as the validator. */
 export function workflowContextAt(source: string, at: number): WorkflowDslContext {
-  const prefix = normalizeNewlines(source.slice(0, Math.max(0, Math.min(at, source.length))))
   const stack: Array<'task' | 'event' | 'for-task' | 'for-event'> = []
   let inFence = false
   let queueDepth = 0
 
-  for (const raw of prefix.split('\n')) {
-    const line = raw.trim()
+  for (const { text: line, loop } of scanLines(source, at)) {
     if (/^(?:```|~~~)/u.test(line)) {
       inFence = !inFence
       continue
@@ -21,7 +62,7 @@ export function workflowContextAt(source: string, at: number): WorkflowDslContex
     const top = stack.at(-1)
     const context: WorkflowDslContext = top === 'event' ? 'event' : top === 'task' || top === 'for-event' ? 'task' : 'run'
     if (context === 'event') {
-      if (/^(?:@act\s*\{|@for\b.*\{|\{)\s*$/iu.test(line)) {
+      if (loop || /^(?:@act\s*\{|\{)\s*$/iu.test(line)) {
         queueDepth += 1
         continue
       }
@@ -45,7 +86,7 @@ export function workflowContextAt(source: string, at: number): WorkflowDslContex
       stack.push('event')
       continue
     }
-    if (/^@for\s+[A-Za-z_][A-Za-z0-9_]*\s+in\s+range\([^)]*\)\s*\{\s*$/iu.test(line)) {
+    if (loop) {
       stack.push(context === 'run' ? 'for-task' : 'for-event')
       continue
     }
@@ -65,16 +106,18 @@ export interface VariableScope {
   kind: 'run' | 'task' | 'event' | 'act' | 'message' | 'for-task' | 'for-event' | 'for-queue'
   /** Variables declared with `@let` / `@var` inside this scope. */
   variables: Set<string>
-  /** Name bound by `@for <name> in range(...)`; also brings the loop aliases into scope. */
-  loopVariable?: string
+  /** Names bound by `@for <names> in ...`; a loop also brings the aliases into scope. */
+  loopVariables?: string[]
 }
 
 /** A variable usable at the cursor, with where it comes from so tools can label it truthfully. */
 export interface WorkflowVariable {
   name: string
   origin: 'declared' | 'loop' | 'loop-alias'
-  /** The loop variable an alias belongs to. */
+  /** The first variable of the loop an alias belongs to. */
   loop?: string
+  /** For an alias: whether the loop iterates a list (1-based position) or a range (the value). */
+  loopKind?: 'list' | 'range'
 }
 
 export function variableContext(frames: VariableScope[]): WorkflowDslContext {
@@ -86,12 +129,10 @@ export function variableContext(frames: VariableScope[]): WorkflowDslContext {
 
 /** Completion scope follows the same valid declarations as the cloud plan compiler. */
 export function collectWorkflowVariableScope(source: string, at: number): WorkflowVariable[] {
-  const frames: VariableScope[] = [{ kind: 'run', variables: new Set<string>() }]
-  const prefix = normalizeNewlines(source.slice(0, Math.max(0, Math.min(at, source.length))))
+  const frames: Array<VariableScope & { loopKind?: 'list' | 'range' }> = [{ kind: 'run', variables: new Set<string>() }]
   let inFence = false
 
-  for (const raw of prefix.split('\n')) {
-    const line = raw.trim()
+  for (const { text: line, loop } of scanLines(source, at)) {
     if (/^(?:```|~~~)/u.test(line)) {
       inFence = !inFence
       continue
@@ -110,12 +151,12 @@ export function collectWorkflowVariableScope(source: string, at: number): Workfl
       frames.at(-1)?.variables.add(variable[1])
     }
 
-    const loop = line.match(/^@for\s+([A-Za-z_][A-Za-z0-9_]*)\s+in\s+range\([^)]*\)\s*\{/iu)
-    if (loop?.[1]) {
+    if (loop) {
       frames.push({
         kind: context === 'run' ? 'for-task' : context === 'task' ? 'for-event' : 'for-queue',
         variables: new Set<string>(),
-        loopVariable: loop[1],
+        loopVariables: loop,
+        loopKind: /\bin\s+range\s*\(/iu.test(line) ? 'range' : 'list',
       })
       continue
     }
@@ -134,14 +175,14 @@ export function collectWorkflowVariableScope(source: string, at: number): Workfl
   const visible = new Map<string, WorkflowVariable>()
   for (const frame of frames) {
     for (const name of frame.variables) visible.set(name, { name, origin: 'declared' })
-    if (frame.loopVariable) visible.set(frame.loopVariable, { name: frame.loopVariable, origin: 'loop' })
+    for (const name of frame.loopVariables ?? []) visible.set(name, { name, origin: 'loop' })
   }
   // Inside a loop the aliases belong to the innermost loop and win over a same-named declaration,
   // exactly as the compiler and the browser bind them.
-  const innermost = [...frames].reverse().find((frame) => frame.loopVariable)
-  if (innermost?.loopVariable) {
+  const innermost = [...frames].reverse().find((frame) => frame.loopVariables?.length)
+  if (innermost?.loopVariables) {
     for (const name of LOOP_ALIAS_VARIABLES) {
-      visible.set(name, { name, origin: 'loop-alias', loop: innermost.loopVariable })
+      visible.set(name, { name, origin: 'loop-alias', loop: innermost.loopVariables[0], loopKind: innermost.loopKind })
     }
   }
   return [...visible.values()]

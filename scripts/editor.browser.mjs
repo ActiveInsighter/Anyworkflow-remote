@@ -59,7 +59,17 @@ try {
       await page.keyboard.press('ControlOrMeta+a')
       await page.keyboard.insertText(text)
     }
-    const copyButton = () => page.getByRole('button', { name: /^(智能复制|已复制)$/ })
+    const copyButton = () => page.getByRole('button', { name: '复制', exact: true })
+    const deleteButton = () => page.getByRole('button', { name: '删除', exact: true })
+    const editorFocused = () => page.evaluate(() => document.activeElement?.classList.contains('cm-content') ?? false)
+    // The 循环 tool is a popover of templates; it opens without taking focus from the text.
+    const insertLoop = async (template = '数字循环') => {
+      await page.getByRole('button', { name: '循环', exact: true }).click()
+      const item = page.getByRole('button', { name: new RegExp(`^${template}`) })
+      await item.waitFor()
+      assert.equal(await editorFocused(), true, `${width}px the loop menu leaves focus in the text`)
+      await item.click()
+    }
     const copiedText = () => page.evaluate(() => navigator.clipboard.readText())
     const expectClean = () => page.locator('.aw-editor-shell').getByText('无问题', { exact: true }).waitFor()
 
@@ -124,7 +134,7 @@ try {
       assert.equal(await copiedText(), expected, `${width}px copies ${header} including repeat suffix`)
       assert.equal(await readSource(), source, 'copy leaves source intact')
       // Delete at the same delimiter, then undo; copy and deletion have identical boundaries.
-      await page.getByRole('button', { name: '智能删除', exact: true }).click()
+      await deleteButton().click()
       const start = source.indexOf(expected)
       assert.equal(await readSource(), source.slice(0, start) + source.slice(start + expected.length))
       await page.getByRole('button', { name: '撤销', exact: true }).click()
@@ -144,23 +154,69 @@ try {
     await select(0, source.length)
     await copyButton().click()
     assert.equal(await copiedText(), source, 'select-all still copies the complete workflow')
+    // A selection is copied exactly, and what was copied is tinted briefly.
+    await select(source.indexOf('next %i%'), source.indexOf('next %i%') + 4)
+    await copyButton().click()
+    assert.equal(await copiedText(), 'next', 'a plain selection copies exactly what is selected')
+    await page.locator('.cm-flash').first().waitFor()
+    assert.equal(await editorFocused(), true, `${width}px toolbar buttons never take focus from the text`)
+
+    // The selection stays visible on the current line: the current line is translucent.
+    const colours = await page.evaluate(() => {
+      const alpha = (colour) => {
+        const match = colour.match(/rgba?\(([^)]+)\)/u)
+        if (!match) return 1
+        const parts = match[1].split(/[\s,/]+/u).filter(Boolean)
+        return parts.length > 3 ? Number(parts[3].replace('%', '')) / (parts[3].includes('%') ? 100 : 1) : 1
+      }
+      const active = document.querySelector('.cm-activeLine')
+      const selection = document.querySelector('.cm-selectionBackground')
+      return {
+        activeAlpha: active ? alpha(getComputedStyle(active).backgroundColor) : 0,
+        selection: selection ? getComputedStyle(selection).backgroundColor : '',
+      }
+    })
+    assert.ok(colours.activeAlpha < 0.5, `${width}px current line must not hide the selection (${colours.activeAlpha})`)
+    assert.ok(colours.selection && colours.selection !== 'rgba(0, 0, 0, 0)', 'the selection is painted')
+
+    // 选择块 widens from the message to its loop, then the Event.
+    const selectBlock = () => page.getByRole('button', { name: '选择块', exact: true }).click()
+    await select(source.indexOf('next %i%'))
+    await selectBlock()
+    assert.equal(await selection(), '      { next %i% }\n')
+    await selectBlock()
+    assert.equal(await selection(), loop, 'a second press selects the enclosing loop')
+    await selectBlock()
+    assert.equal(await selection(), event, 'a third press selects the Event')
+
+    // Copying never scrolls the page or the editor.
+    await select(source.indexOf('world'))
+    const before = await page.evaluate(() => [scrollY, document.querySelector('.cm-scroller').scrollTop])
+    await copyButton().click()
+    assert.deepEqual(await page.evaluate(() => [scrollY, document.querySelector('.cm-scroller').scrollTop]), before, `${width}px copy leaves scroll positions alone`)
+    // Menus are not modal: opening one must not lock page scroll (which shifts the layout).
+    const bodyStyle = () => page.evaluate(() => [document.body.getAttribute('style') ?? '', document.body.hasAttribute('data-scroll-locked')])
+    const unlocked = await bodyStyle()
+    await page.getByRole('button', { name: '更多', exact: true }).click()
+    await page.getByRole('menuitem', { name: /查找替换/ }).waitFor()
+    assert.deepEqual(await bodyStyle(), unlocked, 'menus do not lock page scroll')
+    await page.keyboard.press('Escape')
 
     // The loop button names nested loops i, j, k, validates cleanly and refuses a fourth level.
-    const loopButton = () => page.getByRole('button', { name: '循环', exact: true })
     await replace('@run=Loops\n@task T {\n  @event E {\n    \n  }\n}\n')
     const loopSource = await readSource()
     await select(loopSource.indexOf('    \n') + 4)
-    await loopButton().click()
+    await insertLoop()
     assert.equal(await selection(), 'i', `${width}px first loop is i`)
     await select((await readSource()).indexOf('@for i in range(1, 3) {') + '@for i in range(1, 3) {'.length)
-    await loopButton().click()
+    await insertLoop()
     assert.equal(await selection(), 'j', 'a loop inside i is j')
     await select((await readSource()).indexOf('@for j in range(1, 3) {') + '@for j in range(1, 3) {'.length)
-    await loopButton().click()
+    await insertLoop()
     assert.equal(await selection(), 'k', 'a loop inside i and j is k')
     const threeDeep = await readSource()
     await select(threeDeep.indexOf('@for k in range(1, 3) {') + '@for k in range(1, 3) {'.length)
-    await loopButton().click()
+    await insertLoop()
     await page.getByText('循环最多嵌套 3 层。', { exact: true }).waitFor()
     assert.equal(await readSource(), threeDeep, 'the refused fourth loop changes nothing')
     await select(threeDeep.indexOf('@for k in range(1, 3) {') + '@for k in range(1, 3) {'.length + 1)
@@ -174,10 +230,28 @@ try {
     const copiedLoop = await copiedText()
     assert.ok(copiedLoop.trimStart().startsWith('@for j in range(1, 3) {') && copiedLoop.includes('@for k in') && copiedLoop.trimEnd().endsWith('}'),
       'copying the middle loop takes its nested loop with it')
-    await page.getByRole('button', { name: '智能删除', exact: true }).click()
+    await deleteButton().click()
     assert.ok(!(await readSource()).includes('@for j') && (await readSource()).includes('@for i'), 'deleting the middle loop keeps its parent')
     await page.getByRole('button', { name: '撤销', exact: true }).click()
     assert.equal(await readSource(), nestedLoopSource)
+
+    // Chapters with their own sections: one template, valid at once, previewed Act by Act.
+    await replace('@run=Book\n@task T {\n  @event 写书 {\n    \n  }\n}\n')
+    await select((await readSource()).indexOf('    \n') + 4)
+    await insertLoop('章节 × 小节')
+    assert.equal(await selection(), '1, 第一章, [小节一, 小节二]', 'the first chapter is selected for editing')
+    await expectClean()
+    await page.locator('.aw-editor-shell [title="循环展开后的数量"]', { hasText: '1 Event · 3 Act' }).waitFor()
+    if (width < 1280) await page.getByRole('button', { name: '结构', exact: true }).click()
+    await page.getByRole('tab', { name: '预览' }).click()
+    const previewPanel = page.getByRole('tabpanel', { name: '预览' })
+    await previewPanel.getByText('写第1章《第一章》第2节：小节二').waitFor()
+    await previewPanel.getByText('写第2章《第二章》第1节：小节一').waitFor()
+    await previewPanel.getByText('光标所在 Event').waitFor()
+    if (width < 1280) await page.keyboard.press('Escape')
+    await page.getByRole('tab', { name: '预览' }).waitFor({ state: width < 1280 ? 'detached' : 'visible' })
+    if (width >= 1280) await page.getByRole('tab', { name: '大纲' }).click()
+
     await replace(source)
     await expectClean()
 
@@ -206,7 +280,7 @@ try {
     if (screenshotDir) await page.screenshot({ path: `${screenshotDir}/editor-${width}.png`, fullPage: true })
     assert.deepEqual(writes, [], 'editor interactions never publish fixture data')
     assert.deepEqual(errors, [])
-    console.log(`PASS ${width}px: English sleep/wait syntax, Task variables, nested loop insertion, selection, smart copy/delete, undo/redo, clipboard denial, fullscreen and overflow`)
+    console.log(`PASS ${width}px: English sleep/wait syntax, Task variables, nested loop insertion, selection, exact copy with flash, select block, focus, chapter template and preview, delete, undo/redo, clipboard denial, fullscreen and overflow`)
     await context.close()
   }
 } finally { await browser.close() }
