@@ -4,10 +4,11 @@ AnyWorkflow 由四个部分组成，PocketBase 是它们之间唯一的数据契
 
 | 部分 | 仓库 | 职责 |
 | --- | --- | --- |
-| Web 控制台 | Anyworkflow-remote `src/` | 编辑 Run、查看执行、文件转换、资料库、设置 |
+| Web 控制台 | Anyworkflow-remote `src/` | 编辑 Run、查看执行、文件转换、网页采集、资料库、设置 |
 | 边缘 API | Anyworkflow-remote `worker/` | 同源 `/api/*`：上传、下载、资料库、唤醒转换调度器 |
 | 转换调度器 | Anyworkflow-remote `converter-worker/` | Cloudflare Durable Object，驱动外部执行的异步任务 |
-| 后端服务 | AnyWorkflow-workers | PocketBase hooks/migrations、Run 编排与派发、对话导出 |
+| 后端服务 | AnyWorkflow-workers | PocketBase hooks/migrations、Run 编排与派发、对话导出、网页采集调度 |
+| 采集扩展 | Anyworkflow-capture | 浏览器里打开页面、解析内容、回传结果 |
 
 浏览器扩展（AnyWorkflow）领取 Event 执行；file-converter-ai 在 GitHub Actions 中执行 PDF 转换。
 
@@ -20,7 +21,7 @@ AnyWorkflow 由四个部分组成，PocketBase 是它们之间唯一的数据契
 
 ## 异步任务框架
 
-文件转换、Run 对话导出和 Run 队列都是异步任务。框架源码在
+文件转换、Run 对话导出、Run 队列和网页采集都是异步任务。框架源码在
 `AnyWorkflow-workers/src/platform/tasks/`（平台无关，可在 Node、Cloudflare 和浏览器运行），
 通过 `scripts/sync-task-kit.mjs` 原样复制到本仓库 `shared/task-kit/`，`npm test` 校验校验和。
 **不要直接修改 `shared/task-kit/`**：在 workers 仓库修改后同步。
@@ -28,7 +29,7 @@ AnyWorkflow 由四个部分组成，PocketBase 是它们之间唯一的数据契
 ```text
 shared/task-kit/
 ├── lifecycle.mjs              标准状态：idle / queued / running / succeeded / partial / failed / canceled / expired
-├── catalog.mjs                任务类型目录：file-conversion、run-export、run（集合名 + 状态映射）
+├── catalog.mjs                任务类型目录：file-conversion、run-export、run、page-capture（集合名 + 状态映射）
 ├── engine.mjs                 一轮处理：先推进运行中，再在并发槽位内启动排队任务；单任务出错隔离
 ├── retry.mjs                  指数退避、原地计数失败（可声明不能盲目失败的状态）
 ├── executors/github-actions.mjs  GitHub Actions 执行器：派发意图先落库、按 request id 对账、不重复派发

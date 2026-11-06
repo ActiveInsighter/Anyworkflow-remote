@@ -23,7 +23,8 @@ AnyWorkflow 的响应式 Web 控制端。项目参考 `Anyworkflow-wechat` 的�
 - Run 详情「更多操作 → 导出 AI 对话」：完整对话/仅 AI 回复、后台生成 Markdown ZIP、进度与历史下载
 - Event 执行内容按需查看
 - 进行中数据自适应轮询（有进行中任务时加快，空闲时放慢）与有界跨页缓存
-- 顶栏任务中心：工作流、文件转换、对话导出统一显示，侧栏计数，完成提醒
+- 顶栏任务中心：工作流、文件转换、对话导出、网页采集统一显示，侧栏计数，完成提醒
+- 网页采集：批量填写链接，由浏览器扩展在已登录的浏览器里抓取，查看和下载 Markdown（见 docs/page-capture.md）
 - 收藏和模板：云盘式浏览，点击进入文件夹，⋮ 打开操作面板（移动、重命名、复制、删除），列表/网格与排序
 - 持久文件资料库：文件夹、多文件与拖放上传、重命名、移动、搜索、删除与跨转换任务复用
 - CodeMirror DSL 编辑器、本地草稿与括号消息语法
@@ -69,6 +70,7 @@ src/
 │   ├── schedules/        每天重复计划
 │   ├── runtime-config/   浏览器运行配置字段与默认值
 │   ├── file-converter/   PDF → Markdown 转换
+│   ├── page-capture/     网页采集：链接表单、采集记录、结果查看
 │   └── settings/         连接、外观、快捷键
 ├── components/
 │   ├── ui/               shadcn/ui 原语（唯一的基础组件来源）
@@ -406,6 +408,11 @@ Worker 配置位于 `wrangler.jsonc`，入口为 `worker/index.ts`。`/api/*` �
 任务通过 PocketBase realtime 唤醒转换 worker，GitHub 仍使用共享 Gemini 队列。
 
 验证：`npm run preflight`，以及 `npm run test:browser -- pdf`。浏览器用例检查四种宽度、任务参数、状态和自定义 ZIP 下载。
+
+## 网页采集
+
+侧边栏 `工具 → 网页采集`（`/page-capture`）。填写链接后，[Anyworkflow-capture](https://github.com/ActiveInsighter/Anyworkflow-capture)
+扩展在浏览器里打开页面并回传正文。说明见 [网页采集](docs/page-capture.md)。
 
 ## 远程运行配置
 

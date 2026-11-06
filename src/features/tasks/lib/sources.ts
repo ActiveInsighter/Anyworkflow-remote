@@ -1,8 +1,9 @@
 import type { LucideIcon } from 'lucide-react'
-import { FileDown, FileText, Workflow } from 'lucide-react'
+import { FileDown, FileText, Globe, Workflow } from 'lucide-react'
 import { listTaskFeed } from '@/lib/api/task-feed'
-import { fileConversionKind, runExportKind, runKind, type TaskKind, type TaskView } from '@/lib/tasks'
+import { fileConversionKind, pageCaptureKind, runExportKind, runKind, type TaskKind, type TaskView } from '@/lib/tasks'
 import type { DispatchRunRecord } from '@/types'
+import type { CaptureJob } from '@/types/page-capture'
 import type { RunExportRecord } from '@/types/run-export'
 
 /** One async task as the task center shows it, whatever its kind. */
@@ -74,6 +75,20 @@ export const TASK_SOURCES: TaskSource[] = [
         detail: row.contentMode === 'assistant' ? '仅 AI 回复' : '完整对话',
         href: `/runs/${encodeURIComponent(row.run)}?export=1`,
         error: row.error,
+      }))
+    },
+  },
+  {
+    kind: pageCaptureKind,
+    label: '网页采集',
+    icon: Globe,
+    async load(options, signal) {
+      const rows = await listTaskFeed<CaptureJob>(pageCaptureKind, options, signal)
+      return rows.map((job) => item(pageCaptureKind, job, {
+        title: job.title || job.url,
+        detail: job.host,
+        href: '/page-capture',
+        error: job.error,
       }))
     },
   },
