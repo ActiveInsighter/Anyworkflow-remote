@@ -134,7 +134,7 @@ export function DriveFolderPicker({
     <div className="flex flex-col gap-4">
       <div className="flex min-h-touch items-center gap-2 rounded-xl bg-subtle px-1.5">
         {here ? (
-          <Button type="button" variant="ghost" size="icon-touch" className="rounded-full" aria-label="上一级" onClick={() => setAt(here.parent && folders.some((folder) => folder.id === here.parent) ? here.parent : '')}>
+          <Button type="button" variant="ghost" size="icon-touch" aria-label="上一级" onClick={() => setAt(here.parent && folders.some((folder) => folder.id === here.parent) ? here.parent : '')}>
             <ArrowLeft />
           </Button>
         ) : (

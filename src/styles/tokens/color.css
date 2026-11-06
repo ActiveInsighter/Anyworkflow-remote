@@ -1,9 +1,13 @@
 /*
- * Colour tokens.
+ * Colour tokens ("天青").
  *
  * Semantic roles only — components never reference a hex value. Names follow the shadcn/ui
  * contract (`--background`, `--primary`, `--sidebar-accent`…) so registry components work
  * unchanged; project-specific roles (status tones, editor syntax) extend the same scheme.
+ *
+ * Every neutral leans toward the brand hue, so surfaces and the accent always agree. The accent
+ * means one thing: action or live work. Success sits on the yellow side of green to stay clear
+ * of it.
  *
  * Light values live on :root. `.dark` on <html> (set by src/lib/theme.ts before first paint)
  * overrides only the roles whose value changes. theme.css exposes every role to Tailwind.
@@ -13,153 +17,159 @@
   color-scheme: light;
 
   /* Surfaces. The app frame sits on the canvas; pages are panels raised on it. */
-  --canvas: #f3f3f6;
-  --background: #ffffff;
-  --foreground: #1b1c22;
+  --canvas: #ebf0f1;
+  --background: #fdfefe;
+  --foreground: #14222a;
   --card: #ffffff;
-  --card-foreground: #1b1c22;
+  --card-foreground: #14222a;
   --popover: #ffffff;
-  --popover-foreground: #1b1c22;
-  --overlay: rgb(14 15 22 / 40%);
+  --popover-foreground: #14222a;
+  --overlay: rgb(10 24 30 / 42%);
   /* A quiet band inside a panel: table headers, toolbars, inset wells. */
-  --subtle: #f8f8fa;
+  --subtle: #f4f7f8;
 
   /* Brand and interaction */
-  --primary: #5b5bd6;
-  --primary-hover: #4e4ec6;
+  --primary: #0a6c7c;
+  --primary-hover: #085a68;
   --primary-foreground: #ffffff;
-  --primary-soft: #eff0fe;
-  --secondary: #f1f1f4;
-  --secondary-foreground: #2d2e36;
-  --muted: #f4f4f7;
-  --muted-foreground: #646773;
-  --accent: #eef0fd;
-  --accent-foreground: #4848b8;
-  --destructive: #c9364f;
+  --primary-soft: #e0f1f3;
+  --secondary: #edf1f3;
+  --secondary-foreground: #22333a;
+  --muted: #eff3f4;
+  --muted-foreground: #55676f;
+  --accent: #e6f2f4;
+  --accent-foreground: #075563;
+  --destructive: #c13a3a;
   --destructive-foreground: #ffffff;
 
   /* Lines: decorative dividers stay quiet, inputs and focus stay legible. */
-  --border: #e6e6eb;
-  --border-strong: #d2d3dc;
-  --input: #8b8e9b;
-  --ring: #5b5bd6;
+  --border: #e2e8ea;
+  --border-strong: #cdd6da;
+  --input: #87969e;
+  --ring: #0a7f92;
 
   /* Status tones: each pairs a readable foreground with a soft surface. */
-  --info: #4357c4;
-  --info-soft: #eef0fc;
-  --success: #1f7a54;
-  --success-soft: #eaf7f0;
-  --warning: #8d5f0f;
-  --warning-soft: #fcf4e2;
-  --danger: #c6334c;
-  --danger-soft: #fdeef1;
+  --info: #0a6c7c;
+  --info-soft: #e0f1f3;
+  --success: #2a7a40;
+  --success-soft: #e6f4e9;
+  --warning: #8a5a06;
+  --warning-soft: #fbf1dc;
+  --danger: #bd3535;
+  --danger-soft: #fcebea;
 
   /* Navigation shares the canvas, so the page panel is the only raised surface. */
-  --sidebar: #f3f3f6;
-  --sidebar-foreground: #1b1c22;
-  --sidebar-hover: rgb(27 28 34 / 5%);
+  --sidebar: #ebf0f1;
+  --sidebar-foreground: #14222a;
+  --sidebar-hover: rgb(20 34 42 / 5%);
   --sidebar-accent: #ffffff;
-  --sidebar-accent-foreground: #1b1c22;
-  --sidebar-primary: #5b5bd6;
+  --sidebar-accent-foreground: #14222a;
+  /* The current page: tinted, so the raised surface stays free for the page itself. */
+  --sidebar-active: rgb(10 108 124 / 11%);
+  --sidebar-primary: #0a6c7c;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-border: #e3e3e9;
-  --sidebar-ring: #5b5bd6;
+  --sidebar-border: #dde4e7;
+  --sidebar-ring: #0a7f92;
 
   /* Code editor surfaces and syntax */
-  --cm-bg: #fcfcfd;
-  --cm-fg: #272933;
-  --cm-gutter-bg: #f8f8fa;
-  --cm-gutter-fg: #737783;
-  --cm-toolbar-bg: #f8f8fa;
-  --cm-border: #e5e5ec;
+  --cm-bg: #fcfdfd;
+  --cm-fg: #22323a;
+  --cm-gutter-bg: #f4f7f8;
+  --cm-gutter-fg: #6b7d85;
+  --cm-toolbar-bg: #f4f7f8;
+  --cm-border: #e2e8ea;
   /* Translucent, so the selection layer drawn beneath the text stays visible on the current line. */
-  --cm-active-line: rgb(94 106 210 / 6%);
-  --cm-selection: #c3c8f6;
-  --cm-selection-blur: #dcdff6;
+  --cm-active-line: rgb(10 108 124 / 6%);
+  --cm-selection: #bfe3e8;
+  --cm-selection-blur: #d9ecef;
   --cm-selection-match: rgb(214 158 16 / 22%);
-  --cm-bracket-match: rgb(94 106 210 / 20%);
-  --cm-flash: rgb(22 163 106 / 26%);
+  --cm-bracket-match: rgb(10 108 124 / 20%);
+  --cm-flash: rgb(42 122 64 / 24%);
   --cm-tooltip-bg: #ffffff;
-  --cm-caret: #5e6ad2;
-  --cm-keyword: #8058aa;
-  --cm-variable: #8b641f;
-  --cm-string: #277253;
-  --cm-link: #4066b6;
-  --cm-atom: #6855ae;
-  --cm-number: #aa583c;
-  --cm-function: #4066b6;
-  --cm-comment: #747783;
-  --cm-bracket: #686b76;
+  --cm-caret: #0a7f92;
+  --cm-keyword: #7b4fa8;
+  --cm-variable: #8a5a06;
+  --cm-string: #2a7a40;
+  --cm-link: #0a6c7c;
+  --cm-atom: #5f55ae;
+  --cm-number: #b0512f;
+  --cm-function: #0a6c7c;
+  --cm-comment: #6b7d85;
+  --cm-bracket: #5f7179;
 }
 
 .dark {
   color-scheme: dark;
 
-  --canvas: #09090c;
-  --background: #111116;
-  --foreground: #ececf1;
-  --card: #141419;
-  --card-foreground: #ececf1;
-  --popover: #18181e;
-  --popover-foreground: #ececf1;
+  --canvas: #0b1215;
+  --background: #10191d;
+  --foreground: #e4ecee;
+  --card: #142024;
+  --card-foreground: #e4ecee;
+  --popover: #18252b;
+  --popover-foreground: #e4ecee;
   --overlay: rgb(0 0 0 / 64%);
-  --subtle: #16161c;
+  --subtle: #152226;
 
-  --primary: #5b5bd6;
-  --primary-hover: #6b6be3;
-  --primary-soft: #1f2040;
-  --secondary: #23232b;
-  --secondary-foreground: #e4e4ec;
-  --muted: #1b1b22;
-  --muted-foreground: #9a9cab;
-  --accent: #222440;
-  --accent-foreground: #b4b8ff;
-  --destructive: #eb8294;
-  --destructive-foreground: #210c12;
+  --primary: #38b6c9;
+  --primary-hover: #56c7d8;
+  --primary-foreground: #04181d;
+  --primary-soft: #12323a;
+  --secondary: #1e2c32;
+  --secondary-foreground: #dde6e9;
+  --muted: #1a272d;
+  --muted-foreground: #93a6ae;
+  --accent: #15333b;
+  --accent-foreground: #8fdbe7;
+  --destructive: #ef8a85;
+  --destructive-foreground: #2a0c0b;
 
-  --border: #25252d;
-  --border-strong: #383944;
-  --input: #686b7a;
-  --ring: #9599f5;
+  --border: #202e34;
+  --border-strong: #33454d;
+  --input: #627780;
+  --ring: #56c7d8;
 
-  --info: #a6b1ff;
-  --info-soft: #1d2140;
-  --success: #6fcea3;
-  --success-soft: #142a22;
-  --warning: #e6bd74;
-  --warning-soft: #2e2617;
-  --danger: #f28d9e;
-  --danger-soft: #331c26;
+  --info: #5fcbdb;
+  --info-soft: #11323a;
+  --success: #7ccf92;
+  --success-soft: #15301f;
+  --warning: #e3b96b;
+  --warning-soft: #33280f;
+  --danger: #f18f8a;
+  --danger-soft: #3a1c1d;
 
-  --sidebar: #09090c;
-  --sidebar-foreground: #ececf1;
-  --sidebar-hover: rgb(236 236 241 / 5%);
-  --sidebar-accent: #1b1b22;
-  --sidebar-accent-foreground: #ececf1;
-  --sidebar-border: #202028;
-  --sidebar-ring: #9599f5;
+  --sidebar: #0b1215;
+  --sidebar-foreground: #e4ecee;
+  --sidebar-hover: rgb(228 236 238 / 5%);
+  --sidebar-accent: #1a272d;
+  --sidebar-accent-foreground: #e4ecee;
+  --sidebar-active: rgb(95 203 219 / 11%);
+  --sidebar-primary: #38b6c9;
+  --sidebar-primary-foreground: #04181d;
+  --sidebar-border: #1c292f;
+  --sidebar-ring: #56c7d8;
 
-  --cm-bg: #121318;
-  --cm-fg: #e1e3ed;
-  --cm-gutter-bg: #101116;
-  --cm-gutter-fg: #9699a6;
-  --cm-toolbar-bg: #191a20;
-  --cm-border: #2a2b35;
-  --cm-active-line: rgb(163 175 255 / 6%);
-  --cm-selection: #3d4486;
-  --cm-selection-blur: #2b2f58;
+  --cm-bg: #11191d;
+  --cm-fg: #dfe8ea;
+  --cm-gutter-bg: #0f171a;
+  --cm-gutter-fg: #8b9ea6;
+  --cm-toolbar-bg: #162226;
+  --cm-border: #243238;
+  --cm-active-line: rgb(95 203 219 / 6%);
+  --cm-selection: #1f5a66;
+  --cm-selection-blur: #1a3f48;
   --cm-selection-match: rgb(250 204 21 / 18%);
-  --cm-bracket-match: rgb(163 175 255 / 24%);
-  --cm-flash: rgb(52 211 153 / 26%);
-  --cm-tooltip-bg: #22232d;
-  --cm-caret: #a3afff;
+  --cm-bracket-match: rgb(95 203 219 / 24%);
+  --cm-flash: rgb(124 207 146 / 24%);
+  --cm-tooltip-bg: #1e2c32;
+  --cm-caret: #5fcbdb;
   --cm-keyword: #c7a5ef;
-  --cm-variable: #dbbd84;
-  --cm-string: #8ccfaf;
-  --cm-link: #9bbcff;
+  --cm-variable: #e3b96b;
+  --cm-string: #7ccf92;
+  --cm-link: #7fd6e3;
   --cm-atom: #b7a5ef;
-  --cm-number: #e3ab8e;
-  --cm-function: #9bbcff;
-  --cm-comment: #9699a6;
-  --cm-bracket: #a6a9b9;
+  --cm-number: #e9ab8e;
+  --cm-function: #7fd6e3;
+  --cm-comment: #8b9ea6;
+  --cm-bracket: #a2b4bb;
 }

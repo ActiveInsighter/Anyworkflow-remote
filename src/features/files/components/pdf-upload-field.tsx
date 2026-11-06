@@ -1,4 +1,3 @@
-import { useState, type DragEvent } from 'react'
 import { Copy, FileText, Upload, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { ErrorAlert } from '@/components/feedback/error-alert'
@@ -30,43 +29,28 @@ export function PdfUploadField({ upload }: { upload: PdfUploadState }) {
             if (file) void upload.upload(file)
           }}
         />
-        {upload.uploading || upload.uploaded ? <UploadedFile upload={upload} /> : <DropZone upload={upload} />}
+        {upload.uploading || upload.uploaded ? <UploadedFile upload={upload} /> : <DropZone />}
         <ErrorAlert inline>{upload.error}</ErrorAlert>
       </div>
   )
 }
 
-function DropZone({ upload }: { upload: PdfUploadState }) {
-  const [dragging, setDragging] = useState(false)
-
-  function drop(event: DragEvent<HTMLLabelElement>) {
-    event.preventDefault()
-    setDragging(false)
-    const file = event.dataTransfer.files[0]
-    if (file) void upload.upload(file)
-  }
-
+/** Click target for the hidden input. Drops land on the composer around it, which owns the upload. */
+function DropZone() {
   return (
     <label
       htmlFor="pdf-upload"
-      onDragOver={(event) => {
-        event.preventDefault()
-        setDragging(true)
-      }}
-      onDragLeave={() => setDragging(false)}
-      onDrop={drop}
       className={cn(
-        'flex min-h-32 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-input px-4 py-6 text-center transition-colors duration-fast',
-        'hover:border-ring hover:bg-muted/50 peer-focus-visible:border-ring peer-focus-visible:ring-[3px] peer-focus-visible:ring-ring/50',
-        dragging && 'border-primary bg-primary/5',
+        'flex min-h-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-input px-4 py-4 text-center transition-colors duration-fast',
+        'hover:border-ring hover:bg-subtle peer-focus-visible:border-ring peer-focus-visible:ring-[3px] peer-focus-visible:ring-ring/25',
       )}
     >
-      <span className="flex size-9 items-center justify-center rounded-full bg-muted text-muted-foreground">
-        <Upload aria-hidden="true" className="size-4" />
+      <span className="flex items-center gap-2 text-body font-medium">
+        <Upload aria-hidden="true" className="size-4 text-muted-foreground" />
+        选择或拖入 PDF 文件
       </span>
-      <span className="text-body font-medium">选择 PDF 文件</span>
-      <span id="pdf-upload-help" className="text-xs text-muted-foreground">
-        或拖到这里 · 最大 2 GiB · 保存到资料库，可重复使用
+      <span id="pdf-upload-help" className="text-caption text-muted-foreground">
+        最大 2 GiB，保存到资料库后可重复使用
       </span>
     </label>
   )
@@ -82,9 +66,9 @@ function UploadedFile({ upload }: { upload: PdfUploadState }) {
   }
 
   return (
-    <div className="flex min-w-0 flex-col gap-3 rounded-lg border bg-muted/30 p-3">
+    <div className="flex min-w-0 flex-col gap-2.5 rounded-xl bg-subtle p-3">
       <div className="flex min-w-0 items-center gap-3">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-background text-muted-foreground ring-1 ring-border">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-card text-muted-foreground shadow-xs">
           <FileText aria-hidden="true" className="size-4" />
         </span>
         <div className="min-w-0 flex-1">
@@ -117,7 +101,7 @@ function UploadedFile({ upload }: { upload: PdfUploadState }) {
             readOnly
             aria-label="上传文件链接"
             value={uploaded.sourceUrl}
-            className="h-8 bg-background font-mono text-xs md:text-xs"
+            className="h-8 border-transparent bg-card font-mono text-xs md:text-xs"
             onFocus={(event) => event.currentTarget.select()}
           />
           {uploaded.size > LINK_FETCH_LIMIT ? (

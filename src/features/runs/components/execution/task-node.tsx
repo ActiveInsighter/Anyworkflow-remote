@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
-import { ProgressMeter } from '@/components/data-display/progress-meter'
+import { SegmentRail } from '@/components/data-display/segment-rail'
 import { ErrorAlert } from '@/components/feedback/error-alert'
 import { Pager } from '@/components/navigation/pager'
 import { Badge } from '@/components/ui/badge'
 import { useAsyncData } from '@/hooks/use-async-data'
 import { listEventsForTask, toErrorMessage } from '@/lib/api'
 import { isTerminalStatus, runStatusMeta } from '@/lib/domain/run-status'
-import { progressPercent, progressText } from '@/lib/format'
+import { progressText } from '@/lib/format'
 import type { DispatchTaskRecord } from '@/types'
 import type { RunDeepLink } from '../../hooks/use-run-detail'
 import { expansionKey, useNodeExpansion } from '../../hooks/use-execution-expansion'
@@ -69,7 +69,7 @@ export function TaskNode({
       level="task"
       open={open}
       onOpenChange={setOpen}
-      className="overflow-hidden rounded-xl border bg-card transition-shadow duration-base data-[state=open]:shadow-sm"
+      className="overflow-hidden rounded-xl border bg-card"
       leading={<StatusGlyph tone={status.tone} active={running} />}
       title={task.title || '未命名任务'}
       meta={
@@ -83,16 +83,19 @@ export function TaskNode({
       }
       footer={
         running && task.totalEvents > 0 ? (
-          <ProgressMeter
-            className="mt-2 h-1 max-w-xs"
-            value={progressPercent(task.completedEvents, task.totalEvents)}
+          <SegmentRail
+            className="mt-2 max-w-xs"
+            total={task.totalEvents}
+            done={task.completedEvents}
+            live
             tone={status.tone}
+            label={`已完成 ${task.completedEvents} / ${task.totalEvents} 个 Event`}
           />
         ) : null
       }
       trailing={task.executorKind === 'codex' ? <Badge variant="info" className="mt-1.5">Codex</Badge> : null}
     >
-      <div className="flex flex-col gap-2 border-t bg-muted/25 px-3 pt-3 pb-3 sm:px-4">
+      <div className="flex flex-col gap-2 border-t bg-subtle px-3 pt-3 pb-3 sm:px-4">
         <div className="flex flex-col gap-2 empty:hidden">
           <ErrorAlert inline>{task.compileError}</ErrorAlert>
           <ErrorAlert inline>{task.lastError && task.lastError !== task.compileError ? task.lastError : ''}</ErrorAlert>

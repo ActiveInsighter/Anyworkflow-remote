@@ -66,7 +66,9 @@ try {
   const saved = await download
   await page.getByText('已交给浏览器下载，可在下载列表查看进度', { exact: true }).waitFor()
   assert.equal(await page.getByRole('button', { name: '下载 ZIP', exact: true }).isEnabled(), true)
-  assert.equal(await page.getByRole('button', { name: '重跑', exact: true }).isEnabled(), true, 'large downloads do not lock the task actions')
+  await page.getByRole('button', { name: /^更多操作/u }).click()
+  assert.equal(await page.getByRole('menuitem', { name: '重跑', exact: true }).getAttribute('aria-disabled'), null, 'large downloads do not lock the task actions')
+  await page.keyboard.press('Escape')
   assert.equal(tokenCalls, 1)
   release()
   assert.equal(saved.suggestedFilename(), `${job.outputName}.zip`)

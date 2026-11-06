@@ -151,7 +151,7 @@ export function DriveBrowser({
                 <Button
                   variant="ghost"
                   size="icon-touch"
-                  className="shrink-0 rounded-full text-muted-foreground sm:size-9"
+                  className="shrink-0 text-muted-foreground sm:size-9"
                   aria-label={`文件夹操作：${here!.name}`}
                   onClick={onFolderMore}
                 >

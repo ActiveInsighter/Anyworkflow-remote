@@ -1,6 +1,7 @@
-import { PanelLeftClose, PanelLeftOpen, Plus, Workflow } from 'lucide-react'
+import { PanelLeftClose, PanelLeftOpen, Plus } from 'lucide-react'
 import { Link, useLocation } from 'react-router'
 import { appNavigationGroups, settingsNavItem, type AppNavItem } from '@/app/navigation'
+import { LogoMark } from '@/components/brand/logo-mark'
 import { Kbd } from '@/components/ui/kbd'
 import {
   Sidebar,
@@ -50,7 +51,7 @@ function NavItem({ item, pathname, running, onNavigate }: { item: AppNavItem; pa
         </Link>
       </SidebarMenuButton>
       {running ? (
-        <SidebarMenuBadge className="top-2! rounded-full bg-primary-soft px-1.5 font-mono text-micro text-primary" aria-label={`${running} 个进行中`}>
+        <SidebarMenuBadge className="top-2! rounded-full bg-primary-soft px-1.5 text-micro font-semibold text-primary tabular-nums" aria-label={`${running} 个进行中`}>
           {running}
         </SidebarMenuBadge>
       ) : null}
@@ -70,14 +71,9 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" variant="inset">
-      <SidebarHeader className="h-16 flex-row items-center gap-2.5 px-2.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-1">
-        <div className="grid size-8 shrink-0 place-items-center rounded-[0.6rem] bg-linear-to-br from-primary to-primary-hover text-primary-foreground shadow-sm ring-1 ring-black/5 group-data-[collapsible=icon]:hidden">
-          <Workflow className="size-4" strokeWidth={2} aria-hidden="true" />
-        </div>
-        <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
-          <div className="truncate text-sm font-semibold tracking-heading">AnyWorkflow</div>
-          <div className="text-micro text-muted-foreground">Remote</div>
-        </div>
+      <SidebarHeader className="h-14 flex-row items-center gap-2.5 px-2.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-1">
+        <LogoMark className="size-7 group-data-[collapsible=icon]:hidden" />
+        <div className="min-w-0 flex-1 truncate text-sm font-semibold tracking-heading group-data-[collapsible=icon]:hidden">AnyWorkflow</div>
         {isMobile ? null : <SidebarToggle />}
       </SidebarHeader>
 
@@ -85,7 +81,7 @@ export function AppSidebar() {
         <SidebarGroup className="pt-0 pb-2">
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild variant="primary" tooltip="新建工作流" className="justify-center group-data-[collapsible=icon]:justify-start">
+              <SidebarMenuButton asChild variant="primary" tooltip="新建工作流">
                 <Link to="/runs/new" onClick={closeDrawer}>
                   <Plus />
                   <span>新建工作流</span>
@@ -98,7 +94,7 @@ export function AppSidebar() {
         <nav aria-label="主导航" className="contents">
           {appNavigationGroups.map((group) => (
             <SidebarGroup key={group.id} className="py-1">
-              <SidebarGroupLabel className="h-7 text-caption font-medium text-muted-foreground/80">{group.label}</SidebarGroupLabel>
+              <SidebarGroupLabel className="h-7 text-caption font-medium text-muted-foreground">{group.label}</SidebarGroupLabel>
               <SidebarMenu>
                 {group.items.map((item) => (
                   <NavItem key={item.id} item={item} pathname={pathname} running={running(item)} onNavigate={closeDrawer} />

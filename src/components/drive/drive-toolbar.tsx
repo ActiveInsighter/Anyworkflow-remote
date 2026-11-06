@@ -24,7 +24,7 @@ export function DriveSearch({ value, onValueChange, label }: { value: string; on
       value={value}
       onValueChange={onValueChange}
       size="touch"
-      className="h-12 rounded-full border-transparent bg-muted/70 px-1.5 shadow-none sm:h-11 has-[input:focus-visible]:bg-background"
+      className="h-touch border-transparent bg-muted px-1 sm:h-10 has-[input:focus-visible]:bg-card"
     />
   )
 }
@@ -78,7 +78,7 @@ export function DriveSortBar({
         <Button
           variant="ghost"
           size="icon-touch"
-          className="rounded-full bg-primary-soft text-primary hover:bg-primary-soft/80 hover:text-primary sm:size-9"
+          className="text-muted-foreground sm:size-9"
           aria-label={sort.direction === 'asc' ? '改为降序' : '改为升序'}
           onClick={() => onSortChange({ ...sort, direction: sort.direction === 'asc' ? 'desc' : 'asc' })}
         >
@@ -93,12 +93,12 @@ export function DriveSortBar({
         onValueChange={(next) => {
           if (next) onViewChange(next as DriveViewMode)
         }}
-        className="h-10 rounded-full sm:h-9"
+        className="h-10 sm:h-9"
       >
-        <ToggleGroupItem value="list" aria-label="列表视图" className="rounded-full px-3.5">
+        <ToggleGroupItem value="list" aria-label="列表视图" className="px-3.5">
           <List />
         </ToggleGroupItem>
-        <ToggleGroupItem value="grid" aria-label="网格视图" className="rounded-full px-3.5">
+        <ToggleGroupItem value="grid" aria-label="网格视图" className="px-3.5">
           <LayoutGrid />
         </ToggleGroupItem>
       </ToggleGroup>

@@ -25,7 +25,7 @@ All of these skills are bundled under `.agents/skills/` in the CI source artifac
 
 - Product: a responsive web control surface for automation workflows, Runs, Tasks, and Events.
 - Stack: React 19, Vite 8, TypeScript, Tailwind CSS 4, shadcn/ui with Radix primitives, and Lucide icons.
-- Follow root `DESIGN.md`: Linear-inspired neutral surfaces and indigo accents, with Vercel-inspired technical typography. Keep the semantic CSS-variable theme.
+- Follow root `DESIGN.md` (天青): cool ink-on-paper neutrals, one accent for action and live work, flat records under a single raised composer. Keep the semantic CSS-variable theme.
 - Desktop and mobile are equal product surfaces, not a desktop UI with a minimal mobile fallback.
 
 ## Design direction
@@ -35,6 +35,7 @@ Treat the interface as a calm, high-signal operator console. Prioritize scanabil
 - Establish hierarchy through spacing, type scale, alignment, and semantic color before adding decoration.
 - Keep copy in sentence case, concrete, and action-oriented. Use the same verb for an action and its resulting feedback.
 - Give each view one clear focal point; avoid generic SaaS card grids, ornamental gradients, excessive rounded containers, and decorative labels.
+- Show progress in real units with `SegmentRail`, and give each record one visible action with the rest in its menu (`JobRow`, `JobMenu`).
 - Prefer flat, intentional composition over nested cards when spacing and separators can express structure more clearly.
 - Use a deliberate visual choice tied to workflow operations while keeping secondary surfaces quiet and consistent.
 - Use Lucide SVG icons with accessible labels; never use emoji or Unicode symbols as product/navigation icons.

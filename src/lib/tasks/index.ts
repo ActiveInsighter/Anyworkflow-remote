@@ -15,5 +15,5 @@ export {
   runKind,
 } from '@shared/task-kit/index.mjs'
 export type { TaskKind, TaskState, TaskView } from '@shared/task-kit/index.mjs'
-export { taskStatusMeta, taskStateMeta } from './status'
+export { taskPhase, taskStatusMeta, taskStateMeta } from './status'
 export { notifyTasksChanged, onTasksChanged } from './events'

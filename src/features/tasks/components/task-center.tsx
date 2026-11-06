@@ -64,7 +64,7 @@ function TriggerContent({ count }: { count: number }) {
       </span>
       <span className="hidden sm:inline">任务</span>
       {count ? (
-        <span className="grid h-4.5 min-w-4.5 place-items-center rounded-full bg-primary px-1 font-mono text-micro font-medium text-primary-foreground tabular-nums">
+        <span className="grid h-4.5 min-w-4.5 place-items-center rounded-full bg-primary px-1 text-micro font-semibold text-primary-foreground tabular-nums">
           {count > 99 ? '99+' : count}
         </span>
       ) : null}
@@ -88,7 +88,7 @@ export function TaskCenter() {
       size="sm"
       aria-label={label}
       title={label}
-      className={cn('h-9 gap-1.5 rounded-full px-2.5 text-muted-foreground hover:text-foreground', active.length && 'text-foreground')}
+      className={cn('h-9 gap-1.5 px-2.5 text-muted-foreground hover:text-foreground', active.length && 'text-foreground')}
       {...props}
     >
       <TriggerContent count={active.length} />
@@ -121,7 +121,7 @@ export function TaskCenter() {
         <div className="flex items-center justify-between border-b px-4 py-2.5">
           <div>
             <h2 className="text-sm font-semibold">任务</h2>
-            <p className="text-caption text-muted-foreground">工作流、文件转换与对话导出</p>
+            <p className="text-caption text-muted-foreground">工作流、转换、采集与导出</p>
           </div>
           <RefreshButton />
         </div>

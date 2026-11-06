@@ -446,14 +446,14 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<'li'>) {
 }
 
 const sidebarMenuButtonVariants = cva(
-  'peer/menu-button flex w-full items-center gap-2.5 overflow-hidden rounded-md p-2 text-left text-sm text-muted-foreground ring-sidebar-ring outline-hidden transition-[width,height,padding,color,background-color] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-9! group-data-[collapsible=icon]:p-2.5! hover:bg-sidebar-hover hover:text-sidebar-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[active=true]:shadow-[0_0_0_1px_var(--sidebar-border),var(--elevation-xs)] data-[active=true]:[&>svg]:text-primary data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground in-data-[mobile=true]:h-touch in-data-[mobile=true]:text-[0.9375rem] [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 in-data-[mobile=true]:[&>svg]:size-5',
+  'peer/menu-button flex w-full items-center gap-2.5 overflow-hidden rounded-md p-2 text-left text-sm text-muted-foreground ring-sidebar-ring outline-hidden transition-[width,height,padding,color,background-color] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-9! group-data-[collapsible=icon]:p-2.5! hover:bg-sidebar-hover hover:text-sidebar-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-active data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[active=true]:[&>svg]:text-primary data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground in-data-[mobile=true]:h-touch in-data-[mobile=true]:text-[0.9375rem] [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 in-data-[mobile=true]:[&>svg]:size-5',
   {
     variants: {
       variant: {
         default: '',
-        /** The one primary action in the navigation (new Run). */
+        /** The one standing action in the navigation (new Run): raised, not solid, so it never outranks the page's own action. */
         primary:
-          'bg-sidebar-primary font-medium text-sidebar-primary-foreground shadow-xs hover:bg-primary-hover hover:text-sidebar-primary-foreground active:bg-primary-hover active:text-sidebar-primary-foreground [&>svg]:text-sidebar-primary-foreground',
+          'bg-sidebar-accent font-medium text-sidebar-accent-foreground shadow-[0_0_0_1px_var(--sidebar-border),var(--elevation-xs)] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:bg-sidebar-accent [&>svg]:text-primary',
         outline:
           'bg-background shadow-[0_0_0_1px_var(--sidebar-border)] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:shadow-[0_0_0_1px_var(--sidebar-accent)]',
       },

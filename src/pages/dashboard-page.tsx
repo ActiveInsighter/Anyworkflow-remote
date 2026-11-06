@@ -95,7 +95,7 @@ export function DashboardPage() {
       </ErrorAlert>
       <ErrorAlert>{actions.error}</ErrorAlert>
 
-      <div className="mb-4 flex flex-col gap-3">
+      <div className="mb-3 flex flex-col gap-2">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <RunFilterTabs value={filter} onValueChange={listQuery.setFilter} />
           <SearchField
@@ -107,11 +107,11 @@ export function DashboardPage() {
             onValueChange={listQuery.setSearchInput}
           />
         </div>
-        <div className="flex items-center justify-between px-0.5 text-caption text-muted-foreground" role="status">
+        <div className="flex items-center justify-between text-caption text-muted-foreground" role="status">
           <span className="min-w-0 flex-1 truncate pe-3" title={query || undefined}>
-            {query ? `搜索“${query}”` : '运行记录'}
+            {query ? `搜索“${query}”` : null}
           </span>
-          <span className="shrink-0 font-mono tabular-nums">
+          <span className="shrink-0 tabular-nums">
             {state.refreshing ? '更新中…' : state.data ? `${state.data.totalItems} 条` : state.error ? '加载失败' : '加载中…'}
           </span>
         </div>

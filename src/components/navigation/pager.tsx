@@ -27,7 +27,7 @@ export function Pager({
   return (
     <nav
       aria-label={label}
-      className={cn('mt-3 flex items-center justify-between gap-3 border-t pt-3 text-xs text-muted-foreground', className)}
+      className={cn('mt-3 flex items-center justify-between gap-3 text-xs text-muted-foreground', className)}
     >
       <span className="tabular-nums">
         {totalItems !== undefined ? `${totalItems} 条 · ` : ''}

@@ -7,20 +7,23 @@
  */
 
 :root {
-  --elevation-xs: 0 1px 2px rgb(16 17 26 / 4%);
-  --elevation-sm: 0 1px 2px rgb(16 17 26 / 4%), 0 2px 6px -2px rgb(16 17 26 / 6%);
-  --elevation-md: 0 6px 20px -6px rgb(16 17 26 / 12%), 0 2px 6px -2px rgb(16 17 26 / 6%);
-  --elevation-lg: 0 24px 64px -16px rgb(16 17 26 / 24%), 0 8px 20px -8px rgb(16 17 26 / 10%);
+  --elevation-xs: 0 1px 2px rgb(14 36 44 / 5%);
+  --elevation-sm: 0 1px 2px rgb(14 36 44 / 5%), 0 2px 6px -2px rgb(14 36 44 / 7%);
+  --elevation-md: 0 8px 24px -8px rgb(14 36 44 / 14%), 0 2px 6px -2px rgb(14 36 44 / 6%);
+  --elevation-lg: 0 24px 64px -16px rgb(14 36 44 / 26%), 0 8px 20px -8px rgb(14 36 44 / 10%);
   /* The page panel resting on the canvas. */
-  --elevation-panel: 0 0 0 1px rgb(16 17 26 / 5%), 0 1px 3px rgb(16 17 26 / 4%);
+  --elevation-panel: 0 0 0 1px rgb(14 36 44 / 5%), 0 1px 3px rgb(14 36 44 / 4%);
+  /* The one raised surface inside a page: where new work starts. */
+  --elevation-raised: 0 0 0 1px rgb(14 36 44 / 8%), 0 1px 2px rgb(14 36 44 / 5%), 0 14px 36px -18px rgb(14 36 44 / 26%);
 }
 
 .dark {
-  --elevation-xs: 0 1px 2px rgb(0 0 0 / 14%);
-  --elevation-sm: 0 1px 3px rgb(0 0 0 / 20%);
-  --elevation-md: 0 4px 16px rgb(0 0 0 / 28%);
-  --elevation-lg: 0 12px 48px rgb(0 0 0 / 48%);
-  --elevation-panel: 0 0 0 1px rgb(255 255 255 / 6%), 0 1px 3px rgb(0 0 0 / 30%);
+  --elevation-xs: 0 1px 2px rgb(0 0 0 / 16%);
+  --elevation-sm: 0 1px 3px rgb(0 0 0 / 22%);
+  --elevation-md: 0 6px 20px rgb(0 0 0 / 32%);
+  --elevation-lg: 0 14px 52px rgb(0 0 0 / 52%);
+  --elevation-panel: 0 0 0 1px rgb(255 255 255 / 5%), 0 1px 3px rgb(0 0 0 / 30%);
+  --elevation-raised: 0 0 0 1px rgb(255 255 255 / 8%), 0 16px 40px -20px rgb(0 0 0 / 70%);
 }
 
 /*

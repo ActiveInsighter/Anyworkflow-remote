@@ -8,7 +8,7 @@ export function LoadingState({ label = '加载中…', className }: { label?: st
       role="status"
       aria-live="polite"
       className={cn(
-        'flex min-h-32 items-center justify-center gap-2 rounded-lg border bg-muted/30 text-sm text-muted-foreground',
+        'flex min-h-32 items-center justify-center gap-2 rounded-xl text-sm text-muted-foreground',
         className,
       )}
     >

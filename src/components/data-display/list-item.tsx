@@ -26,7 +26,7 @@ export function ListItem({
       {leading ? <div className="shrink-0">{leading}</div> : null}
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-center gap-2 text-body font-medium">{title}</div>
-        {meta ? <div className="mt-1 truncate text-micro text-muted-foreground">{meta}</div> : null}
+        {meta ? <div className="mt-0.5 truncate text-caption text-muted-foreground">{meta}</div> : null}
         {children}
       </div>
       {actions ? <div className="flex shrink-0 items-center gap-1">{actions}</div> : null}

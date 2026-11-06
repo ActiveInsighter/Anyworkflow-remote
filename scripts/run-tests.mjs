@@ -27,6 +27,8 @@ const testFiles = [
   'chunk-reload.test.mjs',
   'task-kit.test.mjs',
   'dsl-kit.test.mjs',
+  'markdown-blocks.test.mjs',
+  'source-name.test.mjs',
 ]
 
 for (const file of testFiles) {

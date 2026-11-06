@@ -15,9 +15,9 @@ import { writeClipboard } from '@/lib/platform/clipboard'
 import { saveBlob } from '@/lib/platform/download'
 import type { CaptureJob, CaptureResult } from '@/types/page-capture'
 import { captureDocument, captureFilename, extractorLabel, jobTitle, markdownPreview, safeHref, warningLabel } from '../lib/capture-display'
+import { CaptureReader } from './capture-reader'
 
-function ContentTab({ result }: { result: CaptureResult }) {
-  const preview = markdownPreview(result.markdown)
+function ResultActions({ result }: { result: CaptureResult }) {
   async function copy() {
     const copied = await writeClipboard(result.markdown)
     if (copied) toast.success('已复制 Markdown')
@@ -27,26 +27,39 @@ function ContentTab({ result }: { result: CaptureResult }) {
     saveBlob(new Blob([captureDocument(result)], { type: 'text/markdown;charset=utf-8' }), captureFilename(result.title))
   }
   return (
+    <div className="flex items-center gap-1">
+      <Button size="sm" variant="ghost" onClick={() => void copy()}>
+        <Copy data-icon="inline-start" />
+        复制
+      </Button>
+      <Button size="sm" variant="ghost" onClick={download}>
+        <Download data-icon="inline-start" />
+        下载
+      </Button>
+    </div>
+  )
+}
+
+function ClippedNote({ clipped }: { clipped: boolean }) {
+  return clipped ? <p className="mt-4 text-xs text-muted-foreground">内容较长，这里只显示开头，完整内容请下载。</p> : null
+}
+
+function ReadTab({ result }: { result: CaptureResult }) {
+  const preview = markdownPreview(result.markdown)
+  return (
     <>
-      {/* Captured text is untrusted: it is shown as text and never parsed into markup here. */}
-      <CodeBlock
-        label="Markdown"
-        actions={
-          <>
-            <Button size="sm" variant="ghost" onClick={() => void copy()}>
-              <Copy data-icon="inline-start" />
-              复制
-            </Button>
-            <Button size="sm" variant="ghost" onClick={download}>
-              <Download data-icon="inline-start" />
-              下载
-            </Button>
-          </>
-        }
-      >
-        {preview.text}
-      </CodeBlock>
-      {preview.clipped ? <p className="mt-2 text-xs text-muted-foreground">内容较长，这里只显示开头，完整内容请下载。</p> : null}
+      <CaptureReader markdown={preview.text} />
+      <ClippedNote clipped={preview.clipped} />
+    </>
+  )
+}
+
+function SourceTab({ result }: { result: CaptureResult }) {
+  const preview = markdownPreview(result.markdown)
+  return (
+    <>
+      <CodeBlock>{preview.text}</CodeBlock>
+      <ClippedNote clipped={preview.clipped} />
     </>
   )
 }
@@ -108,10 +121,10 @@ function LinksTab({ result }: { result: CaptureResult }) {
   const section = (title: string, entries: { href: string; text: string }[]) =>
     entries.length ? (
       <section>
-        <h3 className="mb-2 text-xs font-semibold">{title}（{entries.length}）</h3>
+        <h3 className="mb-2 text-caption font-medium text-muted-foreground">{title}（{entries.length}）</h3>
         <ul className="flex flex-col gap-1.5">
           {entries.map((entry) => (
-            <li key={entry.href} className="min-w-0 text-xs break-all">
+            <li key={entry.href} className="min-w-0 text-body break-all">
               <a className="text-primary underline-offset-2 hover:underline" href={entry.href} target="_blank" rel="noreferrer noopener">
                 {entry.text || entry.href}
               </a>
@@ -133,13 +146,18 @@ function ResultBody({ jobId }: { jobId: string }) {
   if (loading && !data) return <LoadingState label="加载内容…" />
   if (!data) return <ErrorAlert inline>{error}</ErrorAlert>
   return (
-    <Tabs defaultValue="content">
-      <TabsList>
-        <TabsTrigger value="content">正文</TabsTrigger>
-        <TabsTrigger value="info">信息</TabsTrigger>
-        <TabsTrigger value="links">链接</TabsTrigger>
-      </TabsList>
-      <TabsContent value="content" className="pt-3"><ContentTab result={data} /></TabsContent>
+    <Tabs defaultValue="read">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <TabsList>
+          <TabsTrigger value="read">正文</TabsTrigger>
+          <TabsTrigger value="source">Markdown</TabsTrigger>
+          <TabsTrigger value="info">信息</TabsTrigger>
+          <TabsTrigger value="links">链接</TabsTrigger>
+        </TabsList>
+        <ResultActions result={data} />
+      </div>
+      <TabsContent value="read" className="pt-3"><ReadTab result={data} /></TabsContent>
+      <TabsContent value="source" className="pt-1"><SourceTab result={data} /></TabsContent>
       <TabsContent value="info" className="pt-3"><InfoTab result={data} /></TabsContent>
       <TabsContent value="links" className="pt-3"><LinksTab result={data} /></TabsContent>
     </Tabs>

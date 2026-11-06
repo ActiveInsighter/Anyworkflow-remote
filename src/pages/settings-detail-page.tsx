@@ -29,7 +29,7 @@ function ConnectFirst({ message }: { message: string }) {
 export function RuntimeSettingsPage() {
   const session = useSession()
   return (
-    <Page width="detail">
+    <Page width="focus">
       <PageHeader title="运行配置" description="用于新建 Run；已有 Run 保留各自的配置。" />
       {session ? (
         <RuntimeDefaultsCard key={`${session.baseUrl}:${session.record.id}`} />
@@ -44,7 +44,7 @@ export function SettingsDetailPage() {
   const session = useSession()
   const title = SECTION_TITLES[section ?? ''] ?? '设置'
   return (
-    <Page width="detail">
+    <Page width="focus">
       <PageHeader title={title} />
       {section === 'appearance' ? (
         <AppearanceCard />

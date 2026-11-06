@@ -48,9 +48,9 @@ function OutlineItems({
               <Icon className={cn('size-3.5 shrink-0', tone)} aria-hidden="true" />
               <span className="min-w-0 flex-1 truncate">
                 {node.title}
-                {node.detail ? <span className="ms-1.5 font-mono text-micro text-muted-foreground">{node.detail}</span> : null}
+                {node.detail ? <span className="ms-1.5 text-micro text-muted-foreground">{node.detail}</span> : null}
               </span>
-              {node.repeat ? <span className="shrink-0 font-mono text-micro tabular-nums">×{node.repeat}</span> : null}
+              {node.repeat ? <span className="shrink-0 text-micro tabular-nums">×{node.repeat}</span> : null}
               {expanded ? (
                 <span
                   title={expanded.events > 1 ? `循环生成 ${expanded.events} 个 Event，共 ${expanded.acts} 个 Act` : `${expanded.acts} 个 Act`}

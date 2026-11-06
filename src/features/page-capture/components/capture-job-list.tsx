@@ -8,7 +8,6 @@ import { SectionHeader } from '@/components/layout/page'
 import { Pager } from '@/components/navigation/pager'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import type { CaptureJob } from '@/types/page-capture'
 import type { CaptureJobsState } from '../hooks/use-capture-jobs'
 import { jobTitle } from '../lib/capture-display'
@@ -25,15 +24,15 @@ export function CaptureJobList({ capture }: { capture: CaptureJobsState }) {
   const offline = capture.workers.data !== null && onlineWorkers(capture.workers.data).length === 0
 
   return (
-    <section className="min-w-0" aria-labelledby="capture-history-title">
+    <section className="mt-8 min-w-0" aria-labelledby="capture-history-title">
       <SectionHeader
+        className="items-center"
         title={<span id="capture-history-title">采集记录</span>}
         trailing={
-          <span className="flex items-center gap-2">
+          <span className="flex items-center gap-1">
             {data ? `${data.totalItems} 条` : null}
-            <Button variant="ghost" size="sm" onClick={() => void reload()} disabled={refreshing}>
-              <RefreshCw data-icon="inline-start" className={refreshing ? 'animate-spin' : undefined} />
-              刷新
+            <Button variant="ghost" size="icon-touch" className="text-muted-foreground sm:size-8" aria-label="刷新" onClick={() => void reload()} disabled={refreshing}>
+              <RefreshCw className={refreshing ? 'animate-spin' : undefined} />
             </Button>
           </span>
         }
@@ -49,11 +48,11 @@ export function CaptureJobList({ capture }: { capture: CaptureJobsState }) {
 
       {loading && !data ? <LoadingState label="加载采集记录…" /> : null}
       {data?.items.length === 0 ? (
-        <EmptyState icon={Globe} title="暂无采集记录" description="提交的链接会显示在这里。" />
+        <EmptyState icon={Globe} title="还没有采集记录" description="把页面链接粘贴到上方，开始第一次采集。" />
       ) : null}
 
       {data && data.items.length > 0 ? (
-        <Card className="divide-y">
+        <div className="flex min-w-0 flex-col">
           {data.items.map((job) => (
             <CaptureJobItem
               key={job.id}
@@ -66,7 +65,7 @@ export function CaptureJobList({ capture }: { capture: CaptureJobsState }) {
               onDelete={() => setDeleting(job)}
             />
           ))}
-        </Card>
+        </div>
       ) : null}
 
       {data ? (

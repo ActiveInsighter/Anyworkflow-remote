@@ -18,7 +18,7 @@ export function CodeBlock({
     <Card className={className}>
       {label || actions ? (
         <div className="flex items-center justify-between gap-3 border-b px-4 py-2">
-          <div className="text-caption font-medium tracking-label text-muted-foreground uppercase">{label}</div>
+          <div className="text-caption font-medium text-muted-foreground">{label}</div>
           {actions ? <div className="flex shrink-0 items-center gap-1">{actions}</div> : null}
         </div>
       ) : null}

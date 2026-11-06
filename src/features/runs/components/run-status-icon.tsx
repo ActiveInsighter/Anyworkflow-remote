@@ -22,5 +22,5 @@ const tones: Record<StatusTone, string> = {
 /** Leading status glyph for list rows. Decorative: the row also renders a text status badge. */
 export function RunStatusIcon({ status, tone, className }: { status: DispatchStatus; tone: StatusTone; className?: string }) {
   const Icon = icons[status] ?? CircleDashed
-  return <Icon aria-hidden="true" className={cn('size-4 shrink-0', tones[tone], className)} />
+  return <Icon aria-hidden="true" className={cn('size-4.5 shrink-0', tones[tone], className)} />
 }

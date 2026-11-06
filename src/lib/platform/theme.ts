@@ -10,7 +10,7 @@ const THEME_EVENT = 'anyworkflow:theme-change'
 const DARK_QUERY = '(prefers-color-scheme: dark)'
 
 /** Browser chrome colour; mirrors `--background` in styles/tokens/color.css. */
-const THEME_COLOR: Record<ResolvedTheme, string> = { light: '#ffffff', dark: '#101114' }
+const THEME_COLOR: Record<ResolvedTheme, string> = { light: '#fdfefe', dark: '#10191d' }
 
 export const themeLabels: Record<ThemePreference, string> = {
   system: '跟随系统',

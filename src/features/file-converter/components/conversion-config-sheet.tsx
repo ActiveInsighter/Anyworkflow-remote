@@ -47,9 +47,9 @@ export function ConversionConfigSheet({ config }: { config: ConversionConfigStat
 
   return (
     <Modal>
-      <ModalTrigger render={<Button variant="outline" size="touch" />}>
+      <ModalTrigger render={<Button variant="outline" size="touch" aria-label="转换配置" />}>
         <SlidersHorizontal data-icon="inline-start" />
-        转换配置
+        <span className="hidden sm:inline">转换配置</span>
       </ModalTrigger>
       <ModalContent size="xl" height="fixed">
         <ModalHeader>
@@ -75,7 +75,7 @@ export function ConversionConfigSheet({ config }: { config: ConversionConfigStat
                   name="systemPrompt"
                   maxLength={MAX_SYSTEM_PROMPT_CHARS}
                   rows={16}
-                  className="min-h-64 resize-y font-mono text-xs leading-relaxed md:text-xs"
+                  className="min-h-64 resize-y text-body leading-relaxed md:min-h-[min(62dvh,36rem)] md:text-body"
                   value={config.systemPrompt}
                   onChange={(event) => config.setSystemPrompt(event.target.value)}
                   aria-describedby="pdf-system-prompt-help"

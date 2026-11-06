@@ -114,7 +114,6 @@ export function FileLibrary() {
         <Button
           variant="ghost"
           size="icon-touch"
-          className="rounded-full"
           aria-label="刷新资料库"
           disabled={state.loading || state.refreshing}
           onClick={() => void state.reload()}

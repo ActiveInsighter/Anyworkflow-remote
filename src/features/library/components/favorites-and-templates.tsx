@@ -160,7 +160,6 @@ export function FavoritesAndTemplates() {
         <Button
           variant="ghost"
           size="icon-touch"
-          className="rounded-full"
           aria-label="刷新收藏和模板"
           disabled={state.loading || state.refreshing}
           onClick={() => void state.reload()}

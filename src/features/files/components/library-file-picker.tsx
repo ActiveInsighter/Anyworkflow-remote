@@ -1,37 +1,57 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { FolderOpen, RefreshCw } from 'lucide-react'
+import { Check, FileText, FolderOpen, RefreshCw } from 'lucide-react'
 import { ErrorAlert } from '@/components/feedback/error-alert'
 import { LoadingState } from '@/components/feedback/loading-state'
 import { SearchField } from '@/components/form/search-field'
 import { Button } from '@/components/ui/button'
-import { Field, FieldLabel } from '@/components/ui/field'
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import type { LibraryFile } from '@/lib/api/library-files'
-import { formatFileSize } from '@/lib/format'
+import { formatFileSize, formatShortDate } from '@/lib/format'
+import { cn } from '@/lib/utils'
 import { useLibraryFiles } from '../hooks/use-library-files'
 
+function FileOption({ file, checked, onSelect }: { file: LibraryFile; checked: boolean; onSelect: () => void }) {
+  return (
+    <label
+      className={cn(
+        'flex min-h-touch min-w-0 cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-1.5 transition-colors duration-fast has-focus-visible:ring-[3px] has-focus-visible:ring-ring/35 sm:min-h-10',
+        checked ? 'bg-accent text-accent-foreground' : 'hover:bg-subtle',
+      )}
+    >
+      <input type="radio" name="libraryFile" value={file.id} checked={checked} onChange={onSelect} className="sr-only" />
+      <FileText aria-hidden="true" className={cn('size-4 shrink-0', checked ? 'text-primary' : 'text-muted-foreground')} />
+      <span className="min-w-0 flex-1 truncate text-body">{file.fileName}</span>
+      <span className="hidden shrink-0 text-caption text-muted-foreground tabular-nums sm:inline">{formatShortDate(file.updatedAt)}</span>
+      <span className="shrink-0 text-caption text-muted-foreground tabular-nums">{formatFileSize(file.size)}</span>
+      <Check aria-hidden="true" className={cn('size-4 shrink-0 text-primary', !checked && 'invisible')} />
+    </label>
+  )
+}
+
+/** Choose a stored PDF from a searchable list. The chosen file stays listed whatever the search says. */
 export function LibraryFilePicker({ selected, onSelect }: { selected: LibraryFile | null; onSelect: (file: LibraryFile | null) => void }) {
   const [query, setQuery] = useState('')
   const files = useLibraryFiles(query)
   const items = (files.data?.items ?? []).filter(file => file.fileName.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
-  return <div className="flex min-w-0 flex-col gap-3">
-    <SearchField label="搜索资料库文件" clearLabel="清空搜索" value={query} onValueChange={setQuery} />
-    {files.loading ? <LoadingState /> : null}
-    <ErrorAlert inline>{files.error || files.moreError}</ErrorAlert>
-    <Field>
-      <FieldLabel htmlFor="library-file">资料库文件</FieldLabel>
-      <NativeSelect id="library-file" name="libraryFile" value={selected?.id ?? ''} onChange={event => onSelect(files.data?.items.find(file => file.id === event.target.value) ?? null)}>
-        <NativeSelectOption value="">选择已上传的 PDF</NativeSelectOption>
-        {selected && !items.some(file => file.id === selected.id) ? <NativeSelectOption value={selected.id}>{selected.fileName}</NativeSelectOption> : null}
-        {items.map(file => <NativeSelectOption key={file.id} value={file.id}>{file.fileName} · {formatFileSize(file.size)}</NativeSelectOption>)}
-      </NativeSelect>
-    </Field>
-    {files.data && !items.length ? <p className="text-xs text-muted-foreground">{query ? '没有匹配的文件' : '资料库暂无文件'}</p> : null}
-    <div className="flex flex-wrap items-center gap-2">
-      <Button type="button" variant="ghost" size="sm" onClick={() => void files.reload()} disabled={files.loading || files.refreshing}><RefreshCw aria-hidden="true" />刷新文件</Button>
-      {files.data?.cursor ? <Button type="button" variant="outline" size="sm" onClick={() => void files.loadMore()} disabled={files.loadingMore}>加载更多文件</Button> : null}
-      <Button asChild variant="link" size="sm"><Link to="/library"><FolderOpen aria-hidden="true" />管理资料库</Link></Button>
+  const listed = selected && !items.some(file => file.id === selected.id) ? [selected, ...items] : items
+  return <div className="flex min-w-0 flex-col gap-2">
+    <div className="flex min-w-0 items-center gap-1">
+      <SearchField className="min-w-0 flex-1" label="搜索资料库文件" clearLabel="清空搜索" value={query} onValueChange={setQuery} />
+      <Button type="button" variant="ghost" size="icon-touch" className="text-muted-foreground" aria-label="刷新文件" onClick={() => void files.reload()} disabled={files.loading || files.refreshing}>
+        <RefreshCw className={files.refreshing ? 'animate-spin' : undefined} aria-hidden="true" />
+      </Button>
+      <Button asChild variant="ghost" size="icon-touch" className="text-muted-foreground">
+        <Link to="/library" aria-label="管理资料库"><FolderOpen aria-hidden="true" /></Link>
+      </Button>
     </div>
+    {files.loading ? <LoadingState className="min-h-24" /> : null}
+    <ErrorAlert inline>{files.error || files.moreError}</ErrorAlert>
+    {listed.length ? (
+      <div role="radiogroup" aria-label="资料库文件" className="flex max-h-52 min-w-0 flex-col gap-0.5 overflow-y-auto overscroll-contain">
+        {listed.map(file => <FileOption key={file.id} file={file} checked={selected?.id === file.id} onSelect={() => onSelect(file)} />)}
+        {files.data?.cursor ? <Button type="button" variant="ghost" size="sm" className="self-start text-muted-foreground" onClick={() => void files.loadMore()} disabled={files.loadingMore}>加载更多文件</Button> : null}
+      </div>
+    ) : null}
+    {files.data && !listed.length ? <p className="px-2.5 py-3 text-body text-muted-foreground">{query ? '没有匹配的文件' : '资料库暂无文件，先上传一个 PDF。'}</p> : null}
   </div>
 }

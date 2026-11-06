@@ -16,7 +16,7 @@ export function DriveCreateButton({ actions, className }: { actions: DriveCreate
   if (actions.length === 1) {
     const [action] = actions
     return (
-      <Button size="touch" className={cn('rounded-full px-4 sm:h-10', className)} onClick={action.onSelect}>
+      <Button size="touch" className={cn('px-4', className)} onClick={action.onSelect}>
         <action.icon data-icon="inline-start" />
         {action.label}
       </Button>
@@ -25,7 +25,7 @@ export function DriveCreateButton({ actions, className }: { actions: DriveCreate
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button size="touch" className={cn('rounded-full px-4 sm:h-10', className)}>
+        <Button size="touch" className={cn('px-4', className)}>
           <Plus data-icon="inline-start" />
           新建
         </Button>

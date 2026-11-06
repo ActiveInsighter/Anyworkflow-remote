@@ -1,6 +1,7 @@
 import { Fragment } from 'react'
 import { ArrowLeft, Menu } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router'
+import { LogoMark } from '@/components/brand/logo-mark'
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -14,8 +15,12 @@ import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar'
 import { TaskCenter } from '@/features/tasks'
 import { useSession } from '@/lib/api/session'
 import { breadcrumbsFor, fallbackParent } from '@/app/breadcrumbs'
+import { cn } from '@/lib/utils'
 
-/** Location bar: drawer trigger (mobile), back, breadcrumb trail and the task center. */
+/**
+ * Location bar: drawer trigger (mobile), back, breadcrumb trail and the task center. A top-level
+ * page already says where you are in its own heading, so the bar only carries a trail below it.
+ */
 export function AppTopBar() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -23,6 +28,7 @@ export function AppTopBar() {
   const { isMobile } = useSidebar()
   const crumbs = breadcrumbsFor(location.pathname)
   const currentTitle = crumbs.at(-1)?.label
+  const nested = crumbs.length > 1
 
   function goBack() {
     if (location.pathname.startsWith('/settings/')) navigate(fallbackParent(location.pathname))
@@ -31,7 +37,12 @@ export function AppTopBar() {
   }
 
   return (
-    <header className="flex h-[calc(var(--spacing-header)+env(safe-area-inset-top))] shrink-0 items-center gap-1 border-b border-border/70 px-2.5 pt-[env(safe-area-inset-top)] sm:px-4">
+    <header
+      className={cn(
+        'flex h-[calc(var(--spacing-header)+env(safe-area-inset-top))] shrink-0 items-center gap-1 px-2.5 pt-[env(safe-area-inset-top)] sm:px-4',
+        nested && 'border-b',
+      )}
+    >
       <title>{currentTitle ? `${currentTitle} · AnyWorkflow Remote` : 'AnyWorkflow Remote'}</title>
       {isMobile ? (
         <SidebarTrigger size="icon-touch" className="text-foreground">
@@ -39,14 +50,16 @@ export function AppTopBar() {
         </SidebarTrigger>
       ) : null}
 
-      {location.pathname !== '/' ? (
+      {nested ? (
         <Button variant="ghost" size="icon-touch" onClick={goBack} aria-label="返回" className="text-muted-foreground sm:size-8">
           <ArrowLeft />
         </Button>
+      ) : isMobile ? (
+        <LogoMark className="ms-1 size-6" />
       ) : null}
 
-      <Breadcrumb aria-label="当前位置" className="min-w-0 flex-1 overflow-hidden px-1">
-        <BreadcrumbList className="flex-nowrap gap-1 text-xs sm:gap-1.5 sm:text-body">
+      <Breadcrumb aria-label="当前位置" className={cn('min-w-0 flex-1 overflow-hidden px-1', !nested && 'invisible')}>
+        <BreadcrumbList className="flex-nowrap gap-1 text-body sm:gap-1.5">
           {crumbs.map((crumb, index) => {
             const current = index === crumbs.length - 1
             return (

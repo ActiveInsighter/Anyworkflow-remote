@@ -1,13 +1,13 @@
 /*
  * Shape tokens.
  *
- * Controls use 7–10px radii, panels and cards 14px, sheets 24px (modal tokens). Pills are
- * reserved for status badges, counters and avatars.
+ * Radius grows with the size of the thing: controls 8px, cards 12px, the composer 16px, sheets
+ * 20px (modal tokens). Pills are reserved for avatars and counters.
  * `--radius` is the shadcn/ui base value; the scale is derived from it.
  */
 
 :root {
-  --radius: 0.625rem;
+  --radius: 0.5rem;
 }
 
 @theme inline {

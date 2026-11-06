@@ -17,18 +17,15 @@ function FileConverterView() {
   const jobs = useConversionJobs()
 
   return (
-    <Page>
+    <Page width="focus">
       <PageHeader
+        compact
         title="文件转换"
-        description="PDF 转 Markdown：OCR 识别后由模型逐页校对，产物打包为 ZIP。"
+        description="把 PDF 转成 Markdown，逐页识别和校对。"
         actions={<ConversionConfigSheet config={config} />}
       />
-      <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] lg:items-start xl:gap-8">
-        <div className="min-w-0">
-          <ConversionForm config={config} jobs={jobs} />
-        </div>
-        <ConversionJobList jobs={jobs} />
-      </div>
+      <ConversionForm config={config} jobs={jobs} />
+      <ConversionJobList jobs={jobs} />
     </Page>
   )
 }

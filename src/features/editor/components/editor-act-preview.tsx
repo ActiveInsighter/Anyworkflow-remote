@@ -30,7 +30,7 @@ function EventCard({ event, current, onReveal }: { event: EventPreview; current:
       <ol className="flex flex-col border-t border-cm-border/70 px-1.5 py-1">
         {event.acts.slice(0, MAX_ACTS).map((act, index) => (
           <li key={index} className="flex min-w-0 items-baseline gap-2 rounded-md px-1 py-1 text-caption">
-            <span className="w-5 shrink-0 text-end font-mono text-micro tabular-nums text-muted-foreground">{index + 1}</span>
+            <span className="w-5 shrink-0 text-end text-micro tabular-nums text-muted-foreground">{index + 1}</span>
             <span className="min-w-0 flex-1">
               {act.title ? <span className="me-1.5 font-medium text-foreground">{act.title}</span> : null}
               <span className="line-clamp-2 break-words text-muted-foreground">{act.text || '（只打开页面或等待）'}</span>
