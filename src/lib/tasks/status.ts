@@ -36,6 +36,14 @@ const PHASE_LABELS: Record<string, Record<string, string>> = {
   run: {
     running: '执行中',
   },
+  'page-capture': {
+    queued: '等待扩展',
+    opening: '打开页面',
+    rendering: '等待渲染',
+    extracting: '解析内容',
+    uploading: '保存结果',
+    partial: '内容不完整',
+  },
 }
 
 export function taskStateMeta(state: TaskState): TaskStatusMeta {

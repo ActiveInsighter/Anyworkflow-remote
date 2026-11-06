@@ -37,6 +37,7 @@ const LibraryPage = page(() => import('@/pages/library-page'), 'LibraryPage')
 const FavoritesAndTemplatesPage = page(() => import('@/pages/favorites-and-templates-page'), 'FavoritesAndTemplatesPage')
 const TemplateDetailPage = page(() => import('@/pages/template-detail-page'), 'TemplateDetailPage')
 const FileConverterPage = page(() => import('@/pages/file-converter-page'), 'FileConverterPage')
+const PageCapturePage = page(() => import('@/pages/page-capture-page'), 'PageCapturePage')
 const RuntimeSettingsPage = page(() => import('@/pages/settings-detail-page'), 'RuntimeSettingsPage')
 const SettingsDetailPage = page(() => import('@/pages/settings-detail-page'), 'SettingsDetailPage')
 const SettingsPage = page(() => import('@/pages/settings-page'), 'SettingsPage')
@@ -89,6 +90,7 @@ export const router = createBrowserRouter([
               route('templates/:templateId', TemplateDetailPage),
               route('file-converter', FileConverterPage),
               route('pdf-to-md', FileConverterPage),
+              route('page-capture', PageCapturePage),
             ],
           },
           route('settings', SettingsPage),

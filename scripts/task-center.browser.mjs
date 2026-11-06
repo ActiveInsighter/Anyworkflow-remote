@@ -9,6 +9,9 @@ const baseUrl = process.env.TEST_BASE_URL || 'http://127.0.0.1:5173'
 const stamp = (minutesAgo) => new Date(Date.now() - minutesAgo * 60_000).toISOString().replace('T', ' ')
 const runBase = { owner: 'owner-1', planText: '@task T {}', familyId: 'run-a', origin: 'initial', requestedAction: 'none', versionMajor: 1, versionMinor: 0, executionMode: 'serial', scheduledAt: '', created: stamp(60) }
 const rows = {
+  aw_capture_jobs: [
+    { id: 'capture-a', owner: 'owner-1', url: 'https://example.com/a', host: 'example.com', title: '一篇网页文章', status: 'succeeded', cancelRequested: false, error: '', created: stamp(30), updated: stamp(20) },
+  ],
   aw_dispatch_runs: [
     { ...runBase, id: 'run-a', title: '计算机网络复习', status: 'running', totalTasks: 4, completedTasks: 1, updated: stamp(1) },
     { ...runBase, id: 'run-b', title: '每日英语阅读', status: 'succeeded', totalTasks: 2, completedTasks: 2, updated: stamp(90) },
@@ -51,7 +54,7 @@ try {
   await page.goto(`${baseUrl}/library`)
   const trigger = page.getByRole('button', { name: '任务中心，3 个进行中' })
   await trigger.waitFor()
-  assert.deepEqual([...new Set(feedRequests)].sort(), ['aw_dispatch_runs', 'aw_pdf_to_md_jobs', 'aw_run_exports'])
+  assert.deepEqual([...new Set(feedRequests)].sort(), ['aw_capture_jobs', 'aw_dispatch_runs', 'aw_pdf_to_md_jobs', 'aw_run_exports'])
   await page.getByLabel('1 个进行中').first().waitFor()
   await trigger.click()
   const panel = page.getByRole('dialog')
@@ -59,6 +62,7 @@ try {
   await panel.getByText('打包中', { exact: true }).waitFor()
   await panel.getByText('转换中', { exact: true }).waitFor()
   await panel.getByRole('region', { name: '最近 24 小时' }).getByText('每日英语阅读').waitFor()
+  await panel.getByRole('link', { name: /一篇网页文章.*网页采集/u }).waitFor()
   if (process.env.SCREENSHOT_DIR) {
     await mkdir(process.env.SCREENSHOT_DIR, { recursive: true })
     await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/task-center-1440.png` })

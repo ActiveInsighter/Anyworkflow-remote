@@ -3,6 +3,7 @@ const testFiles = [
   'runtime-config.test.mjs',
   'pdf-api.test.mjs',
   'run-exports.test.mjs',
+  'page-capture-api.test.mjs',
   'pdf-upload-api.test.mjs',
   'event-structure.test.mjs',
   'browser-executor.test.mjs',

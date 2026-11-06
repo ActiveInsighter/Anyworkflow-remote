@@ -61,7 +61,26 @@ export const runKind = defineTaskKind({
   },
 });
 
-export const TASK_KINDS = Object.freeze([fileConversionKind, runExportKind, runKind]);
+/** Web page capture: the owner's browser extension opens the page and extracts its content. */
+export const pageCaptureKind = defineTaskKind({
+  id: 'page-capture',
+  collection: 'aw_capture_jobs',
+  statuses: {
+    queued: 'queued',
+    opening: 'running',
+    rendering: 'running',
+    extracting: 'running',
+    uploading: 'running',
+    succeeded: 'succeeded',
+    partial: 'partial',
+    failed: 'failed',
+    canceled: 'canceled',
+  },
+  cancel: 'flag',
+  stopping: (record) => Boolean(record?.cancelRequested),
+});
+
+export const TASK_KINDS = Object.freeze([fileConversionKind, runExportKind, runKind, pageCaptureKind]);
 
 export function taskKind(id) {
   const kind = TASK_KINDS.find((entry) => entry.id === id);
