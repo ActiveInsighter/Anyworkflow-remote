@@ -102,7 +102,7 @@ await context.route('https://pb.example.invalid/**', async route => {
 })
 try {
  await page.goto((process.env.TEST_BASE_URL || 'http://127.0.0.1:5173') + '/file-converter')
- await page.getByText('暂无转换记录', { exact: true }).waitFor()
+ await page.getByText('还没有转换记录', { exact: true }).waitFor()
  assert.equal(await page.getByRole('tab', { name: '链接', exact: true }).getAttribute('aria-selected'), 'true')
  if (process.env.CONFIG_LOAD_FAILURE) await page.getByText('转换配置未加载', { exact: true }).waitFor()
  else await page.getByText(/^配置 v2 · gemini-3.5-flash-lite · 240 DPI$/u).waitFor()
@@ -148,10 +148,14 @@ try {
  await page.getByText(/^配置 v3 · /u).waitFor()
  await page.getByLabel('任务名称', { exact: true }).fill('数学讲义')
  await page.getByLabel('PDF 源文件地址').fill('https://example.com/book.pdf')
+ await page.getByRole('button', { name: '更多选项', exact: true }).click()
  await page.getByLabel('产物文件名').fill('数学笔记')
  await page.getByLabel('起始页（可选）').fill('1')
  await page.getByLabel('结束页（可选）').fill('1')
  await page.getByRole('switch', { name: '附带相邻页' }).click()
+ // Folding the options away keeps them: they are counted on the fold and still sent.
+ await page.getByRole('button', { name: /^更多选项/u }).click()
+ await page.getByLabel('已设置 2 项').waitFor()
  for (const width of [320,390,760,1440]) {
    await page.setViewportSize({ width, height: 1000 })
    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `overflow ${width}`)
@@ -180,13 +184,34 @@ assert.equal(created.outputName, '数学笔记')
  await page.getByRole('button', { name: '下载 ZIP', exact: true }).click()
  assert.equal((await event).suggestedFilename(), '数学笔记.zip')
  assert.equal(tokenCalls, 1)
- await page.getByRole('button', { name: '重跑', exact: true }).click()
+ // Everything but the state's first action sits in the row menu, details included.
+ await page.getByRole('button', { name: /^更多操作/u }).click()
+ await page.getByRole('menuitem', { name: '查看详情', exact: true }).click()
+ const detail = page.getByRole('dialog', { name: '数学讲义' })
+ await detail.getByText('https://example.com/book.pdf', { exact: true }).waitFor()
+ await detail.getByText('按图片与 OCR 草稿转录，保留脚注和表格。', { exact: true }).waitFor()
+ await page.keyboard.press('Escape')
+ await detail.waitFor({ state: 'hidden' })
+ await page.getByRole('button', { name: /^更多操作/u }).click()
+ await page.getByRole('menuitem', { name: '重跑', exact: true }).click()
+ await page.waitForFunction(() => document.querySelectorAll('[role=menu]').length === 0)
  assert.equal(postCount, 2)
  assert.equal(rerunBody.rerunOf, originalId)
- await page.getByLabel('产物文件名（可选）').fill('')
+
+ // An accepted job clears the composer, so the next one starts clean.
+ assert.equal(await page.getByLabel('PDF 源文件地址').inputValue(), '')
+ assert.equal(await page.getByLabel('任务名称', { exact: true }).inputValue(), '')
+ assert.equal(await page.getByLabel('起始页（可选）').inputValue(), '')
+ await page.getByLabel('任务名称', { exact: true }).fill('数学讲义')
+ await page.getByLabel('PDF 源文件地址').fill('https://example.com/book.pdf')
  await page.getByRole('button', { name: '开始转换', exact: true }).click()
+ await page.waitForFunction(() => document.querySelector('#pdf-source').value === '')
  assert.equal(postCount, 3)
  assert.equal(created.outputName, '数学讲义')
+
+ // A link kept while the source tab changes; with no name typed, the file names the task.
+ await page.getByLabel('PDF 源文件地址').fill('https://example.com/book.pdf')
+ assert.equal(await page.getByLabel('任务名称', { exact: true }).getAttribute('placeholder'), 'book')
 
  // Local files remain optional: only the generated URL enters the existing PB job contract.
  await page.getByRole('tab', { name: '上传文件', exact: true }).click()
@@ -229,8 +254,17 @@ assert.equal(created.outputName, '数学笔记')
  heldUploads.get(3)()
  assert.equal(await page.getByLabel('PDF 源文件地址', { exact: true }).inputValue(), 'https://example.com/book.pdf')
  await submit.click()
+ await page.waitForFunction(() => document.querySelector('#pdf-source').value === '')
  assert.equal(postCount, 4)
  assert.equal(created.sourceUrl, 'https://example.com/book.pdf')
+ assert.equal(created.title, 'book')
+
+ // A share link carries no name, so one has to be typed.
+ await page.getByLabel('PDF 源文件地址').fill('https://drive.google.com/file/d/abc/view')
+ await submit.click()
+ await page.getByRole('alert').getByText('请填写任务名称', { exact: true }).waitFor()
+ assert.equal(postCount, 4)
+ await page.getByLabel('PDF 源文件地址').fill('')
 
  await page.getByRole('tab', { name: '上传文件', exact: true }).click()
  uploadMode = 'failure'
@@ -255,6 +289,7 @@ assert.equal(created.outputName, '数学笔记')
  await uploadedJobCreated
  assert.equal(postCount, 5)
  assert.equal(created.sourceUrl, 'https://ocr-files.any1.tech/fixtures/upload-5.pdf')
+ assert.equal(created.title, '讲义')
  assert.equal(created.configId, 'config-1')
  assert.equal(created.systemPrompt, '按图片与 OCR 草稿转录，保留脚注和表格。')
  assert.equal('file' in created && created.file !== '', false, 'source PDFs never enter PocketBase files')
@@ -288,6 +323,22 @@ assert.equal(created.outputName, '数学笔记')
  assert.equal(created.sourceUrl, 'https://ocr-files.any1.tech/fixtures/upload-6.pdf')
  await page.waitForFunction(() => !document.querySelector('#pdf-upload').matches(':disabled'))
  assert.ok(wakeCount >= postCount, 'saved jobs wake the Cloudflare dispatcher')
+
+ // A file dropped anywhere on the composer uploads, whichever source tab was showing.
+ uploadMode = 'success'
+ await page.getByRole('tab', { name: '链接', exact: true }).click()
+ const dropped = await page.evaluateHandle(() => {
+   const transfer = new DataTransfer()
+   transfer.items.add(new File(['%PDF-1.7\nfixture\n'], '拖入的讲义.pdf', { type: 'application/pdf' }))
+   return transfer
+ })
+ await page.dispatchEvent('[data-slot=composer]', 'dragover', { dataTransfer: dropped })
+ await page.locator('[data-slot=composer][data-dragging]').waitFor()
+ await page.dispatchEvent('[data-slot=composer]', 'drop', { dataTransfer: dropped })
+ await page.getByText('拖入的讲义.pdf', { exact: true }).waitFor()
+ assert.equal(await page.getByRole('tab', { name: '上传文件', exact: true }).getAttribute('aria-selected'), 'true')
+ await uploadedLink.waitFor()
+ assert.equal(await page.locator('[data-slot=composer][data-dragging]').count(), 0)
  assert.deepEqual(errors, [])
  console.log('PDF browser: links, multipart/cancel/retry, >90 MiB concurrent slices, job URL contract and responsive themes passed')
 } finally {

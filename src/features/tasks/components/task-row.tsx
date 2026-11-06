@@ -29,7 +29,7 @@ export function TaskRow({ item, onNavigate }: { item: TaskItem; onNavigate?: () 
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2">
           <span className="min-w-0 flex-1 truncate text-body font-medium">{item.title}</span>
-          <TaskStatusBadge kind={item.kind} record={item.record} className="h-5 shrink-0 px-1.5 text-micro" />
+          <TaskStatusBadge kind={item.kind} record={item.record} className="h-5 shrink-0 text-micro" />
         </span>
         <span className="mt-0.5 flex items-center gap-1.5 text-caption text-muted-foreground">
           <span className="shrink-0">{source.label}</span>

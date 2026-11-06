@@ -65,6 +65,7 @@ await context.route('https://pb.example.invalid/**', async route => {
 
 const overflow = () => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
 const row = title => page.locator('article').filter({ hasText: title })
+const menuOf = record => record.getByRole('button', { name: /^更多操作/u })
 try {
   await page.goto(`${base}/page-capture`)
   await page.getByRole('heading', { name: '网页采集', exact: true }).waitFor()
@@ -85,6 +86,9 @@ try {
   await page.getByRole('button', { name: '采集选项', exact: true }).click()
   await page.getByLabel('等待元素').fill('.article-body')
   await page.getByRole('switch', { name: '滚动加载' }).click()
+  // Folding the options away keeps them: they are counted on the fold and still sent.
+  await page.getByRole('button', { name: /^采集选项/u }).click()
+  await page.getByLabel('已设置 2 项').waitFor()
   await page.getByRole('button', { name: '开始采集', exact: true }).click()
   await page.getByText('已提交 2 个采集任务').waitFor()
   assert.deepEqual(posted.map(body => body.url), ['https://example.com/a', 'https://example.com/b'])
@@ -93,13 +97,15 @@ try {
     assert.deepEqual(body.options, { waitFor: '.article-body', scroll: true })
   }
   assert.equal(await urls.inputValue(), '', 'an accepted batch clears the box')
-  await page.getByRole('button', { name: '采集选项', exact: true }).click()
 
-  // Each state offers only the actions it allows.
+  // Each state offers only the actions it allows: one up front, the rest in its menu.
   const running = row(longUrl)
   await running.getByRole('button', { name: '结束任务' }).waitFor()
   assert.equal(await running.getByRole('button', { name: '查看内容' }).count(), 0)
-  assert.equal(await running.getByRole('button', { name: '删除记录' }).count(), 0)
+  await menuOf(running).click()
+  await page.getByRole('menuitem', { name: '打开原页面' }).waitFor()
+  assert.equal(await page.getByRole('menuitem', { name: '删除记录' }).count(), 0)
+  await page.keyboard.press('Escape')
   await running.getByRole('button', { name: '结束任务' }).click()
   await page.getByRole('button', { name: '结束中…' }).first().waitFor()
   assert.deepEqual(canceled, ['jobrunning00001'])
@@ -109,7 +115,8 @@ try {
   assert.equal(posted.at(-1).rerunOf, 'jobfailed000001')
   assert.equal(posted.at(-1).url, 'https://example.com/wall')
 
-  await row('页面要求人工验证').getByRole('button', { name: '删除记录' }).click()
+  await menuOf(row('页面要求人工验证')).click()
+  await page.getByRole('menuitem', { name: '删除记录' }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: /删除/u }).click()
   await page.getByText('页面要求人工验证').waitFor({ state: 'detached' })
   assert.deepEqual(deleted, ['jobfailed000001'])
@@ -117,9 +124,11 @@ try {
   // Captured content is untrusted: it stays text, and a script link never becomes a link.
   await row('一篇写得很好的文章').getByRole('button', { name: '查看内容' }).click()
   const dialog = page.getByRole('dialog')
-  await dialog.getByText('Markdown', { exact: true }).waitFor()
+  await dialog.getByRole('heading', { name: '标题', exact: true }).waitFor()
   await dialog.getByText('onerror="window.__captured=1"').waitFor()
   assert.equal(await dialog.locator('img').count(), 0)
+  await dialog.getByRole('tab', { name: 'Markdown', exact: true }).click()
+  await dialog.getByText('# 标题').waitFor()
   await dialog.getByRole('tab', { name: '信息', exact: true }).click()
   await dialog.getByText('作者甲').waitFor()
   await dialog.getByText('正文较短').waitFor()
@@ -137,7 +146,7 @@ try {
     assert.ok(await overflow() <= 0, `the list overflows at ${width}px`)
     if (shots) await page.screenshot({ path: `${shots}/capture-list-${width}.png` })
     await row('一篇写得很好的文章').getByRole('button', { name: '查看内容' }).click()
-    await dialog.getByText('Markdown', { exact: true }).waitFor()
+    await dialog.getByRole('tab', { name: 'Markdown', exact: true }).waitFor()
     const box = await dialog.boundingBox()
     assert.ok(box.x >= 0 && box.x + box.width <= width, `the result leaves the screen at ${width}px`)
     const inner = await dialog.evaluate(node => [...node.querySelectorAll('*')].filter(child => child.getBoundingClientRect().right > node.getBoundingClientRect().right + 1 && !child.closest('pre')).length)

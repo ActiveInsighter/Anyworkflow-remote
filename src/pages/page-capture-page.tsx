@@ -15,18 +15,15 @@ function PageCaptureView() {
   const capture = useCaptureJobs()
 
   return (
-    <Page>
+    <Page width="focus">
       <PageHeader
+        compact
         title="网页采集"
-        description="由浏览器扩展打开页面，提取正文、元数据和链接。"
+        description="打开页面，提取正文、元数据和链接。"
         actions={<CaptureWorkerStatus workers={capture.workers.data} />}
       />
-      <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] lg:items-start xl:gap-8">
-        <div className="min-w-0">
-          <CaptureForm capture={capture} />
-        </div>
-        <CaptureJobList capture={capture} />
-      </div>
+      <CaptureForm capture={capture} />
+      <CaptureJobList capture={capture} />
     </Page>
   )
 }

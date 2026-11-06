@@ -1,4 +1,4 @@
-import type { TaskKind, TaskRecord, TaskState } from '@shared/task-kit/index.mjs'
+import type { TaskKind, TaskRecord, TaskState, TaskView } from '@shared/task-kit/index.mjs'
 import type { StatusTone } from '../../types'
 
 export interface TaskStatusMeta {
@@ -44,6 +44,20 @@ const PHASE_LABELS: Record<string, Record<string, string>> = {
     uploading: '保存结果',
     partial: '内容不完整',
   },
+}
+
+/** The phases a running job passes through, in order. Kinds that measure progress need none. */
+const PHASES: Record<string, readonly string[]> = {
+  'file-conversion': ['dispatching', 'pending', 'running', 'uploading'],
+  'run-export': ['collecting', 'packaging'],
+  'page-capture': ['opening', 'rendering', 'extracting', 'uploading'],
+}
+
+/** How far a running job has got through its phases, or null when its kind has none. */
+export function taskPhase(view: Pick<TaskView, 'kind' | 'status'>): { done: number; total: number } | null {
+  const phases = PHASES[view.kind]
+  const done = phases?.indexOf(view.status) ?? -1
+  return phases && done >= 0 ? { done, total: phases.length } : null
 }
 
 export function taskStateMeta(state: TaskState): TaskStatusMeta {

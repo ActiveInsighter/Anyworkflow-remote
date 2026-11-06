@@ -52,7 +52,7 @@ export function RecordNode({
           <span
             className={cn(
               'line-clamp-2 block break-words',
-              level === 'task' ? 'text-sm font-semibold tracking-snug' : 'text-body font-medium',
+              level === 'task' ? 'text-body font-semibold' : 'text-body font-medium',
               level === 'task' ? 'mt-px' : null,
             )}
           >

@@ -75,7 +75,8 @@ src/
 ├── components/
 │   ├── ui/               shadcn/ui 原语（唯一的基础组件来源）
 │   ├── drive/            云盘式浏览：列表/网格、操作面板、文件夹选择、悬浮新建按钮（资料库与收藏和模板共用）
-│   ├── layout/ feedback/ data-display/ form/ navigation/   跨 feature 复用的组合组件
+│   ├── layout/ feedback/ data-display/ form/ navigation/   跨 feature 复用的组合组件（发起区 Composer、分段轨 SegmentRail 等）
+│   ├── brand/            产品标识
 │   └── theme/            主题选项
 ├── hooks/                通用 Hook（异步数据、异步操作、时钟、断点）
 ├── lib/

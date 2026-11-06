@@ -62,7 +62,7 @@ export function RunVersionPicker({
         <PopoverTrigger asChild>
           <Button variant="ghost" size="touch" className="min-w-0 gap-2 px-2" aria-label="选择 Run 版本">
             <GitBranch className="text-muted-foreground" aria-hidden="true" />
-            <span className="truncate font-mono">{runVersionLabel(current)}</span>
+            <span className="truncate tabular-nums">{runVersionLabel(current)}</span>
             <span className="text-xs text-muted-foreground tabular-nums">
               {index + 1}/{ordered.length}
             </span>
@@ -107,7 +107,7 @@ export function RunVersionPicker({
                   )}
                 >
                   <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-2 font-mono text-sm font-semibold">
+                    <span className="flex items-center gap-2 text-sm font-semibold tabular-nums">
                       {runVersionLabel(version)}
                       {selected ? <Check className="size-4" aria-hidden="true" /> : null}
                       {version.id === latest.id ? (

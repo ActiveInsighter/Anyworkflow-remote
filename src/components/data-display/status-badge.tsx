@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import type { StatusTone } from '@/types'
 
-/** Status pill: tone colour plus a text label, so state never depends on colour alone. */
+/** Status tag: tone colour plus a text label, so state never depends on colour alone. */
 export function StatusBadge({
   tone,
   children,
@@ -14,8 +14,7 @@ export function StatusBadge({
   className?: string
 }) {
   return (
-    <Badge variant={tone} className={cn('h-6 gap-1.5 text-caption', className)}>
-      <span className="size-1.5 shrink-0 rounded-full bg-current" aria-hidden="true" />
+    <Badge variant={tone} className={cn('h-5.5 text-caption', className)}>
       {children}
     </Badge>
   )

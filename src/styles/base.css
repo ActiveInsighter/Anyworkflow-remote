@@ -34,6 +34,8 @@
     font-synthesis: none;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
+    /* A thin gap where hanzi meet Latin or digits, set by the browser instead of typed spaces. */
+    text-autospace: normal;
   }
 
   body {
@@ -85,6 +87,16 @@
 
   ::-webkit-scrollbar-track {
     background: transparent;
+  }
+}
+
+/* One-line names from `sm` up; phones wrap them, because a phone row has the height to spare. */
+@utility truncate-sm {
+  @media (width >= 40rem) {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 

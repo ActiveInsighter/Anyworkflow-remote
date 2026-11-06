@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 import type { DriveEntry, DriveTone, DriveViewMode } from './drive-types'
 
 const TILE: Record<DriveTone, string> = {
-  folder: 'text-foreground/70',
+  folder: 'text-primary/75',
   neutral: 'bg-muted text-muted-foreground',
   primary: 'bg-primary-soft text-primary',
   danger: 'bg-danger-soft text-danger',
@@ -40,7 +40,7 @@ export function DriveEntryIcon({ entry, size = 'md' }: { entry: Pick<DriveEntry,
 
 /* The name is the entry's one interactive target; its ::after stretches over the whole row. */
 const TARGET =
-  'min-w-0 truncate rounded-[inherit] text-left outline-none after:absolute after:inset-0 after:rounded-[inherit] focus-visible:after:ring-[3px] focus-visible:after:ring-ring/50'
+  'min-w-0 truncate rounded-[inherit] text-left outline-none after:absolute after:inset-0 after:rounded-[inherit] focus-visible:after:ring-[3px] focus-visible:after:ring-ring/35'
 
 function EntryTarget({ entry, onOpenFolder, className }: { entry: DriveEntry; onOpenFolder: (id: string) => void; className?: string }) {
   const classes = cn(TARGET, className)
@@ -74,7 +74,7 @@ function MoreButton({ entry, onMore, className }: { entry: DriveEntry; onMore: (
       type="button"
       variant="ghost"
       size="icon-touch"
-      className={cn('relative z-raised shrink-0 rounded-full text-muted-foreground hover:text-foreground', className)}
+      className={cn('relative z-raised shrink-0 text-muted-foreground hover:text-foreground', className)}
       aria-label={`更多操作：${entry.name}`}
       onClick={() => onMore(entry)}
     >
@@ -86,7 +86,7 @@ function MoreButton({ entry, onMore, className }: { entry: DriveEntry; onMore: (
 function ListRow({ entry, onOpenFolder, onMore }: RowProps) {
   return (
     <li
-      className="group relative flex min-h-16 items-center gap-3 rounded-xl bg-subtle py-2 ps-3 pe-1.5 transition-colors duration-fast hover:bg-muted/70 sm:ps-4"
+      className="group relative flex min-h-14 items-center gap-3 rounded-xl py-1.5 ps-3 pe-1.5 transition-colors duration-fast hover:bg-subtle"
       onContextMenu={(event) => {
         event.preventDefault()
         onMore(entry)
@@ -109,19 +109,19 @@ function GridCard({ entry, onOpenFolder, onMore }: RowProps) {
   const folder = entry.kind === 'folder'
   return (
     <li
-      className="group relative flex min-w-0 flex-col rounded-2xl bg-subtle p-1.5 transition-colors duration-fast hover:bg-muted/70"
+      className="group relative flex min-w-0 flex-col rounded-xl border p-1.5 transition-colors duration-fast hover:border-border-strong hover:bg-subtle"
       onContextMenu={(event) => {
         event.preventDefault()
         onMore(entry)
       }}
     >
       <div className="flex min-w-0 items-center gap-2 ps-2">
-        {folder ? <Folder className="size-4 shrink-0 fill-current text-foreground/70" strokeWidth={1.5} aria-hidden="true" /> : null}
+        {folder ? <Folder className="size-4 shrink-0 fill-current text-primary/75" strokeWidth={1.5} aria-hidden="true" /> : null}
         <EntryTarget entry={entry} onOpenFolder={onOpenFolder} className="flex-1 text-sm font-medium text-foreground" />
         <MoreButton entry={entry} onMore={onMore} className="sm:size-8" />
       </div>
       {folder ? null : (
-        <div className="mt-0.5 grid aspect-[4/3] place-items-center rounded-xl bg-background/80">
+        <div className="mt-0.5 grid aspect-[4/3] place-items-center rounded-lg bg-subtle">
           <DriveEntryIcon entry={entry} size="xl" />
         </div>
       )}
@@ -140,7 +140,7 @@ type RowProps = { entry: DriveEntry; onOpenFolder: (id: string) => void; onMore:
 function Section({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <section aria-label={label} className="flex flex-col gap-2">
-      <h2 className="px-1 text-caption font-medium text-muted-foreground">{label}</h2>
+      <h2 className="text-caption font-medium text-muted-foreground">{label}</h2>
       {children}
     </section>
   )
@@ -171,7 +171,7 @@ export function DriveView({
   const listClass =
     view === 'grid'
       ? 'grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 2xl:grid-cols-5'
-      : 'flex flex-col gap-1.5'
+      : '-mx-3 flex flex-col'
   return (
     <div className="flex flex-col gap-6">
       {folders.length ? (

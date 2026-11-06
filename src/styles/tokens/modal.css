@@ -9,10 +9,10 @@
   --modal-surface: var(--background);
   /* A muted pane beside the surface, so split panes need no divider. */
   --modal-pane-muted: var(--subtle);
-  --modal-backdrop: rgb(14 15 22 / 38%);
+  --modal-backdrop: rgb(10 24 30 / 40%);
   --modal-page-dim: rgb(0 0 0 / 8%);
   --modal-page-shadow: rgb(0 0 0 / 24%);
-  --modal-radius: 1.5rem;
+  --modal-radius: 1.25rem;
   --modal-shadow:
     0 -16px 48px -16px rgb(0 0 0 / 22%),
     0 -2px 12px -4px rgb(0 0 0 / 6%);
@@ -37,8 +37,8 @@
 
 .dark {
   /* Lifted off the near-black canvas so the modal reads as a layer above it. */
-  --modal-surface: #15151b;
-  --modal-pane-muted: #1a1a21;
+  --modal-surface: #142024;
+  --modal-pane-muted: #182529;
   --modal-backdrop: rgb(0 0 0 / 62%);
   --modal-page-dim: rgb(0 0 0 / 42%);
   --modal-page-shadow: rgb(0 0 0 / 70%);

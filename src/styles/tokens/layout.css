@@ -4,7 +4,7 @@
  * Fixed application chrome and content measures. A 4px spacing rhythm comes from Tailwind's
  * default `--spacing`; the named sizes below cover the few dimensions that recur on purpose.
  *
- *   h-header / size-touch / min-h-touch / max-w-page / max-w-detail
+ *   h-header / size-touch / min-h-touch / max-w-page / max-w-detail / max-w-focus
  */
 
 :root {
@@ -18,8 +18,10 @@
   /* 44px: the minimum comfortable touch target on mobile. */
   --spacing-touch: 2.75rem;
   /* Top bar height, excluding the safe-area inset. */
-  --spacing-header: 3.5rem;
+  --spacing-header: 3.25rem;
 
   --container-page: 90rem;
   --container-detail: 80rem;
+  /* One column of work: a composer over its records. */
+  --container-focus: 60rem;
 }

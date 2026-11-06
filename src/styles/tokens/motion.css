@@ -11,6 +11,7 @@
  *
  *   animate-disclosure  height + fade for a Radix Collapsible content panel
  *   animate-enter       list rows entering; set `--stagger-index` for a short cascade
+ *   animate-rail        the segment of a rail that is being worked on right now
  */
 
 @theme {
@@ -111,4 +112,19 @@
 
 @utility animate-indeterminate {
   animation: indeterminate-sweep 1.4s var(--ease-standard) infinite;
+}
+
+/* The current segment of a rail breathes: the one motion that says work is happening. */
+@keyframes rail-breathe {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@utility animate-rail {
+  animation: rail-breathe 1.8s ease-in-out infinite;
 }

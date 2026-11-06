@@ -3,7 +3,7 @@ import { SettingsDirectory } from '@/features/settings/components/settings-direc
 
 export function SettingsPage() {
   return (
-    <Page width="detail">
+    <Page width="focus">
       <PageHeader title="设置" />
       <SettingsDirectory />
     </Page>

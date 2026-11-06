@@ -35,15 +35,14 @@ export function UploadPanel({ queue }: { queue: UploadQueue }) {
         </span>
         <p role="status" aria-live="polite" className={cn('min-w-0 flex-1 truncate text-body font-medium', state.tone)}>
           {state.text}
-          {state.busy ? <span className="ms-1.5 font-mono text-caption text-muted-foreground tabular-nums">{progress}%</span> : null}
+          {state.busy ? <span className="ms-1.5 text-caption text-muted-foreground tabular-nums">{progress}%</span> : null}
         </p>
-        <Button variant="ghost" size="icon-touch" className="rounded-full" aria-expanded={expanded} aria-label={expanded ? '收起上传列表' : '展开上传列表'} onClick={() => setExpanded(!expanded)}>
+        <Button variant="ghost" size="icon-touch" aria-expanded={expanded} aria-label={expanded ? '收起上传列表' : '展开上传列表'} onClick={() => setExpanded(!expanded)}>
           {expanded ? <ChevronDown /> : <ChevronUp />}
         </Button>
         <Button
           variant="ghost"
           size="icon-touch"
-          className="rounded-full"
           aria-label={state.busy ? '取消全部上传' : '关闭上传提示'}
           onClick={state.busy ? queue.cancelAll : queue.dismiss}
         >

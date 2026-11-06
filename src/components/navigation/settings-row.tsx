@@ -23,20 +23,20 @@ export function SettingsRow({
   const content = (
     <>
       {Icon ? (
-        <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
+        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
           <Icon className="size-4" aria-hidden="true" />
         </span>
       ) : null}
-      <span className="flex min-w-0 flex-1 flex-col gap-1 text-left">
-        <span className="text-sm font-medium">{title}</span>
-        {description ? <span className="break-all text-xs text-muted-foreground">{description}</span> : null}
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5 text-left">
+        <span className="text-body font-medium">{title}</span>
+        {description ? <span className="break-all text-caption text-muted-foreground">{description}</span> : null}
         {detail ? <span className="text-xs text-muted-foreground">{detail}</span> : null}
       </span>
       <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
     </>
   )
   const className =
-    'flex min-h-touch w-full items-center gap-3 px-4 py-4 outline-none transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:opacity-50'
+    'flex min-h-touch w-full items-center gap-3 px-4 py-3 outline-none transition-colors hover:bg-subtle focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:opacity-50'
   return to && !disabled ? (
     <Link to={to} className={className}>
       {content}

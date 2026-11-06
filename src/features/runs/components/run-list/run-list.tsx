@@ -1,16 +1,15 @@
 import type { ReactNode } from 'react'
-import { Card } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import { RUN_LIST_COLUMNS } from './run-list-columns'
 
-/** Bordered list surface with a column header that only appears where columns exist. */
+/** Records straight on the page, with a column header that only appears where columns exist. */
 export function RunList({ children }: { children: ReactNode }) {
   return (
-    <Card className="divide-y">
+    <div className="-mx-3 flex min-w-0 flex-col">
       <div
         aria-hidden="true"
         className={cn(
-          'hidden items-center gap-4 bg-subtle px-5 py-2.5 text-caption font-medium text-muted-foreground lg:grid',
+          'hidden items-center gap-4 border-b px-3 pb-2 text-caption font-medium text-muted-foreground lg:grid',
           RUN_LIST_COLUMNS,
         )}
       >
@@ -21,6 +20,6 @@ export function RunList({ children }: { children: ReactNode }) {
         <span />
       </div>
       {children}
-    </Card>
+    </div>
   )
 }

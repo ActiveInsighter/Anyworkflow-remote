@@ -2,7 +2,7 @@ import type * as React from 'react'
 import { CalendarClock, GitBranch } from 'lucide-react'
 import { Link } from 'react-router'
 import { DescriptionList } from '@/components/data-display/description-list'
-import { ProgressMeter } from '@/components/data-display/progress-meter'
+import { SegmentRail } from '@/components/data-display/segment-rail'
 import { StatusBadge } from '@/components/data-display/status-badge'
 import { ErrorAlert } from '@/components/feedback/error-alert'
 import { Button } from '@/components/ui/button'
@@ -32,18 +32,24 @@ export function RunSummaryCard({
   return (
     <Card aria-label="运行概况">
       <CardContent className="flex flex-col gap-5">
-        <div className="flex flex-col gap-3">
-          <div className="flex items-end justify-between gap-3">
-            <div className="flex min-w-0 flex-col items-start gap-2">
+        <div className="flex flex-col gap-2.5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-2.5">
               <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-              <p className="text-sm text-muted-foreground tabular-nums">
-                <span className="text-title font-semibold text-foreground">{completed}</span>
-                <span className="ms-1">/ {totalTasks} Tasks</span>
+              <p className="text-body text-muted-foreground tabular-nums">
+                <span className="font-semibold text-foreground">{completed}</span> / {totalTasks} Tasks
               </p>
             </div>
-            <span className="font-mono text-title font-semibold text-muted-foreground tabular-nums">{percent}%</span>
+            <span className="text-body font-medium text-muted-foreground tabular-nums">{percent}%</span>
           </div>
-          <ProgressMeter className="h-2" value={percent} tone={status.tone} />
+          <SegmentRail
+            className="h-2"
+            total={totalTasks}
+            done={completed}
+            live={run.status === 'running'}
+            tone={status.tone}
+            label={`已完成 ${completed} / ${totalTasks} 个任务`}
+          />
         </div>
         <DescriptionList
           className="border-t pt-4"
@@ -51,10 +57,10 @@ export function RunSummaryCard({
             {
               label: '版本',
               value: (
-                <span className="flex flex-wrap items-center gap-1 font-mono">
+                <span className="flex flex-wrap items-center gap-1 tabular-nums">
                   <GitBranch className="size-3.5 text-muted-foreground" aria-hidden="true" />
                   {runVersionLabel(run)}
-                  <span className="ms-1 font-sans font-normal text-muted-foreground">{runOriginLabel(run.origin)}</span>
+                  <span className="ms-1 font-normal text-muted-foreground">{runOriginLabel(run.origin)}</span>
                 </span>
               ),
             },
@@ -65,7 +71,7 @@ export function RunSummaryCard({
         />
         <ErrorAlert inline>{run.lastError}</ErrorAlert>
       </CardContent>
-      <div className="flex flex-col gap-2 border-t bg-muted/25 px-4 py-1 sm:px-5">
+      <div className="flex flex-col gap-2 border-t px-4 py-1 sm:px-5">
         <RunRuntimeSummary run={run} aside={versionPicker} />
         {run.recurrenceSchedule ? (
           <Button asChild variant="outline" size="sm" className="mb-2 self-start">

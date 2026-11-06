@@ -3,19 +3,20 @@ import { cn } from '@/lib/utils'
 
 /**
  * Page frame inside the app shell's scroll host. `width` picks the content measure:
- * `page` for lists and dashboards, `detail` for single-record views.
+ * `page` for lists and dashboards, `detail` for single-record views, `focus` for one column of
+ * work (a composer over its records).
  */
 export function Page({
   width = 'page',
   className,
   ...props
-}: React.ComponentProps<'div'> & { width?: 'page' | 'detail' }) {
+}: React.ComponentProps<'div'> & { width?: 'page' | 'detail' | 'focus' }) {
   return (
     <div
       data-slot="page"
       className={cn(
-        'mx-auto w-full px-4 pt-5 pb-[calc(3rem+env(safe-area-inset-bottom))] sm:px-7 sm:pt-8 sm:pb-16 lg:px-10 lg:pt-9',
-        width === 'page' ? 'max-w-page' : 'max-w-detail',
+        'mx-auto w-full px-4 pt-3 pb-[calc(3rem+env(safe-area-inset-bottom))] sm:px-7 sm:pt-4 sm:pb-16 lg:px-10',
+        width === 'page' ? 'max-w-page' : width === 'detail' ? 'max-w-detail' : 'max-w-focus',
         className,
       )}
       {...props}
@@ -49,7 +50,7 @@ export function PageHeader({
     <header
       data-slot="page-header"
       className={cn(
-        'mb-5 flex gap-3 sm:mb-7 sm:flex-row sm:items-start sm:justify-between sm:gap-6',
+        'mb-5 flex gap-3 sm:mb-6 sm:flex-row sm:items-end sm:justify-between sm:gap-6',
         compact ? 'flex-row items-center justify-between' : 'flex-col',
         className,
       )}
@@ -67,7 +68,7 @@ export function PageHeader({
           {title}
         </h1>
         {description ? (
-          <p className={cn('mt-1.5 max-w-2xl text-sm text-muted-foreground', compact && 'hidden sm:block')}>
+          <p className={cn('mt-1 max-w-2xl text-body text-muted-foreground', compact && 'hidden sm:block')}>
             {description}
           </p>
         ) : null}
@@ -75,7 +76,7 @@ export function PageHeader({
       {actions ? (
         <div
           className={cn(
-            'flex items-center gap-2 sm:w-auto sm:shrink-0 sm:justify-end sm:pt-0.5',
+            'flex items-center gap-2 sm:w-auto sm:shrink-0 sm:justify-end',
             compact ? 'shrink-0' : 'w-full flex-wrap',
           )}
         >
@@ -101,7 +102,7 @@ export function SectionHeader({
   return (
     <div data-slot="section-header" className={cn('mb-2.5 flex items-end justify-between gap-4', className)}>
       <div className="min-w-0">
-        <h2 className="text-sm font-semibold tracking-snug">{title}</h2>
+        <h2 className="text-body font-semibold">{title}</h2>
         {description ? <p className="mt-0.5 text-xs text-muted-foreground">{description}</p> : null}
       </div>
       {trailing ? <div className="shrink-0 text-caption text-muted-foreground tabular-nums">{trailing}</div> : null}

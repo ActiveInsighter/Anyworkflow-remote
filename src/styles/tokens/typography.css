@@ -1,17 +1,21 @@
 /*
  * Typography tokens.
  *
- * Geist for Latin UI text with system CJK fallbacks; Geist Mono for code, IDs, versions and
- * numeric metadata. Fonts are self-hosted from public/fonts (geist 1.7.2, SIL OFL).
+ * Geist for Latin UI text with system CJK faces after it; Geist Mono only for code, selectors and
+ * raw links. Metadata stays in the sans with tabular numbers, because mono next to hanzi reads as
+ * a different voice. Fonts are self-hosted from public/fonts (geist 1.7.2, SIL OFL).
+ *
+ * Hanzi are denser than Latin, so nothing a person reads goes below 12px, and headings are not
+ * tracked tightly: negative spacing crowds them.
  *
  * Type scale (generates `text-*` utilities):
- *   text-micro    10px  dense numeric metadata only
- *   text-caption  11px  field labels, secondary metadata, column headers
+ *   text-micro    11px  counters and tags inside other controls
+ *   text-caption  12px  field labels, secondary metadata, column headers
  *   text-xs       12px  supporting copy (Tailwind default)
- *   text-body     13px  primary console text: rows, panels, navigation
+ *   text-body     14px  primary console text: rows, panels, navigation
  *   text-sm       14px  prose, inputs, dialogs (Tailwind default)
- *   text-title    23px  page titles on small screens
- *   text-display  28px  page titles from `sm` up
+ *   text-title    22px  page titles on small screens
+ *   text-display  26px  page titles from `sm` up
  */
 
 @font-face {
@@ -31,26 +35,27 @@
 }
 
 @theme {
-  --font-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
-    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
-  --font-mono: 'Geist Mono', 'SFMono-Regular', 'Cascadia Code', Consolas, monospace;
+  --font-sans: 'Geist', 'PingFang SC', 'HarmonyOS Sans SC', 'MiSans', 'Noto Sans CJK SC', 'Source Han Sans SC',
+    'Microsoft YaHei UI', 'Microsoft YaHei', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', 'Cascadia Code', Consolas, 'Noto Sans Mono CJK SC', 'PingFang SC',
+    monospace;
 
-  --text-micro: 0.625rem;
-  --text-micro--line-height: 0.875rem;
-  --text-caption: 0.6875rem;
-  --text-caption--line-height: 1rem;
-  --text-body: 0.8125rem;
-  --text-body--line-height: 1.25rem;
-  --text-title: 1.4375rem;
-  --text-title--line-height: 1.2;
-  --text-title--letter-spacing: -0.035em;
-  --text-display: 1.75rem;
-  --text-display--line-height: 1.15;
-  --text-display--letter-spacing: -0.035em;
+  --text-micro: 0.6875rem;
+  --text-micro--line-height: 1rem;
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.125rem;
+  --text-body: 0.875rem;
+  --text-body--line-height: 1.375rem;
+  --text-title: 1.375rem;
+  --text-title--line-height: 1.3;
+  --text-title--letter-spacing: -0.012em;
+  --text-display: 1.625rem;
+  --text-display--line-height: 1.25;
+  --text-display--letter-spacing: -0.015em;
 
-  --tracking-heading: -0.02em;
-  --tracking-snug: -0.01em;
-  --tracking-label: 0.04em;
+  --tracking-heading: -0.01em;
+  --tracking-snug: -0.005em;
+  --tracking-label: 0.02em;
 }
 
 /* CodeMirror reads these directly; keep the editor in step with the console type scale. */
