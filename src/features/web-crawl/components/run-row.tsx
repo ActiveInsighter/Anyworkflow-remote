@@ -8,6 +8,7 @@ import { formatDateTime } from '@/lib/format'
 import { webCrawlKind } from '@/lib/tasks'
 import type { CrawlRun } from '@/types/web-crawl'
 import { runOutcomeText, runTitle } from '../lib/crawl-display'
+import { runFailureText } from '../lib/run-results'
 
 /** One crawl run: what it covered, how it went, and cancel while it runs or its results after. */
 export function RunRow({
@@ -30,6 +31,7 @@ export function RunRow({
   const active = isCrawlRunActive(run)
   const canceling = run.cancelRequested || pending === `${run.id}:cancel`
   const github = crawlRunUrl(run)
+  const failure = active ? '' : runFailureText(run)
 
   return (
     <JobRow
@@ -75,7 +77,7 @@ export function RunRow({
         ) : null
       }
     >
-      {run.error && !active ? <JobNote tone={run.status === 'partial' ? 'warning' : 'danger'}>{run.error}</JobNote> : null}
+      {failure ? <JobNote tone={run.status === 'partial' ? 'warning' : 'danger'}>{failure}</JobNote> : null}
     </JobRow>
   )
 }
