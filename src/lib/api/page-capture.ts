@@ -8,7 +8,6 @@ const RESULTS = 'aw_capture_results'
 const WORKERS = 'aw_capture_workers'
 
 export const MAX_CAPTURE_URLS = 50
-const MAX_URL_LENGTH = 2048
 /** The extension reports in at least every 30 s while it is running. */
 const WORKER_ONLINE_MS = 2 * 60_000
 
@@ -35,28 +34,7 @@ export function isCaptureWorkerOnline(worker: Pick<CaptureWorker, 'lastSeenAt'>,
   return Number.isFinite(seen) && now - seen < WORKER_ONLINE_MS
 }
 
-function readUrl(line: string): string | null {
-  const candidate = /^[a-z][a-z0-9+.-]*:/iu.test(line) ? line : `https://${line}`
-  if (candidate.length > MAX_URL_LENGTH) return null
-  try {
-    const url = new URL(candidate)
-    return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : null
-  } catch {
-    return null
-  }
-}
-
-/** Splits pasted text into unique web URLs, keeping what cannot be read so the user can fix it. */
-export function parseCaptureUrls(text: string): { urls: string[]; invalid: string[] } {
-  const urls = new Set<string>()
-  const invalid: string[] = []
-  for (const line of text.split(/\s+/u).filter(Boolean)) {
-    const url = readUrl(line)
-    if (url) urls.add(url)
-    else invalid.push(line)
-  }
-  return { urls: [...urls], invalid }
-}
+export { parseWebUrls as parseCaptureUrls } from '@/lib/web-urls'
 
 /** Empty fields stay out of the record, so a job only stores what the user actually changed. */
 export function compactCaptureOptions(options: CaptureOptions): CaptureOptions {

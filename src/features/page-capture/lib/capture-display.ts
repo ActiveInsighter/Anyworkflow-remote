@@ -30,15 +30,7 @@ export function jobTitle(job: Pick<CaptureJob, 'title' | 'url'>): string {
   return job.title || job.url
 }
 
-/** Captured links are untrusted, and React renders `javascript:` hrefs as they are. */
-export function safeHref(value: string): string | undefined {
-  try {
-    const url = new URL(value)
-    return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : undefined
-  } catch {
-    return undefined
-  }
-}
+export { safeHref } from '@/lib/web-urls'
 
 export function captureFilename(title: string): string {
   return safeFilename(title, '网页采集', 'md')

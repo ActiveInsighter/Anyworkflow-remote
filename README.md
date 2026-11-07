@@ -23,8 +23,9 @@ AnyWorkflow 的响应式 Web 控制端。项目参考 `Anyworkflow-wechat` 的�
 - Run 详情「更多操作 → 导出 AI 对话」：完整对话/仅 AI 回复、后台生成 Markdown ZIP、进度与历史下载
 - Event 执行内容按需查看
 - 进行中数据自适应轮询（有进行中任务时加快，空闲时放慢）与有界跨页缓存
-- 顶栏任务中心：工作流、文件转换、对话导出、网页采集统一显示，侧栏计数，完成提醒
+- 顶栏任务中心：工作流、文件转换、对话导出、网页采集、网页抓取统一显示，侧栏计数，完成提醒
 - 网页采集：批量填写链接，由浏览器扩展在已登录的浏览器里抓取，查看和下载 Markdown（见 docs/page-capture.md）
+- 网页抓取：保存要关注的页面，选中后手动抓取或按频率定时抓取，结果自动存入内容库（见 docs/web-crawl.md）
 - 收藏和模板：云盘式浏览，点击进入文件夹，⋮ 打开操作面板（移动、重命名、复制、删除），列表/网格与排序
 - 持久文件资料库：文件夹、多文件与拖放上传、重命名、移动、搜索、删除与跨转换任务复用
 - CodeMirror DSL 编辑器、本地草稿与括号消息语法
@@ -71,6 +72,7 @@ src/
 │   ├── runtime-config/   浏览器运行配置字段与默认值
 │   ├── file-converter/   PDF → Markdown 转换
 │   ├── page-capture/     网页采集：链接表单、采集记录、结果查看
+│   ├── web-crawl/        网页抓取：页面列表与选择、定时设置、抓取内容和记录
 │   └── settings/         连接、外观、快捷键
 ├── components/
 │   ├── ui/               shadcn/ui 原语（唯一的基础组件来源）
@@ -414,6 +416,12 @@ Worker 配置位于 `wrangler.jsonc`，入口为 `worker/index.ts`。`/api/*` �
 
 侧边栏 `工具 → 网页采集`（`/page-capture`）。填写链接后，[Anyworkflow-capture](https://github.com/ActiveInsighter/Anyworkflow-capture)
 扩展在浏览器里打开页面并回传正文。说明见 [网页采集](docs/page-capture.md)。
+
+## 网页抓取
+
+侧边栏 `工具 → 网页抓取`（`/web-crawl`）。保存的页面由 AnyWorkflow-workers scheduler 按频率派发到
+[webpage-parser-action](https://github.com/ActiveInsighter/webpage-parser-action)，结果写入 `aw_crawled_contents`。
+说明见 [网页抓取](docs/web-crawl.md)。验证：`npm run test:browser -- web-crawl`。
 
 ## 远程运行配置
 

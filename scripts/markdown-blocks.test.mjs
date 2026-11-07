@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { parseInlines, parseMarkdown } from '../src/features/page-capture/lib/markdown-blocks.ts'
+import { parseInlines, parseMarkdown } from '../src/lib/markdown-blocks.ts'
 
 const kinds = (markdown) => parseMarkdown(markdown).map((block) => block.kind)
 

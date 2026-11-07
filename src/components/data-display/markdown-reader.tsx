@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { ImageOff } from 'lucide-react'
-import { parseMarkdown, type Block, type Inline } from '../lib/markdown-blocks'
-import { safeHref } from '../lib/capture-display'
+import { parseMarkdown, type Block, type Inline } from '@/lib/markdown-blocks'
+import { safeHref } from '@/lib/web-urls'
 
 function InlineText({ inlines }: { inlines: Inline[] }) {
   return inlines.map((inline, index) => {
@@ -59,8 +59,8 @@ function BlockView({ block }: { block: Block }) {
   return <p className="mt-3 first:mt-0"><InlineText inlines={block.inlines} /></p>
 }
 
-/** The captured article as something to read. Everything renders as text; see markdown-blocks. */
-export function CaptureReader({ markdown }: { markdown: string }) {
+/** Untrusted Markdown as something to read. Everything renders as text; see lib/markdown-blocks. */
+export function MarkdownReader({ markdown }: { markdown: string }) {
   const blocks = useMemo(() => parseMarkdown(markdown), [markdown])
   return (
     <article className="mx-auto max-w-[42rem] text-[0.9375rem]/7 [overflow-wrap:anywhere]">

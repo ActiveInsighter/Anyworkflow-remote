@@ -26,6 +26,7 @@ export function breadcrumbsFor(pathname: string): BreadcrumbItem[] {
 
   if (parts[0] === 'file-converter' || parts[0] === 'pdf-to-md') return [{ label: '文件转换' }]
   if (parts[0] === 'page-capture') return [{ label: '网页采集' }]
+  if (parts[0] === 'web-crawl') return [{ label: '网页抓取' }]
   if (parts[0] === 'library') return [{ label: '资料库' }]
   if (parts[0] === 'favorites-and-templates') return [{ label: '收藏和模板' }]
   if (parts[0] === 'templates') {

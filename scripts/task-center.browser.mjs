@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { mkdir } from 'node:fs/promises'
 import { chromium } from 'playwright'
 
-// Task center: one feed for Runs, conversions and exports; counts, links, completion toasts.
+// Task center: one feed for Runs, conversions, exports, captures and crawls; counts, links, completion toasts.
 const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] })
 const errors = []
 const baseUrl = process.env.TEST_BASE_URL || 'http://127.0.0.1:5173'
@@ -11,6 +11,9 @@ const runBase = { owner: 'owner-1', planText: '@task T {}', familyId: 'run-a', o
 const rows = {
   aw_capture_jobs: [
     { id: 'capture-a', owner: 'owner-1', url: 'https://example.com/a', host: 'example.com', title: '一篇网页文章', status: 'succeeded', cancelRequested: false, error: '', created: stamp(30), updated: stamp(20) },
+  ],
+  aw_crawl_runs: [
+    { id: 'crawl-a', owner: 'owner-1', trigger: 'schedule', targets: ['t1', 't2'], targetCount: 2, reportedCount: 2, succeededCount: 1, status: 'partial', cancelRequested: false, error: '1 个页面抓取失败', created: stamp(40), updated: stamp(30) },
   ],
   aw_dispatch_runs: [
     { ...runBase, id: 'run-a', title: '计算机网络复习', status: 'running', totalTasks: 4, completedTasks: 1, updated: stamp(1) },
@@ -54,7 +57,7 @@ try {
   await page.goto(`${baseUrl}/library`)
   const trigger = page.getByRole('button', { name: '任务中心，3 个进行中' })
   await trigger.waitFor()
-  assert.deepEqual([...new Set(feedRequests)].sort(), ['aw_capture_jobs', 'aw_dispatch_runs', 'aw_pdf_to_md_jobs', 'aw_run_exports'])
+  assert.deepEqual([...new Set(feedRequests)].sort(), ['aw_capture_jobs', 'aw_crawl_runs', 'aw_dispatch_runs', 'aw_pdf_to_md_jobs', 'aw_run_exports'])
   await page.getByLabel('1 个进行中').first().waitFor()
   await trigger.click()
   const panel = page.getByRole('dialog')
@@ -63,6 +66,7 @@ try {
   await panel.getByText('转换中', { exact: true }).waitFor()
   await panel.getByRole('region', { name: '最近 24 小时' }).getByText('每日英语阅读').waitFor()
   await panel.getByRole('link', { name: /一篇网页文章.*网页采集/u }).waitFor()
+  await panel.getByRole('link', { name: /定时抓取.*网页抓取/u }).waitFor()
   if (process.env.SCREENSHOT_DIR) {
     await mkdir(process.env.SCREENSHOT_DIR, { recursive: true })
     await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/task-center-1440.png` })

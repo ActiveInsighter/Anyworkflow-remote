@@ -49,6 +49,7 @@ export const fileConversionKind: TaskKind
 export const runExportKind: TaskKind
 export const runKind: TaskKind
 export const pageCaptureKind: TaskKind
+export const webCrawlKind: TaskKind
 export const TASK_KINDS: readonly TaskKind[]
 export function taskKind(id: string): TaskKind
 
@@ -142,6 +143,12 @@ export function githubActionsHandlers<A, R extends TaskRecord>(options: {
   filename: (task: R) => string
   reconcileWindowMs?: number
 }): TaskHandlers<R, ArtifactStore<A, R>>
+export function githubActionsHandlers<R extends TaskRecord, S extends TaskStore<R>>(options: {
+  github: GitHubActionsClient
+  inputs: (task: R) => Record<string, string>
+  settle: (task: R, run: GitHubRun, context: { store: S; now: number; kind: TaskKind<R> }) => Promise<void>
+  reconcileWindowMs?: number
+}): TaskHandlers<R, S>
 export function githubActionsErrorMessage(task: TaskRecord): string
 
 export const PDF_TO_MD: 'pdf_to_md'
@@ -149,6 +156,20 @@ export function buildPdfWorkflowInputs(row: TaskRecord): Record<string, string>
 export function createFileConversionEngine<A>(options: {
   store: ArtifactStore<A>
   github: GitHubActionsClient<A>
+  concurrency?: number
+  now?: () => number
+  log?: (line: string) => void
+}): TaskEngine
+
+/** A store whose workflow writes results itself; PocketBase settles the run when it ends. */
+export interface SettlingStore<R extends TaskRecord = TaskRecord> extends TaskStore<R> {
+  settle(id: string, outcome: { conclusion: string }): Promise<unknown>
+}
+
+export function buildCrawlWorkflowInputs(row: TaskRecord): Record<string, string>
+export function createWebCrawlEngine(options: {
+  store: SettlingStore
+  github: GitHubActionsClient
   concurrency?: number
   now?: () => number
   log?: (line: string) => void
