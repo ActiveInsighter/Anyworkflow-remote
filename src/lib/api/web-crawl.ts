@@ -174,10 +174,10 @@ export function listCrawlRuns(page: number, signal?: AbortSignal) {
   return listOwnedCollection<CrawlRun>(RUNS, { page, perPage: RUN_PAGE_SIZE, sort: '-created,-id', filter: ownerFilter() }, (row) => row, signal)
 }
 
-/** Runs of one target, newest first. */
+/** Runs of one target, newest first. On production PocketBase a bare `targets ?= id` matches nothing; `targets.id` does. */
 export async function listTargetRuns(targetId: string, signal?: AbortSignal): Promise<CrawlRun[]> {
   const { items } = await listOwnedCollection<CrawlRun>(RUNS, {
-    page: 1, perPage: 10, skipTotal: true, sort: '-created,-id', filter: `${ownerFilter()} && targets ?= "${quoteFilter(targetId)}"`,
+    page: 1, perPage: 10, skipTotal: true, sort: '-created,-id', filter: `${ownerFilter()} && targets.id ?= "${quoteFilter(targetId)}"`,
   }, (row) => row, signal)
   return items
 }
