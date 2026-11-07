@@ -110,7 +110,7 @@ try {
 
   respond = () => Response.json({ items: [], page: 1, perPage: 20, totalItems: 0, totalPages: 0 })
   await api.listTargetRuns('t"1')
-  assert.equal(calls.at(-1).url.searchParams.get('filter'), 'owner="owner" && targets ?= "t\\"1"')
+  assert.equal(calls.at(-1).url.searchParams.get('filter'), 'owner="owner" && targets.id ?= "t\\"1"')
   await api.listCrawledContents({ page: 2, target: 't1', type: 'webpage', search: ' 新闻 ' })
   const query = calls.at(-1).url.searchParams
   assert.equal(query.get('filter'), 'owner="owner" && target="t1" && type="webpage" && (title~"新闻" || content~"新闻" || author~"新闻" || handle~"新闻")')

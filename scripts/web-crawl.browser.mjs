@@ -102,7 +102,8 @@ await context.route('https://pb.example.invalid/**', async route => {
   if (runRecord) {
     const active = ['queued', 'dispatching', 'pending', 'running']
     if (filter.includes('status="queued"')) return list(runs.filter(row => active.includes(row.status)))
-    const only = /targets \?= "([^"]+)"/u.exec(filter)?.[1]
+    // Only the relation form matches on PocketBase; a bare `targets ?=` finds nothing there.
+    const only = /targets\.id \?= "([^"]+)"/u.exec(filter)?.[1]
     return list(only ? runs.filter(row => row.targets.includes(only)) : runs)
   }
 
