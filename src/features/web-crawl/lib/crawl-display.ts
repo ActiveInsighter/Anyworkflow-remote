@@ -80,9 +80,13 @@ export function contentTitle(content: Pick<CrawledContent, 'title' | 'content' |
   return content.title || content.content.split('\n').find((line) => line.trim())?.trim().slice(0, 80) || content.canonicalUrl
 }
 
+/** Lists show two lines; the server sends 160 characters, and this bound keeps the regexes linear anyway. */
+const EXCERPT_SOURCE_CHARS = 600
+
 /** A list excerpt as plain words: markdown marks and link targets are noise in one or two lines. */
 export function excerptText(text: string): string {
   return text
+    .slice(0, EXCERPT_SOURCE_CHARS)
     .replace(/!\[[^\]]*\]\([^)]*\)/gu, ' ')
     .replace(/\[([^\]]*)\]\([^)]*\)/gu, '$1')
     .replace(/^\s{0,3}(?:#{1,6}|>|[-*+]|\d+\.)\s+/gmu, '')

@@ -71,6 +71,9 @@ try {
   assert.equal(display.runTitle({ items, targetCount: 2 }), '2 个页面')
   assert.equal(display.runOutcomeText({ reportedCount: 2, succeededCount: 1, targetCount: 2, itemCount: 3 }), '1/2 个页面成功 · 3 条内容')
   assert.equal(display.excerptText('# 标题\n\n> 引用 **重点** [链接](https://a.dev) ![图](x.png)\n- 一项'), '标题 引用 重点 链接 一项')
+  const started = performance.now()
+  display.excerptText('[a]('.repeat(200_000) + '['.repeat(200_000))
+  assert.ok(performance.now() - started < 200, 'excerpts of hostile text stay linear')
   assert.equal(display.contentFilename({ title: ' a/b:c ', externalId: '', id: 'x' }), 'a b c.md')
 
   // Writes: exact payloads and routes.
