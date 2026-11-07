@@ -44,6 +44,13 @@ const PHASE_LABELS: Record<string, Record<string, string>> = {
     uploading: '保存结果',
     partial: '内容不完整',
   },
+  'web-crawl': {
+    queued: '等待调度',
+    dispatching: '提交中',
+    pending: '等待运行器',
+    running: '抓取中',
+    partial: '部分失败',
+  },
 }
 
 /** The phases a running job passes through, in order. Kinds that measure progress need none. */
@@ -51,6 +58,8 @@ const PHASES: Record<string, readonly string[]> = {
   'file-conversion': ['dispatching', 'pending', 'running', 'uploading'],
   'run-export': ['collecting', 'packaging'],
   'page-capture': ['opening', 'rendering', 'extracting', 'uploading'],
+  // A crawl of several pages measures pages reported instead.
+  'web-crawl': ['dispatching', 'pending', 'running'],
 }
 
 /** How far a running job has got through its phases, or null when its kind has none. */

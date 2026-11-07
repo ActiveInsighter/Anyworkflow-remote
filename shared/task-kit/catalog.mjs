@@ -80,7 +80,33 @@ export const pageCaptureKind = defineTaskKind({
   stopping: (record) => Boolean(record?.cancelRequested),
 });
 
-export const TASK_KINDS = Object.freeze([fileConversionKind, runExportKind, runKind, pageCaptureKind]);
+/**
+ * Web crawl: a batch of saved pages crawled anonymously by the webpage-parser-action workflow,
+ * which reports each page to PocketBase. Progress counts reported pages.
+ */
+export const webCrawlKind = defineTaskKind({
+  id: 'web-crawl',
+  collection: 'aw_crawl_runs',
+  statuses: {
+    queued: 'queued',
+    dispatching: 'running',
+    pending: 'running',
+    running: 'running',
+    succeeded: 'succeeded',
+    partial: 'partial',
+    failed: 'failed',
+    canceled: 'canceled',
+  },
+  cancel: 'flag',
+  stopping: (record) => Boolean(record?.cancelRequested),
+  // Pages reported so far; a one-page run has nothing to measure until it ends.
+  progress: (record) => {
+    const total = Number(record?.targetCount);
+    return total > 1 ? (Number(record?.reportedCount) / total) * 100 : null;
+  },
+});
+
+export const TASK_KINDS = Object.freeze([fileConversionKind, runExportKind, runKind, pageCaptureKind, webCrawlKind]);
 
 export function taskKind(id) {
   const kind = TASK_KINDS.find((entry) => entry.id === id);

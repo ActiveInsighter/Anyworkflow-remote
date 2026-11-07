@@ -13,8 +13,11 @@
  * Cancellation is a flag (`cancelRequested`) honoured at every step; a
  * canceled run still keeps the artifact it produced.
  *
- * The artifact upload is the store's concern (`store.upload`): Node buffers it
- * into a FormData, Cloudflare streams it. Both keep PocketBase the authority.
+ * By default a finished run's artifact is the result: the upload is the store's
+ * concern (`store.upload`), Node buffers it into a FormData and Cloudflare
+ * streams it. A kind whose workflow writes its results itself passes `settle`
+ * instead, which finishes the task from the completed run (no `uploading`).
+ * Either way PocketBase stays the authority.
  *
  * Platform neutral; vendored into Anyworkflow-remote with lifecycle.mjs.
  */
@@ -38,9 +41,12 @@ const iso = (ms) => new Date(ms).toISOString();
  * @param {object} options
  * @param {object} options.github  { dispatch(inputs), findRun(requestId, since), run(id), cancel(id), archive(id) }
  * @param {(task: object) => Record<string, string>} options.inputs  workflow inputs for a task (whitelisted)
- * @param {(task: object) => string} options.filename  artifact filename to store
+ * @param {(task: object) => string} [options.filename]  artifact filename to store
+ * @param {(task: object, run: object, context: object) => Promise<void>} [options.settle]
+ *        finish a task from its completed run, instead of storing an artifact
  */
-export function githubActionsHandlers({ github, inputs, filename, messages = DEFAULT_GITHUB_MESSAGES, reconcileWindowMs = 15 * 60_000 }) {
+export function githubActionsHandlers({ github, inputs, filename, settle = null, messages = DEFAULT_GITHUB_MESSAGES, reconcileWindowMs = 15 * 60_000 }) {
+  if (!settle && typeof filename !== 'function') throw new TypeError('githubActionsHandlers needs filename or settle.');
   async function start(task, { store, now }) {
     const patch = (data) => store.patch(task.id, data);
     if (task.cancelRequested) {
@@ -86,6 +92,11 @@ export function githubActionsHandlers({ github, inputs, filename, messages = DEF
         error: '',
         ...(run.run_started_at ? { startedAt: run.run_started_at } : {}),
       });
+      return;
+    }
+
+    if (settle) {
+      await settle(task, run, { store, now, kind });
       return;
     }
 

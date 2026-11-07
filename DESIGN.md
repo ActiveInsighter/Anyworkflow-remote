@@ -105,7 +105,7 @@ indicators use stronger tokens. Text pairs meet 4.5:1 and control boundaries 3:1
 - Keep practical touch targets around 44px, drawer navigation, safe-area handling,
   and no horizontal overflow at 320px. Do not shrink mobile UI to desktop density.
 - Respect reduced motion. Normal text contrast must be at least 4.5:1.
-- Captured pages are untrusted: render them as text through `markdown-blocks`, never as markup, and
+- Captured pages are untrusted: render them as text through `src/lib/markdown-blocks.ts`, never as markup, and
   never load their images.
 - Run `npm run preflight` and relevant existing browser regressions before deployment.
 - Verify desktop/mobile screenshots in both themes using isolated fixture data.

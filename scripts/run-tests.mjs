@@ -4,6 +4,7 @@ const testFiles = [
   'pdf-api.test.mjs',
   'run-exports.test.mjs',
   'page-capture-api.test.mjs',
+  'web-crawl-api.test.mjs',
   'pdf-upload-api.test.mjs',
   'event-structure.test.mjs',
   'browser-executor.test.mjs',

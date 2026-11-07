@@ -2,6 +2,7 @@ import { Copy, Download, ExternalLink } from 'lucide-react'
 import { toast } from 'sonner'
 import { CodeBlock } from '@/components/data-display/code-block'
 import { DescriptionList } from '@/components/data-display/description-list'
+import { MarkdownReader } from '@/components/data-display/markdown-reader'
 import { ErrorAlert } from '@/components/feedback/error-alert'
 import { LoadingState } from '@/components/feedback/loading-state'
 import { Badge } from '@/components/ui/badge'
@@ -15,7 +16,6 @@ import { writeClipboard } from '@/lib/platform/clipboard'
 import { saveBlob } from '@/lib/platform/download'
 import type { CaptureJob, CaptureResult } from '@/types/page-capture'
 import { captureDocument, captureFilename, extractorLabel, jobTitle, markdownPreview, safeHref, warningLabel } from '../lib/capture-display'
-import { CaptureReader } from './capture-reader'
 
 function ResultActions({ result }: { result: CaptureResult }) {
   async function copy() {
@@ -48,7 +48,7 @@ function ReadTab({ result }: { result: CaptureResult }) {
   const preview = markdownPreview(result.markdown)
   return (
     <>
-      <CaptureReader markdown={preview.text} />
+      <MarkdownReader markdown={preview.text} />
       <ClippedNote clipped={preview.clipped} />
     </>
   )
