@@ -54,6 +54,9 @@ try {
   assert.deepEqual(results.pageResults({ ...run, items, results: reported }).map((page) => [page.title, page.outcome, page.itemCount]), [['A page', 'succeeded', 3], ['B', 'waiting', 0]])
   const failed = results.pageResults({ ...run, status: 'partial', items, results: { ...reported, t2: { status: 'failed', itemCount: 0, recordIds: [], error: 'HTTP 403', errorCode: 'http_403' } } })
   assert.equal(failed[1].error, '网站拒绝了匿名访问（403）')
+  assert.equal(failed[1].title, 'B', 'a page keeps its own name')
+  const unnamed = results.pageResults({ ...run, status: 'failed', items: [items[0]], results: { t1: { status: 'failed', itemCount: 0, recordIds: [], title: '404 Not Found', error: '', errorCode: 'http_404' } } })
+  assert.equal(unnamed[0].title, 'https://a.dev/', 'an error page never names the page')
   assert.equal(results.pageResults({ ...run, status: 'failed', items, results: {} })[0].outcome, 'failed')
 
   // Display helpers.

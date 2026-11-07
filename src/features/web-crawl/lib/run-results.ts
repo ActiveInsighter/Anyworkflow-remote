@@ -30,7 +30,8 @@ export function pageResults(run: Pick<CrawlRun, 'id' | 'status' | 'items' | 'res
       outcome,
       itemCount: result?.itemCount ?? 0,
       error: outcome === 'failed' ? crawlErrorText(result?.errorCode ?? '', result?.error) : '',
-      title: result?.title || item.name || item.url,
+      // The owner's name first, as elsewhere; a failure's title is usually the error page's.
+      title: item.name || (outcome === 'succeeded' && result?.title) || item.url,
     }
   })
 }
