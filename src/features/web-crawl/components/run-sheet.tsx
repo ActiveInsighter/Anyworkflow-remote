@@ -26,7 +26,8 @@ function Details({ run }: { run: CrawlRun }) {
   return (
     <div className="flex flex-col gap-6">
       <DescriptionList columns={3} items={facts} />
-      {run.error ? <p className="text-caption text-danger [overflow-wrap:anywhere]">{run.error}</p> : null}
+      {/* Page reasons are listed below; only a run-level failure (nothing reported) needs its own line. */}
+      {run.error && !results.some((page) => page.outcome === 'failed') ? <p className="text-caption text-danger [overflow-wrap:anywhere]">{run.error}</p> : null}
       <section aria-labelledby="run-pages-title">
         <h3 id="run-pages-title" className="text-caption font-medium text-muted-foreground">各页面结果</h3>
         <ul className="mt-1 flex flex-col divide-y divide-border">

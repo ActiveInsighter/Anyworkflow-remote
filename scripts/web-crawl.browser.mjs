@@ -209,7 +209,8 @@ try {
   await active.getByRole('button', { name: '取消', exact: true }).click()
   await page.getByRole('button', { name: '取消中…' }).first().waitFor()
   assert.deepEqual(canceled, ['runactive000001'])
-  const partial = row('1 个页面抓取失败')
+  // A one-page failure reads as that page's reason, not the run's raw note.
+  const partial = row('2 个页面').filter({ hasText: '网站拒绝了匿名访问（403）' })
   await partial.getByText('1/2 个页面成功 · 1 条内容').waitFor()
   await partial.getByRole('button', { name: '查看结果' }).click()
   await dialog.getByText('各页面结果').waitFor()

@@ -40,3 +40,15 @@ export function pageResults(run: Pick<CrawlRun, 'id' | 'status' | 'items' | 'res
 export function pageResultFor(run: Pick<CrawlRun, 'id' | 'status' | 'items' | 'results'>, targetId: string): PageResult | undefined {
   return pageResults(run).find((result) => result.item.target === targetId)
 }
+
+/**
+ * Why a finished run did not fully succeed, in words the console uses everywhere: a single page's
+ * reason as its row shows it, a count for several, or the server's note when no page reported.
+ */
+export function runFailureText(run: Pick<CrawlRun, 'id' | 'status' | 'items' | 'results' | 'error'>): string {
+  // Pages without a result have no reason of their own; the server's note explains those.
+  const failed = pageResults(run).filter((page) => page.outcome === 'failed' && run.results?.[page.item.target])
+  if (failed.length === 1) return failed[0].error
+  if (failed.length > 1) return `${failed.length} 个页面抓取失败`
+  return run.error
+}

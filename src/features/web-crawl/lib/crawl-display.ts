@@ -8,6 +8,8 @@ const ERROR_TEXT: Record<string, string> = {
   target_not_found: '公开页面上找不到这条帖子，可能已删除或需要登录',
   status_url_required: '需要指向具体帖子的链接',
   no_posts: '页面上没有可见的公开帖子',
+  blocked: '网站拦截了自动访问（人机验证），稍后会再试',
+  x_profile_unavailable: 'X 暂时没有提供这个账号的公开帖子，稍后会再试',
   no_match: '选择器没有匹配到内容',
   timeout: '抓取超时',
   invalid_options: '抓取选项无效',
