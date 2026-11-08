@@ -1,13 +1,13 @@
 {
   "source": "AnyWorkflow-workers/src/platform/tasks",
   "files": {
-    "catalog.mjs": "5a88eb2df71062d646267f41aa4f683fd301819598c031f76334044dade8b488",
+    "catalog.mjs": "caa35bc2f1e0fa9c3dec7ad4f2defe9ef410523efd13042cdc3b3cd115f88f23",
     "engine.mjs": "f18b50ecb4c28a086a4522ed68ef3cbd333f16b03e14ec399c89ca44f0cc6cc1",
     "executors/github-actions.mjs": "4e79e921e7500cc25621287c140d86c6d7e5354c5b004c15b45feb5d4ba990ce",
-    "index.d.mts": "1d4db2201de86579e676211d5c07c783472aa77e4488f3dad73b9ba67595ed76",
-    "index.mjs": "9f84d477ee5121397887a856f40590c9290b352ac4a941cfed3489b5c70c852b",
+    "index.d.mts": "79b52da2c91f5e32bc291694cea8a45c67f65f8485b19965bf478acea280a2c8",
+    "index.mjs": "f156635bf4179de3f7b55d9a5cacdae000cc43fa3d5b8f7b43d1539232ee6f79",
+    "kinds/crawl-dispatch.mjs": "0cb6827378c91053666bd7d1b395a3e66c35f7a4684121f81cb14e7a273ed3d4",
     "kinds/file-conversion.mjs": "f8c4858fc988322fbce101eefa46400542f87b5fc05a05be72ac733031c16c62",
-    "kinds/web-crawl.mjs": "83382d90245846f29d44464aac212ac194224e00d8049b32b4a4ec19bb8590e7",
     "lifecycle.mjs": "fd78b2962ad98cf6b9ba44ce1e35e34b9cf904b2229096681c420b581bccbd29",
     "retry.mjs": "ef229b2818bf689deda32818dedc2014e387daf6cb9391be146e89293afc8b65"
   }

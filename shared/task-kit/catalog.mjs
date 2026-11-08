@@ -61,10 +61,14 @@ export const runKind = defineTaskKind({
   },
 });
 
-/** Web page capture: the owner's browser extension opens the page and extracts its content. */
-export const pageCaptureKind = defineTaskKind({
-  id: 'page-capture',
-  collection: 'aw_capture_jobs',
+/**
+ * Web crawl: one URL, read either in the cloud (the crawler's GitHub workflow, anonymous) or in the
+ * owner's browser (the crawler's extension, signed in). Both executors move a job through the
+ * same phases; a job has no measurable progress beyond them.
+ */
+export const crawlJobKind = defineTaskKind({
+  id: 'crawl',
+  collection: 'aw_crawl_jobs',
   statuses: {
     queued: 'queued',
     opening: 'running',
@@ -81,35 +85,29 @@ export const pageCaptureKind = defineTaskKind({
 });
 
 /**
- * Web crawl: a batch of saved pages crawled anonymously by the webpage-parser-action workflow,
- * which reports each page to PocketBase. Progress counts reported pages.
+ * Cloud crawl dispatch: one GitHub workflow run that drains the cloud queue. Executor
+ * bookkeeping, not something an owner sees, so it is not in TASK_KINDS.
  */
-export const webCrawlKind = defineTaskKind({
-  id: 'web-crawl',
-  collection: 'aw_crawl_runs',
+export const crawlDispatchKind = defineTaskKind({
+  id: 'crawl-dispatch',
+  collection: 'aw_crawl_dispatches',
   statuses: {
     queued: 'queued',
     dispatching: 'running',
     pending: 'running',
     running: 'running',
     succeeded: 'succeeded',
-    partial: 'partial',
     failed: 'failed',
     canceled: 'canceled',
   },
   cancel: 'flag',
   stopping: (record) => Boolean(record?.cancelRequested),
-  // Pages reported so far; a one-page run has nothing to measure until it ends.
-  progress: (record) => {
-    const total = Number(record?.targetCount);
-    return total > 1 ? (Number(record?.reportedCount) / total) * 100 : null;
-  },
 });
 
-export const TASK_KINDS = Object.freeze([fileConversionKind, runExportKind, runKind, pageCaptureKind, webCrawlKind]);
+export const TASK_KINDS = Object.freeze([fileConversionKind, runExportKind, runKind, crawlJobKind]);
 
 export function taskKind(id) {
-  const kind = TASK_KINDS.find((entry) => entry.id === id);
+  const kind = [...TASK_KINDS, crawlDispatchKind].find((entry) => entry.id === id);
   if (!kind) throw new Error(`Unknown task kind: ${id}`);
   return kind;
 }

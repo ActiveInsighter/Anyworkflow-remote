@@ -1,5 +1,5 @@
 import { lazy, type ComponentType, type LazyExoticComponent } from 'react'
-import { createBrowserRouter, type RouteObject } from 'react-router'
+import { createBrowserRouter, Navigate, type RouteObject } from 'react-router'
 import { isChunkLoadError, reloadForNewBuild } from '@/lib/platform/chunk-reload'
 import { AppShell } from './layout/app-shell'
 import type { RouteHandle } from './route-handle'
@@ -37,8 +37,7 @@ const LibraryPage = page(() => import('@/pages/library-page'), 'LibraryPage')
 const FavoritesAndTemplatesPage = page(() => import('@/pages/favorites-and-templates-page'), 'FavoritesAndTemplatesPage')
 const TemplateDetailPage = page(() => import('@/pages/template-detail-page'), 'TemplateDetailPage')
 const FileConverterPage = page(() => import('@/pages/file-converter-page'), 'FileConverterPage')
-const PageCapturePage = page(() => import('@/pages/page-capture-page'), 'PageCapturePage')
-const WebCrawlPage = page(() => import('@/pages/web-crawl-page'), 'WebCrawlPage')
+const CrawlPage = page(() => import('@/pages/crawl-page'), 'CrawlPage')
 const RuntimeSettingsPage = page(() => import('@/pages/settings-detail-page'), 'RuntimeSettingsPage')
 const SettingsDetailPage = page(() => import('@/pages/settings-detail-page'), 'SettingsDetailPage')
 const SettingsPage = page(() => import('@/pages/settings-page'), 'SettingsPage')
@@ -91,8 +90,10 @@ export const router = createBrowserRouter([
               route('templates/:templateId', TemplateDetailPage),
               route('file-converter', FileConverterPage),
               route('pdf-to-md', FileConverterPage),
-              route('page-capture', PageCapturePage),
-              route('web-crawl', WebCrawlPage),
+              route('crawl', CrawlPage),
+              // The two pages this one replaced.
+              { path: 'page-capture', element: <Navigate to="/crawl" replace /> },
+              { path: 'web-crawl', element: <Navigate to="/crawl?tab=targets" replace /> },
             ],
           },
           route('settings', SettingsPage),

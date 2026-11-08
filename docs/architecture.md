@@ -4,14 +4,14 @@ AnyWorkflow 由四个部分组成，PocketBase 是它们之间唯一的数据契
 
 | 部分 | 仓库 | 职责 |
 | --- | --- | --- |
-| Web 控制台 | Anyworkflow-remote `src/` | 编辑 Run、查看执行、文件转换、网页采集、网页抓取、资料库、设置 |
+| Web 控制台 | Anyworkflow-remote `src/` | 编辑 Run、查看执行、文件转换、网页采集、资料库、设置 |
 | 边缘 API | Anyworkflow-remote `worker/` | 同源 `/api/*`：上传、下载、资料库、唤醒转换调度器 |
 | 转换调度器 | Anyworkflow-remote `converter-worker/` | Cloudflare Durable Object，驱动外部执行的异步任务 |
-| 后端服务 | AnyWorkflow-workers | PocketBase hooks/migrations、Run 编排与派发、对话导出、网页采集调度、网页抓取定时与派发 |
+| 后端服务 | AnyWorkflow-workers | PocketBase hooks/migrations、Run 编排与派发、对话导出、网页采集的定时、租约回收与云端派发 |
 | 采集扩展 | Anyworkflow-capture | 浏览器里打开页面、解析内容、回传结果 |
-| 抓取器 | webpage-parser-action | GitHub Actions 里匿名抓取网页和 X 帖子，写入 `aw_crawled_contents` |
+| 抓取器 | webpage-parser-action | 一份解析代码两个执行端：GitHub Actions 匿名抓取，浏览器扩展用登录状态抓取，写入 `aw_crawl_documents` |
 
-浏览器扩展（AnyWorkflow）领取 Event 执行；file-converter-ai 在 GitHub Actions 中执行 PDF 转换，webpage-parser-action 执行网页抓取。
+浏览器扩展（AnyWorkflow）领取 Event 执行；file-converter-ai 在 GitHub Actions 中执行 PDF 转换，webpage-parser-action 执行网页采集（云端 workflow 和浏览器扩展）。
 
 ## 解耦原则
 
@@ -22,7 +22,7 @@ AnyWorkflow 由四个部分组成，PocketBase 是它们之间唯一的数据契
 
 ## 异步任务框架
 
-文件转换、Run 对话导出、Run 队列、网页采集和网页抓取都是异步任务。框架源码在
+文件转换、Run 对话导出、Run 队列和网页采集都是异步任务。框架源码在
 `AnyWorkflow-workers/src/platform/tasks/`（平台无关，可在 Node、Cloudflare 和浏览器运行），
 通过 `scripts/sync-task-kit.mjs` 原样复制到本仓库 `shared/task-kit/`，`npm test` 校验校验和。
 **不要直接修改 `shared/task-kit/`**：在 workers 仓库修改后同步。
@@ -30,12 +30,12 @@ AnyWorkflow 由四个部分组成，PocketBase 是它们之间唯一的数据契
 ```text
 shared/task-kit/
 ├── lifecycle.mjs              标准状态：idle / queued / running / succeeded / partial / failed / canceled / expired
-├── catalog.mjs                任务类型目录：file-conversion、run-export、run、page-capture、web-crawl（集合名 + 状态映射）
+├── catalog.mjs                任务类型目录：file-conversion、run-export、run、crawl（集合名 + 状态映射；crawl-dispatch 只给 scheduler 用）
 ├── engine.mjs                 一轮处理：先推进运行中，再在并发槽位内启动排队任务；单任务出错隔离
 ├── retry.mjs                  指数退避、原地计数失败（可声明不能盲目失败的状态）
 ├── executors/github-actions.mjs  GitHub Actions 执行器：派发意图先落库、按 request id 对账、不重复派发
 ├── kinds/file-conversion.mjs  文件转换引擎（输入白名单 + 执行器 + 错误策略）
-└── kinds/web-crawl.mjs        网页抓取引擎（只派发记录 id；运行结束由 PocketBase settle 路由结算）
+└── kinds/crawl-dispatch.mjs   云端采集派发引擎（只派发 dispatch id；运行结束由 PocketBase settle 路由结算）
 ```
 
 各任务保留自己的 PocketBase 状态值（兼容已有数据和小程序），由类型把状态映射到标准状态。
@@ -46,7 +46,7 @@ shared/task-kit/
 | 文件转换 | `converter-worker`（DO alarm），Docker 回退服务 | 外部执行：轮询 GitHub Actions |
 | 对话导出 | workers `export` 服务 | 内联执行：领取租约后一次完成 ZIP，过期租约重领 |
 | Run 队列 | workers `scheduler` | 多级状态机（Run → Task → Event、扩展租约）留在领域内，共享生命周期契约与 job 触发框架 |
-| 网页抓取 | workers `scheduler`（`crawl-schedule` + `crawl`） | 外部执行：定时 sweep 创建 run，GitHub Actions 执行器派发与对账，结束后 settle |
+| 网页采集 | workers `scheduler`（`crawl-maintenance` + `crawl-dispatch`）、浏览器扩展 | 租约队列：云端任务由 GitHub Actions 运行领取直到队列为空，浏览器任务由扩展领取；scheduler 负责定时、过期回收和运行结算 |
 
 新增任务类型：
 

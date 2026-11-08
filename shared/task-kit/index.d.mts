@@ -48,8 +48,8 @@ export function defineTaskKind<R = TaskRecord>(spec: {
 export const fileConversionKind: TaskKind
 export const runExportKind: TaskKind
 export const runKind: TaskKind
-export const pageCaptureKind: TaskKind
-export const webCrawlKind: TaskKind
+export const crawlJobKind: TaskKind
+export const crawlDispatchKind: TaskKind
 export const TASK_KINDS: readonly TaskKind[]
 export function taskKind(id: string): TaskKind
 
@@ -167,7 +167,7 @@ export interface SettlingStore<R extends TaskRecord = TaskRecord> extends TaskSt
 }
 
 export function buildCrawlWorkflowInputs(row: TaskRecord): Record<string, string>
-export function createWebCrawlEngine(options: {
+export function createCrawlDispatchEngine(options: {
   store: SettlingStore
   github: GitHubActionsClient
   concurrency?: number

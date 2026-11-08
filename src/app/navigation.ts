@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
-import { BookMarked, CalendarClock, FileText, FolderOpen, Globe, LayoutList, Radar, Settings } from 'lucide-react'
+import { BookMarked, CalendarClock, FileText, FolderOpen, Globe, LayoutList, Settings } from 'lucide-react'
 
 export interface AppNavItem {
   id: string
@@ -8,7 +8,7 @@ export interface AppNavItem {
   icon: LucideIcon
   match: (pathname: string) => boolean
   /** Task kind whose running count the item shows (ids from the shared task catalog). */
-  taskKind?: 'run' | 'file-conversion' | 'page-capture' | 'web-crawl'
+  taskKind?: 'run' | 'file-conversion' | 'crawl'
 }
 
 export interface AppNavGroup {
@@ -60,22 +60,13 @@ const fileConverter: AppNavItem = {
   match: (pathname) => pathname === '/file-converter' || pathname === '/pdf-to-md',
 }
 
-const pageCapture: AppNavItem = {
-  id: 'page-capture',
+const crawl: AppNavItem = {
+  id: 'crawl',
   label: '网页采集',
-  to: '/page-capture',
+  to: '/crawl',
   icon: Globe,
-  taskKind: 'page-capture',
-  match: (pathname) => pathname === '/page-capture',
-}
-
-const webCrawl: AppNavItem = {
-  id: 'web-crawl',
-  label: '网页抓取',
-  to: '/web-crawl',
-  icon: Radar,
-  taskKind: 'web-crawl',
-  match: (pathname) => pathname === '/web-crawl',
+  taskKind: 'crawl',
+  match: (pathname) => pathname === '/crawl',
 }
 
 export const settingsNavItem: AppNavItem = {
@@ -90,7 +81,7 @@ export const settingsNavItem: AppNavItem = {
 export const appNavigationGroups: AppNavGroup[] = [
   { id: 'work', label: '工作', items: [runs, schedules] },
   { id: 'resources', label: '资源', items: [favorites, library] },
-  { id: 'tools', label: '工具', items: [fileConverter, pageCapture, webCrawl] },
+  { id: 'tools', label: '工具', items: [fileConverter, crawl] },
 ]
 
 /** Every destination, flat; settings last. */

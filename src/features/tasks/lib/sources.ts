@@ -1,11 +1,10 @@
 import type { LucideIcon } from 'lucide-react'
-import { FileDown, FileText, Globe, Radar, Workflow } from 'lucide-react'
+import { FileDown, FileText, Globe, Workflow } from 'lucide-react'
 import { listTaskFeed } from '@/lib/api/task-feed'
-import { fileConversionKind, pageCaptureKind, runExportKind, runKind, webCrawlKind, type TaskKind, type TaskView } from '@/lib/tasks'
+import { crawlJobKind, fileConversionKind, runExportKind, runKind, type TaskKind, type TaskView } from '@/lib/tasks'
 import type { DispatchRunRecord } from '@/types'
-import type { CaptureJob } from '@/types/page-capture'
+import type { CrawlJob } from '@/types/crawl'
 import type { RunExportRecord } from '@/types/run-export'
-import type { CrawlRun } from '@/types/web-crawl'
 
 /** One async task as the task center shows it, whatever its kind. */
 export interface TaskItem {
@@ -80,30 +79,16 @@ export const TASK_SOURCES: TaskSource[] = [
     },
   },
   {
-    kind: pageCaptureKind,
+    kind: crawlJobKind,
     label: '网页采集',
     icon: Globe,
     async load(options, signal) {
-      const rows = await listTaskFeed<CaptureJob>(pageCaptureKind, options, signal)
-      return rows.map((job) => item(pageCaptureKind, job, {
+      const rows = await listTaskFeed<CrawlJob>(crawlJobKind, options, signal)
+      return rows.map((job) => item(crawlJobKind, job, {
         title: job.title || job.url,
-        detail: job.host,
-        href: '/page-capture',
+        detail: `${job.runner === 'browser' ? '浏览器' : '云端'} · ${job.host}`,
+        href: '/crawl',
         error: job.error,
-      }))
-    },
-  },
-  {
-    kind: webCrawlKind,
-    label: '网页抓取',
-    icon: Radar,
-    async load(options, signal) {
-      const rows = await listTaskFeed<CrawlRun>(webCrawlKind, options, signal)
-      return rows.map((run) => item(webCrawlKind, run, {
-        title: run.trigger === 'schedule' ? '定时抓取' : '网页抓取',
-        detail: `${run.targetCount} 个页面`,
-        href: '/web-crawl?tab=runs',
-        error: run.error,
       }))
     },
   },
