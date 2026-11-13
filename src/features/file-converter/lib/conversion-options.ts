@@ -3,9 +3,10 @@ import type { PdfConversionOptions } from '@/lib/api/file-conversion'
 
 /**
  * Integer options edited as free text, with the inclusive range the backend accepts.
- * `images_per_request` is deprecated (one page per request) and kept only in stored data.
+ * Consecutive pages share one model request; output stays separated by PDF page.
  */
 export const numberFields = [
+  ['images_per_request', '每次整理页数', 1, 20],
   ['concurrency', '并发请求数', 1, 100],
   ['dpi', '渲染 DPI', 72, 300],
   ['jpeg_quality', 'JPEG 质量', 50, 100],
@@ -49,7 +50,7 @@ export function choiceValueLabel(value: string): string {
 export const optionGroups: { title: string; numbers: NumericOptionKey[]; choices: ChoiceOptionKey[] }[] = [
   { title: '模型', numbers: ['verification_passes', 'max_output_tokens'], choices: ['thinking_level', 'reasoning_effort'] },
   { title: '页面图像', numbers: ['dpi', 'jpeg_quality'], choices: ['image_format', 'media_resolution'] },
-  { title: '吞吐与配额', numbers: ['concurrency', 'rpm_per_key', 'rpd_per_key'], choices: [] },
+  { title: '吞吐与配额', numbers: ['images_per_request', 'concurrency', 'rpm_per_key', 'rpd_per_key'], choices: [] },
 ]
 
 export function numberField(key: NumericOptionKey) {
@@ -72,7 +73,7 @@ export function choiceAppliesTo(key: ChoiceOptionKey, provider: PdfConversionOpt
 
 /** Readable label and value for one entry of a job's parameter snapshot. */
 export function describeJobOption(key: string, value: unknown): { label: string; value: string } | null {
-  if (key === 'images_per_request' || key === 'start_page' || key === 'end_page') return null
+  if (key === 'start_page' || key === 'end_page') return null
   const labels: Record<string, string> = {
     provider: '模型接口',
     model: '模型',

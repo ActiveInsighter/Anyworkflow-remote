@@ -111,7 +111,8 @@ try {
  await sheet.waitFor()
  await sheet.evaluate(element => Promise.all(element.getAnimations().map(animation => animation.finished.catch(() => {}))))
  if (process.env.CONFIG_LOAD_FAILURE) await sheet.getByText(/fixture config load failed/u).waitFor()
- assert.equal(await sheet.getByLabel('每次请求页数').count(), 0, 'the deprecated option is not editable')
+ const batchPages = sheet.getByLabel('每次整理页数', { exact: true })
+ assert.equal(await batchPages.inputValue(), '1')
  const initialPatchCount = configPatchCount
  for (const width of [320, 1440]) {
    await page.setViewportSize({ width, height: 1000 })
@@ -120,7 +121,14 @@ try {
    assert.ok(await sheet.evaluate(element => [...element.querySelectorAll('input, select, textarea, button')]
      .every(control => control.getBoundingClientRect().right <= element.getBoundingClientRect().right + 0.5)), `sheet controls clipped ${width}`)
    assert.ok(await page.locator('#pdf-system-prompt-help').evaluate(element => element.scrollWidth <= element.clientWidth), `prompt help clipped ${width}`)
-   if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/pdf-config-${width}.png` })
+   await batchPages.scrollIntoViewIfNeeded()
+   if (process.env.SCREENSHOT_DIR) {
+     for (const theme of ['light', 'dark']) {
+       await page.emulateMedia({ colorScheme: theme })
+       await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/pdf-config-${theme}-${width}.png` })
+     }
+     await page.emulateMedia({ colorScheme: 'light' })
+   }
  }
  const promptInput = sheet.getByLabel('系统提示词', { exact: true })
  assert.equal(await promptInput.inputValue(), DEFAULT_PDF_SYSTEM_PROMPT)
@@ -129,6 +137,13 @@ try {
  assert.equal(await promptInput.inputValue(), DEFAULT_PDF_SYSTEM_PROMPT)
  await promptInput.fill('按图片与 OCR 草稿转录，保留脚注和表格。')
  const concurrency = page.getByLabel('并发请求数', { exact: true })
+ for (const value of ['0', '21', '1.5', '']) {
+   await batchPages.fill(value)
+   await sheet.getByRole('button', { name: '保存配置', exact: true }).click()
+   await sheet.getByRole('alert').getByText(/每次整理页数需填写 1–20 的整数/u).waitFor()
+   assert.equal(configPatchCount, initialPatchCount)
+ }
+ await batchPages.fill('5')
  await concurrency.fill('600')
  await page.getByRole('button', { name: '保存配置', exact: true }).click()
  await page.getByRole('alert').getByText(/并发请求数需填写 1–100 的整数/u).waitFor()
@@ -141,6 +156,7 @@ try {
  await page.getByText(/配置已保存/u).waitFor()
  assert.equal(configPatchCount, 2)
  assert.equal(config.systemPrompt, '按图片与 OCR 草稿转录，保留脚注和表格。')
+ assert.equal(config.options.images_per_request, 5)
  await promptInput.fill('这个未保存的草稿不能进入新任务')
  await concurrency.fill('80')
  await page.keyboard.press('Escape')
@@ -166,6 +182,7 @@ try {
  assert.equal(postCount, 1)
 assert.equal(created.outputName, '数学笔记')
  assert.equal(created.configId, 'config-1')
+ assert.equal(created.options.images_per_request, 5)
  assert.equal(created.systemPrompt, '按图片与 OCR 草稿转录，保留脚注和表格。')
  assert.equal(created.options.concurrency, 60)
  assert.equal(created.options.start_page, 1)
@@ -190,6 +207,7 @@ assert.equal(created.outputName, '数学笔记')
  const detail = page.getByRole('dialog', { name: '数学讲义' })
  await detail.getByText('https://example.com/book.pdf', { exact: true }).waitFor()
  await detail.getByText('按图片与 OCR 草稿转录，保留脚注和表格。', { exact: true }).waitFor()
+ await detail.getByText('每次整理页数', { exact: true }).waitFor()
  await page.keyboard.press('Escape')
  await detail.waitFor({ state: 'hidden' })
  await page.getByRole('button', { name: /^更多操作/u }).click()
@@ -291,6 +309,7 @@ assert.equal(created.outputName, '数学笔记')
  assert.equal(created.sourceUrl, 'https://ocr-files.any1.tech/fixtures/upload-5.pdf')
  assert.equal(created.title, '讲义')
  assert.equal(created.configId, 'config-1')
+ assert.equal(created.options.images_per_request, 5)
  assert.equal(created.systemPrompt, '按图片与 OCR 草稿转录，保留脚注和表格。')
  assert.equal('file' in created && created.file !== '', false, 'source PDFs never enter PocketBase files')
 

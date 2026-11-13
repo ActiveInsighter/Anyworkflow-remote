@@ -15,7 +15,7 @@ import { countFailures } from '../retry.mjs';
 
 export const PDF_TO_MD = 'pdf_to_md';
 
-const PDF_OPTION_INPUTS = ['adjacent_pages', 'concurrency', 'provider', 'model', 'reasoning_effort', 'max_output_tokens', 'thinking_level', 'dpi', 'image_format', 'jpeg_quality', 'verification_passes', 'media_resolution', 'rpm_per_key', 'rpd_per_key', 'start_page', 'end_page'];
+const PDF_OPTION_INPUTS = ['images_per_request', 'adjacent_pages', 'concurrency', 'provider', 'model', 'reasoning_effort', 'max_output_tokens', 'thinking_level', 'dpi', 'image_format', 'jpeg_quality', 'verification_passes', 'media_resolution', 'rpm_per_key', 'rpd_per_key', 'start_page', 'end_page'];
 
 /** Whitelisted workflow inputs, built from the saved job only (never from a browser payload). */
 export function buildPdfWorkflowInputs(row) {

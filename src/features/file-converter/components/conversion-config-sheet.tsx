@@ -177,7 +177,7 @@ function NumberOption({ config, name }: { config: ConversionConfigState; name: N
         aria-describedby={`pdf-${name}-help`}
       />
       <FieldDescription id={`pdf-${name}-help`} className="tabular-nums">
-        {name === 'max_output_tokens' ? '0 为自动' : `${minimum}–${maximum}`}
+        {name === 'images_per_request' ? '1–20；连续多页合并发送，默认 1 页' : name === 'max_output_tokens' ? '0 为自动' : `${minimum}–${maximum}`}
       </FieldDescription>
     </Field>
   )
