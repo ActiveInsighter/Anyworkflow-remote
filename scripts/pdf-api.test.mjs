@@ -27,6 +27,15 @@ try {
   const loaded = await getPdfConversionConfig()
   assert.equal(loaded.id, 'cfg-1')
   assert.equal(loaded.options.concurrency, 5)
+  assert.equal(loaded.options.images_per_request, 1)
+  for (const count of [1, 3, 5, 20]) {
+    const batchConfig = await savePdfConversionConfig(loaded, { ...loaded.options, images_per_request: count }, loaded.systemPrompt)
+    assert.equal(batchConfig.options.images_per_request, count)
+    assert.equal(sent.body.options.images_per_request, count)
+  }
+  for (const count of [0, 21, 1.5]) {
+    await assert.rejects(() => savePdfConversionConfig(loaded, { ...loaded.options, images_per_request: count }, loaded.systemPrompt), /数值(?:格式)?无效/u)
+  }
   await assert.rejects(() => savePdfConversionConfig(loaded, { ...loaded.options, provider: 'modelflare', model: 'gemini-3.5-flash-lite' }, loaded.systemPrompt), /模型/u)
   const modelflare = await savePdfConversionConfig(loaded, { ...loaded.options, provider: 'modelflare', model: 'gpt-6-sol', reasoning_effort: 'high', max_output_tokens: 32000 }, loaded.systemPrompt)
   assert.equal(modelflare.options.provider, 'modelflare')
