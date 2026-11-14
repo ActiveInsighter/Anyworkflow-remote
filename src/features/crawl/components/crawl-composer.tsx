@@ -149,8 +149,10 @@ export function CrawlComposer({
               {optionCount ? <Badge variant="info" className="h-4.5 min-w-4.5 px-1 text-micro tabular-nums" aria-label={`已设置 ${optionCount} 项`}>{optionCount}</Badge> : null}
             </CollapsibleTrigger>
             {/* Stays mounted while folded: what was entered still applies to the batch. */}
-            <CollapsibleContent forceMount className="pt-3 pb-3 data-[state=closed]:hidden">
-              <CrawlOptionFields id="crawl-new" draft={draft} onChange={setDraft} runner={runner} showScope={parsed.urls.some(isXUrl) || draft.scope !== ''} />
+            <CollapsibleContent forceMount>
+              <div className="pt-3 pb-3">
+                <CrawlOptionFields id="crawl-new" draft={draft} onChange={setDraft} runner={runner} showScope={parsed.urls.some(isXUrl) || draft.scope !== ''} />
+              </div>
             </CollapsibleContent>
           </Collapsible>
 

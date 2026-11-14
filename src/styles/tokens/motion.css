@@ -9,7 +9,6 @@
  *   duration-slow  drawers, sheets, dialogs, sidebar width
  *   ease-standard  default deceleration curve for entering elements
  *
- *   animate-disclosure  height + fade for a Radix Collapsible content panel
  *   animate-enter       list rows entering; set `--stagger-index` for a short cascade
  *   animate-rail        the segment of a rail that is being worked on right now
  */
@@ -42,44 +41,10 @@
   transition-duration: var(--duration-slow);
 }
 
-@keyframes disclosure-open {
-  from {
-    height: 0;
-    opacity: 0;
-  }
-  to {
-    height: var(--radix-collapsible-content-height);
-    opacity: 1;
-  }
-}
-
-@keyframes disclosure-close {
-  from {
-    height: var(--radix-collapsible-content-height);
-    opacity: 1;
-  }
-  to {
-    height: 0;
-    opacity: 0;
-  }
-}
-
 @keyframes enter-rise {
   from {
     opacity: 0;
     transform: translateY(-4px);
-  }
-}
-
-@utility animate-disclosure {
-  overflow: hidden;
-
-  &[data-state='open'] {
-    animation: disclosure-open var(--duration-slow) var(--ease-standard);
-  }
-
-  &[data-state='closed'] {
-    animation: disclosure-close var(--duration-base) var(--ease-standard);
   }
 }
 

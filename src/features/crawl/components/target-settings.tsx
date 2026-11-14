@@ -137,8 +137,10 @@ export function TargetSettings({
             采集选项
             {optionCount ? <Badge variant="info" className="h-4.5 min-w-4.5 px-1 text-micro tabular-nums" aria-label={`已设置 ${optionCount} 项`}>{optionCount}</Badge> : null}
           </CollapsibleTrigger>
-          <CollapsibleContent forceMount className="pt-3 data-[state=closed]:hidden">
-            <CrawlOptionFields id="target-options" draft={draft.options} onChange={(options) => set('options', options)} runner={draft.runner} showScope={showScope} />
+          <CollapsibleContent forceMount>
+            <div className="pt-3">
+              <CrawlOptionFields id="target-options" draft={draft.options} onChange={(options) => set('options', options)} runner={draft.runner} showScope={showScope} />
+            </div>
           </CollapsibleContent>
         </Collapsible>
       </fieldset>

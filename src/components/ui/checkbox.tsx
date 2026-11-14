@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { CheckIcon, MinusIcon } from 'lucide-react'
-import { Checkbox as CheckboxPrimitive } from 'radix-ui'
+import { Checkbox as CheckboxPrimitive } from '@animate-ui/react/primitives/radix-ui'
 import { cn } from '@/lib/utils'
 
 /** shadcn checkbox on Radix. `checked="indeterminate"` shows a dash, for "some of a list selected". */

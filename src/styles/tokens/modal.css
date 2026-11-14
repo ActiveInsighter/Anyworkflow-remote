@@ -1,8 +1,8 @@
 /*
- * Modal tokens (components/ui/modal.tsx, styles/modal.css), ported from exam-docs.
+ * Modal tokens (components/ui/modal.tsx), ported from exam-docs.
  *
- * A bottom sheet on phones and a floating sheet on wide screens. The header has no bar of its
- * own: its controls are frosted-glass capsules over the content scrolling underneath.
+ * A bottom sheet on phones and a floating sheet on wide screens. The header stays above native
+ * scrolling content, with translucent controls. Animate UI owns the motion.
  */
 
 :root {
@@ -10,8 +10,6 @@
   /* A muted pane beside the surface, so split panes need no divider. */
   --modal-pane-muted: var(--subtle);
   --modal-backdrop: rgb(10 24 30 / 40%);
-  --modal-page-dim: rgb(0 0 0 / 8%);
-  --modal-page-shadow: rgb(0 0 0 / 24%);
   --modal-radius: 1.25rem;
   --modal-shadow:
     0 -16px 48px -16px rgb(0 0 0 / 22%),
@@ -22,7 +20,6 @@
     0 0 0 0.5px rgb(0 0 0 / 5%);
   --modal-glass: rgb(255 255 255 / 56%);
   --modal-glass-hover: rgb(255 255 255 / 82%);
-  --modal-glass-blur: blur(18px) saturate(1.8);
   --modal-glass-shadow:
     inset 0 0.5px 0 rgb(255 255 255 / 90%),
     inset 0 0 0 0.5px rgb(0 0 0 / 7%),
@@ -30,9 +27,6 @@
     0 6px 18px -8px rgb(0 0 0 / 18%);
   /* The drag handle on the sheet's top edge. */
   --modal-handle: var(--border-strong);
-  /* One curve for opening, closing, springing back and stepping between pages. */
-  --modal-ease: cubic-bezier(0.32, 0.72, 0, 1);
-  --modal-control-duration: var(--duration-fast);
 }
 
 .dark {
@@ -40,8 +34,6 @@
   --modal-surface: #142024;
   --modal-pane-muted: #182529;
   --modal-backdrop: rgb(0 0 0 / 62%);
-  --modal-page-dim: rgb(0 0 0 / 42%);
-  --modal-page-shadow: rgb(0 0 0 / 70%);
   --modal-shadow:
     0 -16px 48px -12px rgb(0 0 0 / 80%),
     0 0 0 1px rgb(255 255 255 / 8%);

@@ -66,6 +66,7 @@ Do not apply every UI skill mechanically. Use `ui-style` first, then consult the
 
 - Keep backend collection names and command semantics compatible with Anyworkflow-wechat unless the user explicitly requests a backend migration.
 - Use shadcn/ui primitives from `src/components/ui/` before creating a new primitive. Menus, popovers, dialogs, sheets and disclosures use the matching primitive, never a hand-rolled floating layer.
+- Animate UI 2.x owns primitive motion; follow `docs/ui-motion.md`. Modal composes the Animate UI Base UI Drawer. Keep the shared tempo/reduced-motion policy, and do not reintroduce CSS enter/exit animations or custom swipe handling on animated primitives.
 - Respect the source layout in `README.md` (前端结构): `app/` → `pages/` → `features/` → `components/` → `hooks/` → `lib/` → `types/`; lower layers never import higher ones, and pages only compose features.
 - Use Lucide icons instead of emoji or Unicode symbol icons in product UI.
 - Desktop and mobile are both first-class. Verify desktop and widths at or below 760px; avoid horizontal overflow at 320px.

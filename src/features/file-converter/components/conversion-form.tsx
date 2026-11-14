@@ -242,48 +242,50 @@ export function ConversionForm({ config, jobs }: { config: ConversionConfigState
               {optionCount ? <Badge variant="info" className="h-4.5 min-w-4.5 px-1 text-micro tabular-nums" aria-label={`已设置 ${optionCount} 项`}>{optionCount}</Badge> : null}
             </CollapsibleTrigger>
             {/* Stays mounted while folded: what was entered still applies to the job. */}
-            <CollapsibleContent forceMount className="grid min-w-0 gap-4 pt-3 data-[state=closed]:hidden sm:grid-cols-2">
-              <Field>
-                <FieldLabel htmlFor="pdf-output">产物文件名（可选）</FieldLabel>
-                <Input
-                  id="pdf-output"
-                  name="outputName"
-                  maxLength={MAX_TITLE_AS_NAME}
-                  placeholder="默认同任务名称"
-                  aria-describedby="pdf-output-help"
-                  value={draft.outputName}
-                  onChange={(event) => setField('outputName', event.target.value)}
-                />
-                <FieldDescription id="pdf-output-help">生成同名 .zip，包内为同名 .md</FieldDescription>
-              </Field>
-              <Field orientation="horizontal" className="items-start sm:pt-6">
-                <FieldContent>
-                  <FieldLabel htmlFor="pdf-adjacent">附带相邻页</FieldLabel>
-                  <FieldDescription id="pdf-adjacent-help">
-                    附带上一页底部和下一页顶部截图，辅助辨认本页边缘内容。
-                  </FieldDescription>
-                </FieldContent>
-                <Switch
-                  id="pdf-adjacent"
-                  className="mt-0.5"
-                  checked={adjacentPages}
-                  onCheckedChange={setAdjacentPages}
-                  aria-describedby="pdf-adjacent-help"
-                />
-              </Field>
-              <Field className="sm:col-span-2">
-                <FieldLabel htmlFor="pdf-prompt">转换要求（可选）</FieldLabel>
-                <Textarea
-                  id="pdf-prompt"
-                  name="prompt"
-                  maxLength={12000}
-                  rows={2}
-                  className="min-h-16 resize-y"
-                  placeholder="仅本次生效，追加在系统提示词之后"
-                  value={draft.prompt}
-                  onChange={(event) => setField('prompt', event.target.value)}
-                />
-              </Field>
+            <CollapsibleContent forceMount className="min-w-0">
+              <div className="grid min-w-0 gap-4 pt-3 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor="pdf-output">产物文件名（可选）</FieldLabel>
+                  <Input
+                    id="pdf-output"
+                    name="outputName"
+                    maxLength={MAX_TITLE_AS_NAME}
+                    placeholder="默认同任务名称"
+                    aria-describedby="pdf-output-help"
+                    value={draft.outputName}
+                    onChange={(event) => setField('outputName', event.target.value)}
+                  />
+                  <FieldDescription id="pdf-output-help">生成同名 .zip，包内为同名 .md</FieldDescription>
+                </Field>
+                <Field orientation="horizontal" className="items-start sm:pt-6">
+                  <FieldContent>
+                    <FieldLabel htmlFor="pdf-adjacent">附带相邻页</FieldLabel>
+                    <FieldDescription id="pdf-adjacent-help">
+                      附带上一页底部和下一页顶部截图，辅助辨认本页边缘内容。
+                    </FieldDescription>
+                  </FieldContent>
+                  <Switch
+                    id="pdf-adjacent"
+                    className="mt-0.5"
+                    checked={adjacentPages}
+                    onCheckedChange={setAdjacentPages}
+                    aria-describedby="pdf-adjacent-help"
+                  />
+                </Field>
+                <Field className="sm:col-span-2">
+                  <FieldLabel htmlFor="pdf-prompt">转换要求（可选）</FieldLabel>
+                  <Textarea
+                    id="pdf-prompt"
+                    name="prompt"
+                    maxLength={12000}
+                    rows={2}
+                    className="min-h-16 resize-y"
+                    placeholder="仅本次生效，追加在系统提示词之后"
+                    value={draft.prompt}
+                    onChange={(event) => setField('prompt', event.target.value)}
+                  />
+                </Field>
+              </div>
             </CollapsibleContent>
           </Collapsible>
         </fieldset>

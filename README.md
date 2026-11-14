@@ -73,7 +73,8 @@ src/
 │   ├── crawl/            网页采集：发起区、任务、保存的页面与定时、内容查看
 │   └── settings/         连接、外观、快捷键
 ├── components/
-│   ├── ui/               shadcn/ui 原语（唯一的基础组件来源）
+│   ├── ui/               shadcn/ui 组件 + Animate UI 动画原语（唯一的基础组件来源）
+│   ├── animate-ui/icons/ Modal 顶栏的 Animate UI 动画图标
 │   ├── drive/            云盘式浏览：列表/网格、操作面板、文件夹选择、悬浮新建按钮（资料库与收藏和模板共用）
 │   ├── layout/ feedback/ data-display/ form/ navigation/   跨 feature 复用的组合组件（发起区 Composer、分段轨 SegmentRail 等）
 │   ├── brand/            产品标识
@@ -90,8 +91,7 @@ src/
     ├── tokens/           设计 Token：color / typography / shape / layout / elevation / motion
     ├── theme.css         Token → Tailwind 工具类映射
     ├── base.css          元素基线
-    ├── editor.css        CodeMirror 第三方 DOM 样式
-    └── modal.css         Modal 底部弹出面板（移植自 exam-docs）
+    └── editor.css        CodeMirror 第三方 DOM 样式
 
 shared/task-kit/          从 AnyWorkflow-workers 同步的异步任务框架（勿手改，见 docs/architecture.md）
 worker/                   边缘 API：router.ts 路由表 + 各接口处理

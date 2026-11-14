@@ -24,7 +24,7 @@ All of these skills are bundled under `.agents/skills/` in the CI source artifac
 ## Product and stack context
 
 - Product: a responsive web control surface for automation workflows, Runs, Tasks, and Events.
-- Stack: React 19, Vite 8, TypeScript, Tailwind CSS 4, shadcn/ui with Radix primitives, and Lucide icons.
+- Stack: React 19, Vite 8, TypeScript, Tailwind CSS 4, shadcn/ui with Animate UI 2.x over Radix/Base UI, and Lucide icons. See `docs/ui-motion.md` for the shared motion policy and Modal composition.
 - Follow root `DESIGN.md` (天青): cool ink-on-paper neutrals, one accent for action and live work, flat records under a single raised composer. Keep the semantic CSS-variable theme.
 - Desktop and mobile are equal product surfaces, not a desktop UI with a minimal mobile fallback.
 

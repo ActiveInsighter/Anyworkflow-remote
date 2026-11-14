@@ -1,9 +1,9 @@
 import * as React from 'react'
 import { cva, type VariantProps } from 'class-variance-authority'
-import { Progress as ProgressPrimitive } from 'radix-ui'
+import { Progress as ProgressPrimitive } from '@animate-ui/react/primitives/radix-ui'
 import { cn } from '@/lib/utils'
 
-const indicatorVariants = cva('h-full w-full flex-1 transition-transform duration-slow ease-standard', {
+const indicatorVariants = cva('h-full w-full flex-1', {
   variants: {
     tone: {
       neutral: 'bg-muted-foreground',

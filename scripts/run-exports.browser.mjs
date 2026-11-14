@@ -96,6 +96,8 @@ try {
   await page.getByRole('button', { name: '生成 ZIP', exact: true }).waitFor({ state: 'visible' })
   await page.keyboard.press('Escape')
   await page.getByRole('dialog').waitFor({ state: 'hidden' })
+  // The departing sheet becomes inaccessible before its exit restores focus.
+  await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label') === '更多操作')
   assert.equal(await page.getByRole('button', { name: '更多操作', exact: true }).evaluate(element => element === document.activeElement), true)
   assert.deepEqual(errors, [])
   console.log('PASS: Run export create/progress/reopen/download/expiry/errors/focus and light/dark 320/390/760/1440px')

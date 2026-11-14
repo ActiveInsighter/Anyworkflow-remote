@@ -29,7 +29,7 @@ export function RunRuntimeSummary({ run, aside }: { run: DispatchRunRecord; asid
         </CollapsibleTrigger>
         {aside}
       </div>
-      <CollapsibleContent className="animate-disclosure">
+      <CollapsibleContent>
         <div className="pt-2 pb-1">
         {config ? (
           <DescriptionList

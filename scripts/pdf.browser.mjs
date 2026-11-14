@@ -165,6 +165,8 @@ try {
  await page.getByLabel('任务名称', { exact: true }).fill('数学讲义')
  await page.getByLabel('PDF 源文件地址').fill('https://example.com/book.pdf')
  await page.getByRole('button', { name: '更多选项', exact: true }).click()
+ // The animated disclosure must expose the field before keyboard input.
+ await page.getByLabel('产物文件名').click()
  await page.getByLabel('产物文件名').fill('数学笔记')
  await page.getByLabel('起始页（可选）').fill('1')
  await page.getByLabel('结束页（可选）').fill('1')

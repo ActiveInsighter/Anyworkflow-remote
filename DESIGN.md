@@ -40,7 +40,7 @@ Tailwind utilities in `src/styles/theme.css`:
 | `layout.css` | Touch target, header height, content widths, sidebar widths |
 | `elevation.css` | Shadows (`shadow-xs…lg`, `shadow-panel`, `shadow-raised`) and stacking layers (`z-raised`, `z-chrome`, `z-overlay`) |
 | `motion.css` | Durations (`duration-fast/base/slow`), easing, rails, indeterminate progress, reduced-motion handling |
-| `modal.css` | Modal sheet surface, glass controls, radius and curves (shared by Radix dialogs) |
+| `modal.css` | Modal surface, translucent controls and radius (shared by dialogs); Animate UI owns motion |
 
 Use semantic utility classes in components. The accent is reserved for primary actions, live work,
 selection and focus; one solid button per view. Success sits on the yellow side of green so it never
@@ -84,7 +84,9 @@ indicators use stronger tokens. Text pairs meet 4.5:1 and control boundaries 3:1
   elevation is for the composer and floating overlays. No decorative glow, gradients or large
   dashboard stats.
 - Overlays are one family: the Modal (bottom sheet on phones, floating panel on wide
-  screens, frosted header controls) for forms and panels; Radix dialogs share its look.
+  screens, translucent header controls) for forms and panels; dialogs share its look.
+  Animate UI owns primitive motion, with a shared tempo of 0.85 and system reduced motion.
+  Modal composes its Base UI Drawer and Tabs panels, following exam-docs; see `docs/ui-motion.md`.
 
 ## Components
 

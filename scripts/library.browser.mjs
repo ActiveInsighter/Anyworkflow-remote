@@ -110,10 +110,13 @@ try {
   await picker.getByText(pdf.name, { exact: true }).click()
   await page.getByLabel('任务名称', { exact: true }).fill('不同要求再次转换')
   await page.getByRole('button', { name: '更多选项', exact: true }).click()
+  // Wait for the expanding disclosure's field to accept pointer focus.
+  await page.getByLabel('转换要求（可选）').click()
   await page.getByLabel('转换要求（可选）').fill('保留表格')
   await submit.click()
   await page.getByText('不同要求再次转换', { exact: true }).last().waitFor()
   assert.equal(jobs.length, 2)
+  assert.equal(jobs[0].prompt, '保留表格')
   assert.equal(jobs[0].sourceUrl, firstSource)
   assert.equal(jobs[1].sourceUrl, firstSource)
   assert.equal(uploads, 1, 'different jobs reuse one upload')

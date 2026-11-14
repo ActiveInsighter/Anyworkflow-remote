@@ -74,7 +74,7 @@ export function RecordNode({
           )}
         />
       </CollapsibleTrigger>
-      <CollapsibleContent className="animate-disclosure">{children}</CollapsibleContent>
+      <CollapsibleContent>{children}</CollapsibleContent>
     </Collapsible>
   )
 }
