@@ -9,6 +9,9 @@ const baseUrl = process.env.TEST_BASE_URL || 'http://127.0.0.1:5173'
 const stamp = (minutesAgo) => new Date(Date.now() - minutesAgo * 60_000).toISOString().replace('T', ' ')
 const runBase = { owner: 'owner-1', planText: '@task T {}', familyId: 'run-a', origin: 'initial', requestedAction: 'none', versionMajor: 1, versionMinor: 0, executionMode: 'serial', scheduledAt: '', created: stamp(60) }
 const rows = {
+  aw_gemini_jobs: [
+    { id: 'gemini-a', owner: 'owner-1', title: 'Gemini 分段整理', status: 'running', totalChunks: 4, completedChunks: 2, failedChunks: 0, cancelRequested: false, error: '', created: stamp(5), updated: stamp(1) },
+  ],
   aw_crawl_jobs: [
     { id: 'crawl-a', owner: 'owner-1', url: 'https://example.com/a', host: 'example.com', runner: 'cloud', title: '一篇网页文章', status: 'succeeded', cancelRequested: false, error: '', created: stamp(30), updated: stamp(20) },
     { id: 'crawl-b', owner: 'owner-1', url: 'https://x.com/a/status/1', host: 'x.com', runner: 'browser', title: '', status: 'failed', cancelRequested: false, error: 'Login required', created: stamp(40), updated: stamp(30) },
@@ -53,13 +56,14 @@ try {
   const desktop = await open(1440)
   let page = desktop.page
   await page.goto(`${baseUrl}/library`)
-  const trigger = page.getByRole('button', { name: '任务中心，3 个进行中' })
+  const trigger = page.getByRole('button', { name: '任务中心，4 个进行中' })
   await trigger.waitFor()
-  assert.deepEqual([...new Set(feedRequests)].sort(), ['aw_crawl_jobs', 'aw_dispatch_runs', 'aw_pdf_to_md_jobs', 'aw_run_exports'])
+  assert.deepEqual([...new Set(feedRequests)].sort(), ['aw_crawl_jobs', 'aw_dispatch_runs', 'aw_gemini_jobs', 'aw_pdf_to_md_jobs', 'aw_run_exports'])
   await page.getByLabel('1 个进行中').first().waitFor()
   await trigger.click()
   const panel = page.getByRole('dialog')
-  await panel.getByRole('region', { name: '进行中 · 3' }).waitFor()
+  await panel.getByRole('region', { name: '进行中 · 4' }).waitFor()
+  assert.equal(await panel.getByRole('link', { name: /Gemini 分段整理/u }).getAttribute('href'), '/gemini?job=gemini-a')
   await panel.getByText('打包中', { exact: true }).waitFor()
   await panel.getByText('转换中', { exact: true }).waitFor()
   await panel.getByRole('region', { name: '最近 24 小时' }).getByText('每日英语阅读').waitFor()
@@ -78,7 +82,7 @@ try {
   await page.keyboard.press('Escape')
   await page.evaluate(() => window.dispatchEvent(new Event('anyworkflow:tasks-changed')))
   await page.getByText('「数学讲义」已完成').waitFor()
-  await page.getByRole('button', { name: '任务中心，2 个进行中' }).waitFor()
+  await page.getByRole('button', { name: '任务中心，3 个进行中' }).waitFor()
   await desktop.context.close()
 
   // Phone: the same panel as a bottom sheet, no horizontal overflow.
@@ -86,7 +90,7 @@ try {
     const phone = await open(width)
     page = phone.page
     await page.goto(`${baseUrl}/`)
-    await page.getByRole('button', { name: '任务中心，2 个进行中' }).click()
+    await page.getByRole('button', { name: '任务中心，3 个进行中' }).click()
     const sheet = page.getByRole('dialog', { name: '任务' })
     await sheet.waitFor()
     await sheet.getByText('计算机网络复习').waitFor()

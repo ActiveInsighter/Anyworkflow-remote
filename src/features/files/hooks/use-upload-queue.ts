@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { toErrorMessage } from '@/lib/api/errors'
 import { uploadPdf, type UploadedPdf } from '@/lib/api/file-upload'
+import { uploadLibraryMarkdown } from '@/lib/api/library-files'
 
 export interface QueuedUpload {
   key: string
@@ -46,7 +47,8 @@ export function useUploadQueue(onUploaded: (file: UploadedPdf, folder: string) =
         patch(job.key, { status: 'uploading' })
         try {
           const key = job.key
-          const uploaded = await uploadPdf(job.file, {
+          const upload = /\.md$/iu.test(job.file.name) ? uploadLibraryMarkdown : uploadPdf
+          const uploaded = await upload(job.file, {
             signal: controller.signal,
             onProgress: (progress) => patch(key, { progress }),
           })

@@ -5,7 +5,7 @@ import type { PdfStorageEnv } from './pdf.js'
 
 export const LIBRARY_PATH = '/api/library/files'
 export const LIBRARY_SOURCE_PATH = '/api/library/sources'
-const FILE_ID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}\.pdf$/u
+const FILE_ID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}\.(pdf|md)$/u
 
 function indexKey(owner: string, key: string) { return `${fileIndexPrefix(owner)}${key}` }
 
@@ -48,6 +48,8 @@ export async function listLibraryFiles(request: Request, env: PdfStorageEnv, own
   const params = new URL(request.url).searchParams
   let cursor = params.get('cursor') || undefined
   const query = (params.get('q') || '').trim().toLocaleLowerCase()
+  const extension = params.get('ext') || ''
+  if (extension && !['md', 'pdf'].includes(extension)) throw new UploadError('文件类型无效', 400, 'INVALID_EXTENSION')
   const limit = params.has('limit') ? Number(params.get('limit')) : 100
   if (cursor && cursor.length > 4096) throw new UploadError('分页信息无效', 400, 'INVALID_CURSOR')
   if (query.length > 255) throw new UploadError('搜索内容过长', 400, 'INVALID_QUERY')
@@ -56,10 +58,10 @@ export async function listLibraryFiles(request: Request, env: PdfStorageEnv, own
   for (let scanned = 0; ; scanned++) {
     const result = await env.PDF_UPLOADS.list({ prefix: fileIndexPrefix(owner), limit, cursor, include: ['customMetadata'] })
     const items = result.objects
-      .filter(object => !query || object.customMetadata!.fileName.toLocaleLowerCase().includes(query))
+      .filter(object => (!extension || object.customMetadata!.id.endsWith(`.${extension}`)) && (!query || object.customMetadata!.fileName.toLocaleLowerCase().includes(query)))
       .map(object => indexEntry(env, object.customMetadata as IndexMeta))
     cursor = result.truncated ? result.cursor : undefined
-    if (!query || items.length || !cursor || scanned >= 9) return jsonResponse({ items, cursor: cursor || '' })
+    if ((!query && !extension) || items.length || !cursor || scanned >= 9) return jsonResponse({ items, cursor: cursor || '' })
   }
 }
 
@@ -75,7 +77,10 @@ export async function libraryFile(request: Request, env: PdfStorageEnv, owner: s
     const meta: IndexMeta = { id: key, fileName: object.customMetadata!.fileName, size: String(object.size), createdAt: 'v' in object ? object.uploaded : object.uploaded.toISOString(), ...index?.customMetadata }
     if (request.method === 'GET') return jsonResponse(indexEntry(env, meta))
     const body = await readJson(request)
-    if (body.fileName !== undefined) meta.fileName = cleanName(body.fileName, 240, '文件名')
+    if (body.fileName !== undefined) {
+      meta.fileName = cleanName(body.fileName, 240, '文件名')
+      if (!meta.fileName.toLowerCase().endsWith(key.endsWith('.md') ? '.md' : '.pdf')) throw new UploadError('不能修改文件扩展名', 400, 'INVALID_EXTENSION')
+    }
     if (body.folder !== undefined) {
       if (typeof body.folder !== 'string') throw new UploadError('目标文件夹无效', 400, 'INVALID_BODY')
       await assertFolderExists(env, owner, body.folder)
@@ -105,5 +110,13 @@ export async function librarySource(request: Request, env: Env, key: string, ctx
   if (request.method !== 'GET' && request.method !== 'HEAD') return methodNotAllowed('GET, HEAD')
   if (!FILE_ID.test(key)) throw new UploadError('文件不存在', 404, 'FILE_NOT_FOUND')
   await assertLibraryFileAvailable(env.LIBRARY_FILES, key)
+  if (key.endsWith('.md')) {
+    const object = await env.LIBRARY_FILES.get(key)
+    if (!object) throw new UploadError('文件不存在', 404, 'FILE_NOT_FOUND')
+    return new Response(request.method === 'HEAD' ? null : object.body, { headers: {
+      'Content-Type': 'text/plain; charset=utf-8', 'Content-Length': String(object.size),
+      'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'none'; sandbox",
+    } })
+  }
   return storedPdf(request, env, env.LIBRARY_FILES, key, ctx)
 }

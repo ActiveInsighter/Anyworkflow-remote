@@ -38,6 +38,7 @@ const FavoritesAndTemplatesPage = page(() => import('@/pages/favorites-and-templ
 const TemplateDetailPage = page(() => import('@/pages/template-detail-page'), 'TemplateDetailPage')
 const FileConverterPage = page(() => import('@/pages/file-converter-page'), 'FileConverterPage')
 const CrawlPage = page(() => import('@/pages/crawl-page'), 'CrawlPage')
+const GeminiPage = page(() => import('@/pages/gemini-page'), 'GeminiPage')
 const RuntimeSettingsPage = page(() => import('@/pages/settings-detail-page'), 'RuntimeSettingsPage')
 const SettingsDetailPage = page(() => import('@/pages/settings-detail-page'), 'SettingsDetailPage')
 const SettingsPage = page(() => import('@/pages/settings-page'), 'SettingsPage')
@@ -91,6 +92,7 @@ export const router = createBrowserRouter([
               route('file-converter', FileConverterPage),
               route('pdf-to-md', FileConverterPage),
               route('crawl', CrawlPage),
+              route('gemini', GeminiPage),
               // The two pages this one replaced.
               { path: 'page-capture', element: <Navigate to="/crawl" replace /> },
               { path: 'web-crawl', element: <Navigate to="/crawl?tab=targets" replace /> },

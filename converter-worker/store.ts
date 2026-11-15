@@ -45,13 +45,13 @@ export function archiveMultipart(archive: Archive, filename: string, metadata: J
   return { stream, contentType: `multipart/form-data; boundary=${boundary}` }
 }
 
-export function createStore(env: ConverterEnv, fetchImpl: typeof fetch = fetch): Store {
+export function createStore(env: ConverterEnv, fetchImpl: typeof fetch = fetch, recordsPath = collection): Store {
   const root = new URL(env.POCKETBASE_URL).origin
   async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const headers = new Headers(init.headers)
     headers.set('Authorization', `Bearer ${env.POCKETBASE_SERVER_TOKEN}`)
     headers.set('Accept', 'application/json')
-    return readJson<T>(await fetchImpl(`${root}${collection}${path}`, {
+    return readJson<T>(await fetchImpl(`${root}${recordsPath}${path}`, {
       ...init, headers, redirect: 'manual', signal: AbortSignal.timeout(init.body instanceof ReadableStream ? 120_000 : 30_000),
     }))
   }
@@ -63,7 +63,7 @@ export function createStore(env: ConverterEnv, fetchImpl: typeof fetch = fetch):
     // Oldest last-check first: bounded, fair sweeps without pagination drift.
     async list(statuses) {
       if (statuses.length === 0) return []
-      const query = new URLSearchParams({ filter: statuses.map(status => `status="${status}"`).join(' || '), sort: 'updated,id', perPage: '10' })
+      const query = new URLSearchParams({ filter: statuses.map(status => `status="${status}"`).join(' || '), sort: statuses.length === 1 && statuses[0] === 'queued' ? 'created,id' : 'updated,id', perPage: '10' })
       const result = await request<{ items: ConversionJob[] }>(`?${query}`)
       if (!Array.isArray(result.items)) throw new Error('Invalid job list')
       return result.items

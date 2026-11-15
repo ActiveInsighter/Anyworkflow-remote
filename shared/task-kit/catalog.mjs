@@ -104,7 +104,15 @@ export const crawlDispatchKind = defineTaskKind({
   stopping: (record) => Boolean(record?.cancelRequested),
 });
 
-export const TASK_KINDS = Object.freeze([fileConversionKind, runExportKind, runKind, crawlJobKind]);
+/** Independent text requests; each reply is saved before its Actions run ends. */
+export const geminiTextKind = defineTaskKind({
+  id: 'gemini-text', collection: 'aw_gemini_jobs',
+  statuses: { queued: 'queued', dispatching: 'running', pending: 'running', running: 'running', succeeded: 'succeeded', partial: 'partial', failed: 'failed', canceled: 'canceled' },
+  cancel: 'flag', stopping: record => Boolean(record?.cancelRequested),
+  progress: record => Number(record?.totalChunks) > 0 ? ((Number(record?.completedChunks || 0) + Number(record?.failedChunks || 0)) / Number(record.totalChunks)) * 100 : null,
+});
+
+export const TASK_KINDS = Object.freeze([fileConversionKind, runExportKind, runKind, crawlJobKind, geminiTextKind]);
 
 export function taskKind(id) {
   const kind = [...TASK_KINDS, crawlDispatchKind].find((entry) => entry.id === id);

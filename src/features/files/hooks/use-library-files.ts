@@ -4,7 +4,7 @@ import { toErrorMessage } from '@/lib/api/errors'
 import { listLibraryFilePage, listLibraryFiles } from '@/lib/api/library-files'
 import { useSession } from '@/lib/api/session'
 
-export function useLibraryFiles(query = '') {
+export function useLibraryFiles(query = '', extension?: 'md' | 'pdf') {
   const session = useSession()
   const [loadingMore, setLoadingMore] = useState(false)
   const [moreError, setMoreError] = useState('')
@@ -12,8 +12,8 @@ export function useLibraryFiles(query = '') {
   useEffect(() => {
     setMoreError('')
     return () => { moreController.current?.abort() }
-  }, [query])
-  const state = useAsyncData(signal => listLibraryFiles(signal, query), [session?.baseUrl, session?.record.id, query], {
+  }, [query, extension])
+  const state = useAsyncData(signal => listLibraryFiles(signal, query, extension), [session?.baseUrl, session?.record.id, query, extension], {
     enabled: Boolean(session), errorMessage: toErrorMessage,
   })
 
@@ -24,7 +24,7 @@ export function useLibraryFiles(query = '') {
     setLoadingMore(true)
     setMoreError('')
     try {
-      const next = await listLibraryFilePage(state.data.cursor, controller.signal, query)
+      const next = await listLibraryFilePage(state.data.cursor, controller.signal, query, undefined, extension)
       if (controller.signal.aborted) return
       state.setData(current => ({ ...current, unavailable: current?.unavailable ?? 0, items: [...new Map([...(current?.items ?? []), ...next.items].map(file => [file.id, file])).values()], cursor: next.cursor }))
     } catch (error) { if (!controller.signal.aborted) setMoreError(toErrorMessage(error)) }

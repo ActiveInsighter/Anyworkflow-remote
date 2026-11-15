@@ -1,7 +1,8 @@
 import type { LucideIcon } from 'lucide-react'
-import { FileDown, FileText, Globe, Workflow } from 'lucide-react'
+import { FileDown, FileText, Globe, MessageSquare, Workflow } from 'lucide-react'
 import { listTaskFeed } from '@/lib/api/task-feed'
-import { crawlJobKind, fileConversionKind, runExportKind, runKind, type TaskKind, type TaskView } from '@/lib/tasks'
+import { crawlJobKind, fileConversionKind, geminiTextKind, runExportKind, runKind, type TaskKind, type TaskView } from '@/lib/tasks'
+import type { GeminiJob } from '@/types/gemini'
 import type { DispatchRunRecord } from '@/types'
 import type { CrawlJob } from '@/types/crawl'
 import type { RunExportRecord } from '@/types/run-export'
@@ -37,6 +38,14 @@ function item(kind: TaskKind, record: { id: string; status: string; updated: str
 interface ConversionRow { id: string; owner: string; status: string; title: string; outputName: string; updated: string; error: string; startPage?: number | null; endPage?: number | null }
 
 export const TASK_SOURCES: TaskSource[] = [
+  {
+    kind: geminiTextKind, label: 'Gemini 消息', icon: MessageSquare,
+    async load(options, signal) {
+      return (await listTaskFeed<GeminiJob>(geminiTextKind, options, signal)).map(job => item(geminiTextKind, job, {
+        title: job.title, detail: `${job.completedChunks} / ${job.totalChunks} 段已保存`, href: `/gemini?job=${encodeURIComponent(job.id)}`, error: job.error,
+      }))
+    },
+  },
   {
     kind: runKind,
     label: '工作流',

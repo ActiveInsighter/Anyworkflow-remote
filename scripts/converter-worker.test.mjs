@@ -15,7 +15,7 @@ const modules = await Promise.all((await readdir(new URL('../converter-worker/',
 for (const name of (await readdir(new URL('../shared/task-kit/', import.meta.url), { recursive: true })).filter(file => file.endsWith('.mjs'))) {
   modules.push({ type: 'ESModule', path: `shared/task-kit/${name}`, contents: await readFile(new URL(`../shared/task-kit/${name}`, import.meta.url), 'utf8') })
 }
-const rows = [], dispatches = [], uploads = [], cancellations = []
+const rows = [], geminiRows = [], dispatches = [], uploads = [], cancellations = []
 let runReads = 0
 let uncertainDispatch = false, completed = false, conclusion = 'success', archiveAvailable = true
 const zip = new Uint8Array([80, 75, 3, 4, 10, 20, 30, 40])
@@ -33,12 +33,20 @@ async function outbound(request) {
       return Response.json({ record: { id: 'owner', collectionName: 'aw_clients' } })
     }
     assert.equal(request.headers.get('authorization'), 'Bearer pb-service')
+    if (url.pathname.includes('/api/anyworkflow/gemini/jobs/')) {
+      const item = geminiRows.find(row => url.pathname.includes(row.id))
+      assert.equal(url.pathname.endsWith('/settle'), true)
+      const body = await request.json()
+      Object.assign(item, { status: body.conclusion === 'success' ? 'succeeded' : 'failed' })
+      return Response.json(item)
+    }
+    const records = url.pathname.includes('/aw_gemini_jobs/') ? geminiRows : rows
     const id = url.pathname.split('/records/')[1]
     if (!id) {
       const filter = url.searchParams.get('filter')
-      return Response.json({ items: rows.filter(item => filter.includes(`status="${item.status}"`)).slice(0, 10) })
+      return Response.json({ items: records.filter(item => filter.includes(`status="${item.status}"`)).slice(0, 10) })
     }
-    const item = rows.find(item => item.id === id)
+    const item = records.find(item => item.id === id)
     assert.ok(item)
     if (request.method === 'PATCH') {
       if (request.headers.get('content-type').startsWith('multipart/')) {
@@ -60,14 +68,18 @@ async function outbound(request) {
   assert.equal(request.headers.get('authorization'), 'Bearer github-service')
   assert.equal(request.headers.get('user-agent'), 'AnyWorkflow-File-Converter')
   if (url.pathname.endsWith('/dispatches')) {
-    assert.equal(rows.find(item => item.status === 'dispatching')?.id, rows[dispatches.length].id)
     const body = await request.json()
+    assert.equal([...rows, ...geminiRows].find(item => item.id === body.inputs.request_id)?.status, 'dispatching')
     assert.equal(body.ref, 'main')
     assert.equal(body.inputs.ref, undefined)
+    if (url.pathname.includes('/gemini-text.yml/')) {
+      assert.deepEqual(Object.keys(body.inputs), ['request_id'])
+    } else {
     assert.equal(body.inputs.system_prompt, 'system')
     assert.equal(body.inputs.prompt, 'per-job')
     assert.equal(body.inputs.start_page, '1')
     assert.equal(body.inputs.adjacent_pages, 'true')
+    }
     dispatches.push(body)
     return uncertainDispatch ? new Response(null, { status: 502 }) : Response.json({ workflow_run_id: 100 + dispatches.length })
   }
@@ -129,7 +141,15 @@ try {
   assert.equal(rows[1].status, 'queued')
 
   // Persisted DO state survives a runtime restart; the accepted job is not dispatched again.
-  const before = await (await request('/status')).json()
+  let before = await (await request('/status')).json()
+  // The dispatch write happens before the alarm persists its summary. Wait
+  // for that commit before comparing state across a runtime restart.
+  const summaryDeadline = Date.now() + 10_000
+  while (!before.lastPass && Date.now() < summaryDeadline) {
+    await new Promise(resolve => setTimeout(resolve, 20))
+    before = await (await request('/status')).json()
+  }
+  assert.ok(before.lastPass)
   assert.equal(before.ref, 'main')
   await mf.dispose()
   mf = runtime()
@@ -177,6 +197,24 @@ try {
   await tick()
   assert.equal(runReads, previousReads + 1, 'a backlog larger than one page still advances the running job')
   assert.equal(dispatches.length, 2, 'backlog cannot create overlapping Actions runs')
+  // The newly added executor uses the same real DO and quota gate. Its inputs
+  // contain only identity; replies settle from PB instead of a ZIP artifact.
+  rows.length = 0
+  rows.push({ ...row('ppppppppppppppp'), created: '2026-11-15 01:00:00Z' })
+  geminiRows.push({ id: 'ggggggggggggggg', status: 'queued', created: '2026-11-15 00:00:00Z' })
+  uncertainDispatch = false
+  await tick()
+  assert.equal(geminiRows[0].status, 'pending')
+  assert.equal(rows[0].status, 'queued', 'the oldest job of either kind gets the shared quota')
+  assert.deepEqual(dispatches.at(-1).inputs, { request_id: 'ggggggggggggggg' })
+  await tick()
+  assert.equal(dispatches.length, 3, 'an active Gemini job blocks PDF fan-out')
+  completed = true
+  conclusion = 'success'
+  await tick()
+  assert.equal(geminiRows[0].status, 'succeeded')
+  await tick()
+  assert.equal(rows[0].status, 'pending', 'PDF proceeds after Gemini settles')
   console.log('converter-worker: real alarm, authenticated service wake, main ref, single dispatch, restart recovery, cancellation and streaming ZIP sync passed')
 } finally {
   await mf.dispose()

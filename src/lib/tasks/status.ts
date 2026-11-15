@@ -20,6 +20,7 @@ const STATE_META: Record<TaskState, TaskStatusMeta> = {
 
 /** Kind-specific names for the phases inside a state (the tone still follows the state). */
 const PHASE_LABELS: Record<string, Record<string, string>> = {
+  'gemini-text': { queued: '等待发送', dispatching: '提交中', pending: '排队中', running: '生成回复' },
   'file-conversion': {
     queued: '等待调度',
     dispatching: '提交中',

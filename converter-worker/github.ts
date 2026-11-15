@@ -4,11 +4,9 @@ import type { GitHub, GitHubRun } from './types.js'
 // Deliberately not configurable by an env var or a browser payload.
 export const CONVERTER_REF = 'main'
 export const MAX_ZIP_BYTES = 100 * 1024 * 1024
-const prefixes = ['file-converter-pdf-to-md', 'pdf-to-md']
-
-export function createGitHub(env: ConverterEnv, fetchImpl: typeof fetch = fetch): GitHub {
+export function createGitHub(env: ConverterEnv, fetchImpl: typeof fetch = fetch, task: { workflow: string; prefixes: string[] } = { workflow: env.GITHUB_FILE_CONVERTER_WORKFLOW, prefixes: ['file-converter-pdf-to-md', 'pdf-to-md'] }): GitHub {
   const root = `https://api.github.com/repos/${env.GITHUB_FILE_CONVERTER_REPOSITORY}`
-  const workflow = env.GITHUB_FILE_CONVERTER_WORKFLOW
+  const { workflow, prefixes } = task
   const headers = {
     Accept: 'application/vnd.github+json',
     Authorization: `Bearer ${env.GITHUB_FILE_CONVERTER_TOKEN}`,
