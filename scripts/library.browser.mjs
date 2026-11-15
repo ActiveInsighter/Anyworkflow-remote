@@ -72,6 +72,7 @@ await context.route('**/api/library/files**', async route => {
 await context.route('**/api/file-conversion/wake', route => route.fulfill({ status: 202, json: { accepted: true } }))
 await context.route('https://pb.example.invalid/**', async route => {
   const req = route.request(), url = new URL(req.url())
+  if (url.pathname.endsWith('/models/saved')) return route.fulfill({ json: [] })
   if (url.pathname.includes('/aw_file_conversion_configs/records')) {
     config ??= { id: 'config-1', owner: 'owner-1', conversionType: 'pdf_to_md', name: '默认配置', revision: 1, options: { concurrency: 5, dpi: 240, jpeg_quality: 95, verification_passes: 0, rpm_per_key: 15, rpd_per_key: 500, thinking_level: 'high', image_format: 'png', media_resolution: 'ultra_high', model: 'gemini-3.5-flash-lite' } }
     if (req.method() === 'PATCH') { config = { ...config, ...req.postDataJSON(), revision: config.revision + 1 }; return route.fulfill({ json: config }) }

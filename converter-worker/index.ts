@@ -1,3 +1,4 @@
+import { refreshModelCatalog } from './models.js'
 import { DurableObject } from 'cloudflare:workers'
 import { createFileConversionEngine, type TaskEngine, type TaskPassResult } from '../shared/task-kit/index.mjs'
 import { CONVERTER_REF, createGitHub } from './github.js'
@@ -79,6 +80,7 @@ export default {
   // Service binding only: no workers.dev URL or public route.
   async fetch(request: Request, env: ConverterEnv): Promise<Response> {
     const path = new URL(request.url).pathname
+    if (request.method === 'POST' && path === '/models/refresh') return refreshModelCatalog(env)
     const coordinator = env.CONVERSION_COORDINATOR.getByName('production')
     if (request.method === 'GET' && path === '/status') return Response.json(await coordinator.status())
     if (request.method !== 'POST' || path !== '/wake') return new Response('Not found', { status: 404 })

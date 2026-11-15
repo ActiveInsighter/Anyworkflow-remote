@@ -1,3 +1,4 @@
+import { SavedModelSelect } from '@/features/models/components/saved-model-select'
 import { RotateCcw, Save, SlidersHorizontal } from 'lucide-react'
 import { ErrorAlert } from '@/components/feedback/error-alert'
 import { Button } from '@/components/ui/button'
@@ -111,16 +112,9 @@ export function ConversionConfigSheet({ config }: { config: ConversionConfigStat
                       <FieldLabel htmlFor="pdf-model">
                         {options.provider === 'gemini' ? 'Gemini 模型' : 'ModelFlare 视觉模型 ID'}
                       </FieldLabel>
-                      <Input
-                        id="pdf-model"
-                        name="model"
-                        list={options.provider === 'modelflare' ? 'pdf-modelflare-models' : undefined}
-                        required
-                        maxLength={107}
-                        className="font-mono"
-                        value={options.model}
-                        onChange={(event) => config.setOption('model', event.target.value)}
-                      />
+                      {options.provider === 'gemini' ? <SavedModelSelect id="pdf-model" value={options.model} onChange={value => config.setOption('model', value)} disabled={disabled} /> : <Input
+                        id="pdf-model" name="model" list="pdf-modelflare-models" required maxLength={107} className="font-mono" value={options.model} onChange={event => config.setOption('model', event.target.value)}
+                      />}
                       {options.provider === 'modelflare' ? (
                         <datalist id="pdf-modelflare-models">
                           <option value={MODELFLARE_DEFAULT_MODEL} />

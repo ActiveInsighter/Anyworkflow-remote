@@ -16,6 +16,7 @@ for (const name of (await readdir(new URL('../shared/task-kit/', import.meta.url
   modules.push({ type: 'ESModule', path: `shared/task-kit/${name}`, contents: await readFile(new URL(`../shared/task-kit/${name}`, import.meta.url), 'utf8') })
 }
 const rows = [], geminiRows = [], dispatches = [], uploads = [], cancellations = []
+let modelIntent = false, modelDispatches = 0
 let runReads = 0
 let uncertainDispatch = false, completed = false, conclusion = 'success', archiveAvailable = true
 const zip = new Uint8Array([80, 75, 3, 4, 10, 20, 30, 40])
@@ -33,6 +34,7 @@ async function outbound(request) {
       return Response.json({ record: { id: 'owner', collectionName: 'aw_clients' } })
     }
     assert.equal(request.headers.get('authorization'), 'Bearer pb-service')
+    if (url.pathname.endsWith('/models/catalog/begin')) { const dispatch = !modelIntent; modelIntent = true; return Response.json({ dispatch, ...(dispatch ? { requestId: 'catalog-intent' } : {}) }) }
     if (url.pathname.includes('/api/anyworkflow/gemini/jobs/')) {
       const item = geminiRows.find(row => url.pathname.includes(row.id))
       assert.equal(url.pathname.endsWith('/settle'), true)
@@ -67,6 +69,9 @@ async function outbound(request) {
   assert.equal(url.hostname, 'api.github.com')
   assert.equal(request.headers.get('authorization'), 'Bearer github-service')
   assert.equal(request.headers.get('user-agent'), 'AnyWorkflow-File-Converter')
+  if (url.pathname.endsWith('/gemini-models.yml/dispatches')) {
+    const body = await request.json(); assert.equal(body.ref, 'main'); assert.deepEqual(body.inputs, { request_id: 'catalog-intent' }); modelDispatches++; return new Response(null, { status: 204 })
+  }
   if (url.pathname.endsWith('/dispatches')) {
     const body = await request.json()
     assert.equal([...rows, ...geminiRows].find(item => item.id === body.inputs.request_id)?.status, 'dispatching')
@@ -129,6 +134,11 @@ try {
   assert.equal((await remote.fetch('https://remote.invalid/api/file-conversion/wake', {
     method: 'POST', headers: { Authorization: 'Bearer client-token', 'X-PocketBase-Url': 'https://evil.invalid' },
   })).status, 400)
+  assert.equal((await remote.fetch('https://remote.invalid/api/models/catalog/refresh', { method: 'POST' })).status, 401)
+  const refresh = () => remote.fetch('https://remote.invalid/api/models/catalog/refresh', { method: 'POST', headers: { Authorization: 'Bearer client-token', 'X-PocketBase-Url': pb } })
+  assert.equal((await refresh()).status, 202)
+  assert.equal((await refresh()).status, 202)
+  assert.equal(modelDispatches, 1, 'a refresh intent only dispatches once')
   const wakeRequest = () => remote.fetch('https://remote.invalid/api/file-conversion/wake', {
     method: 'POST', headers: { Authorization: 'Bearer client-token', 'X-PocketBase-Url': pb },
   })

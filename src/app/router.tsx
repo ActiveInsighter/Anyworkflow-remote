@@ -41,6 +41,7 @@ const CrawlPage = page(() => import('@/pages/crawl-page'), 'CrawlPage')
 const GeminiPage = page(() => import('@/pages/gemini-page'), 'GeminiPage')
 const RuntimeSettingsPage = page(() => import('@/pages/settings-detail-page'), 'RuntimeSettingsPage')
 const SettingsDetailPage = page(() => import('@/pages/settings-detail-page'), 'SettingsDetailPage')
+const ModelsPage = page(() => import('@/pages/models-page'), 'ModelsPage')
 const SettingsPage = page(() => import('@/pages/settings-page'), 'SettingsPage')
 
 const editorHandle: RouteHandle = { workspace: true }
@@ -99,6 +100,7 @@ export const router = createBrowserRouter([
             ],
           },
           route('settings', SettingsPage),
+          route('settings/models', ModelsPage),
           route('settings/runtime/:pageId?', RuntimeSettingsPage),
           route('settings/:section', SettingsDetailPage),
           { path: '*', element: <NotFoundPage /> },
