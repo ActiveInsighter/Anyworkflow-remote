@@ -36,6 +36,9 @@ try {
   for (const count of [0, 21, 1.5]) {
     await assert.rejects(() => savePdfConversionConfig(loaded, { ...loaded.options, images_per_request: count }, loaded.systemPrompt), /数值(?:格式)?无效/u)
   }
+  const customModel = await savePdfConversionConfig(loaded, { ...loaded.options, model: 'Antigravity' }, loaded.systemPrompt)
+  assert.equal(customModel.options.model, 'Antigravity')
+  assert.equal(sent.body.options.model, 'Antigravity')
   await assert.rejects(() => savePdfConversionConfig(loaded, { ...loaded.options, provider: 'modelflare', model: 'gemini-3.5-flash-lite' }, loaded.systemPrompt), /模型/u)
   const modelflare = await savePdfConversionConfig(loaded, { ...loaded.options, provider: 'modelflare', model: 'gpt-6-sol', reasoning_effort: 'high', max_output_tokens: 32000 }, loaded.systemPrompt)
   assert.equal(modelflare.options.provider, 'modelflare')
