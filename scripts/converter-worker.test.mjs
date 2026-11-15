@@ -207,25 +207,31 @@ try {
   await tick()
   assert.equal(runReads, previousReads + 1, 'a backlog larger than one page still advances the running job')
   assert.equal(dispatches.length, 2, 'backlog cannot create overlapping Actions runs')
-  // The newly added executor uses the same real DO and quota gate. Its inputs
-  // contain only identity; replies settle from PB instead of a ZIP artifact.
+  // Gemini jobs are independent: starting another conversation does not
+  // wait for the first one or for the PDF job sharing the same coordinator.
   rows.length = 0
   rows.push({ ...row('ppppppppppppppp'), created: '2026-11-15 01:00:00Z' })
-  geminiRows.push({ id: 'ggggggggggggggg', status: 'queued', created: '2026-11-15 00:00:00Z' })
+  geminiRows.push(
+    { id: 'ggggggggggggggg', status: 'queued', created: '2026-11-15 00:00:00Z' },
+    { id: 'hhhhhhhhhhhhhhh', status: 'queued', created: '2026-11-15 00:01:00Z' },
+  )
   uncertainDispatch = false
   await tick()
-  assert.equal(geminiRows[0].status, 'pending')
-  assert.equal(rows[0].status, 'queued', 'the oldest job of either kind gets the shared quota')
-  assert.deepEqual(dispatches.at(-1).inputs, { request_id: 'ggggggggggggggg' })
+  assert.equal(rows[0].status, 'pending', 'PDF and Gemini can run independently')
+  assert.deepEqual(geminiRows.map(item => item.status), ['pending', 'pending'])
+  assert.equal(dispatches.length, 5, 'PDF plus both conversations dispatch in one pass')
+  assert.deepEqual(dispatches.slice(-2).map(item => item.inputs), [
+    { request_id: 'ggggggggggggggg' },
+    { request_id: 'hhhhhhhhhhhhhhh' },
+  ])
   await tick()
-  assert.equal(dispatches.length, 3, 'an active Gemini job blocks PDF fan-out')
+  assert.equal(dispatches.length, 5, 'polling must not re-dispatch an active conversation')
   completed = true
   conclusion = 'success'
   await tick()
-  assert.equal(geminiRows[0].status, 'succeeded')
-  await tick()
-  assert.equal(rows[0].status, 'pending', 'PDF proceeds after Gemini settles')
-  console.log('converter-worker: real alarm, authenticated service wake, main ref, single dispatch, restart recovery, cancellation and streaming ZIP sync passed')
+  assert.deepEqual(geminiRows.map(item => item.status), ['succeeded', 'succeeded'])
+  assert.equal(rows[0].status, 'succeeded')
+  console.log('converter-worker: independent Gemini conversations and PDF, durable alarms, cancellation and streaming ZIP sync passed')
 } finally {
   await mf.dispose()
   await rm(persist, { recursive: true, force: true })

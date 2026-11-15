@@ -3,7 +3,7 @@ import { DurableObject } from 'cloudflare:workers'
 import { createFileConversionEngine, type TaskEngine, type TaskPassResult } from '../shared/task-kit/index.mjs'
 import { CONVERTER_REF, createGitHub } from './github.js'
 import { createStore } from './store.js'
-import { geminiEngine, geminiStore, geminiTextKind, sharedQuotaStore } from './gemini.js'
+import { geminiEngine, geminiStore } from './gemini.js'
 
 /** External executors cannot push status: poll while anything is in flight. */
 const POLL_MS = 30_000
@@ -19,16 +19,17 @@ function createEngines(env: ConverterEnv): TaskEngine[] {
   const pdf = createStore(env)
   const gemini = geminiStore(env)
   return [
-    createFileConversionEngine({ store: sharedQuotaStore(pdf, gemini, geminiTextKind), github: createGitHub(env) }),
-    geminiEngine(env, gemini, pdf),
+    createFileConversionEngine({ store: pdf, github: createGitHub(env) }),
+    geminiEngine(env, gemini),
   ]
 }
 
 type PassSummary = { at: string; kinds: Record<string, TaskPassResult> }
 
 /**
- * One Durable Object instance serializes every pass, so the shared model quota
- * pool sees at most the engines' own concurrency. Only the alarm runs engines;
+ * One Durable Object instance serializes scheduling passes, but different
+ * task kinds and individual Gemini jobs can have independent active runs.
+ * Only the alarm runs engines;
  * HTTP wakes and the cron safety net just arm it. PocketBase stays the single
  * source of truth: the object keeps only its alarm and the last pass summary.
  */

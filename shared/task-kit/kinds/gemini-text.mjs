@@ -10,7 +10,7 @@ export function createGeminiTextEngine({ store, github, now, log }) {
     settle: (task, run) => store.settle(task.id, { conclusion: run.conclusion || 'unknown' }),
   });
   return createTaskEngine({
-    kind: geminiTextKind, store, concurrency: 1,
+    kind: geminiTextKind, store, concurrency: 4,
     handlers: {
       async start(task, context) {
         const result = await handlers.start(task, context);
