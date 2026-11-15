@@ -1,6 +1,6 @@
 import { useId } from 'react'
 import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field'
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
+import { SelectField, SelectOption } from '@/components/ui/select'
 import type { ModelSelection, ModelSurface, ReasoningEffort, SiteModelSelection } from '@/lib/domain/runtime-config'
 import { EFFORT_LABELS, MODEL_CATALOG, findCatalogModel } from '../lib/model-catalog'
 
@@ -59,57 +59,57 @@ export function ModelSelectionFields({
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Field>
                   <FieldLabel htmlFor={`${id}-${site.id}-model`}>{site.label} 模型</FieldLabel>
-                  <NativeSelect
+                  <SelectField
                     id={`${id}-${site.id}-model`}
                     value={known?.name ?? orphanModel ?? ''}
-                    onChange={(event) => {
-                      const next = findCatalogModel(site.id, event.target.value) ?? null
+                    onValueChange={(value) => {
+                      const next = findCatalogModel(site.id, value) ?? null
                       const keep = next && current.reasoningEffort && next.efforts.includes(current.reasoningEffort)
                       onChange(site.id, {
-                        model: event.target.value || null,
+                        model: value || null,
                         reasoningEffort: keep ? current.reasoningEffort : null,
                       })
                     }}
                   >
-                    <NativeSelectOption value="">保持当前模型</NativeSelectOption>
+                    <SelectOption value="">保持当前模型</SelectOption>
                     {MODEL_CATALOG[site.id].map((model) => (
-                      <NativeSelectOption key={model.name} value={model.name}>
+                      <SelectOption key={model.name} value={model.name}>
                         {model.name}
-                      </NativeSelectOption>
+                      </SelectOption>
                     ))}
                     {orphanModel ? (
-                      <NativeSelectOption value={orphanModel}>{orphanModel}（已不在列表中）</NativeSelectOption>
+                      <SelectOption value={orphanModel}>{orphanModel}（已不在列表中）</SelectOption>
                     ) : null}
-                  </NativeSelect>
+                  </SelectField>
                 </Field>
                 <Field data-disabled={effortLocked || undefined}>
                   <FieldLabel htmlFor={`${id}-${site.id}-effort`}>{site.label} 思考程度</FieldLabel>
-                  <NativeSelect
+                  <SelectField
                     id={`${id}-${site.id}-effort`}
                     disabled={effortLocked && !current.reasoningEffort}
                     value={current.reasoningEffort ?? ''}
-                    onChange={(event) =>
-                      onChange(site.id, { reasoningEffort: (event.target.value || null) as ReasoningEffort | null })
+                    onValueChange={(value) =>
+                      onChange(site.id, { reasoningEffort: (value || null) as ReasoningEffort | null })
                     }
                   >
-                    <NativeSelectOption value="">
+                    <SelectOption value="">
                       {known && known.efforts.length === 0
                         ? '该模型无思考程度选项'
                         : current.model === null
                           ? '先选择模型'
                           : '保持当前思考程度'}
-                    </NativeSelectOption>
+                    </SelectOption>
                     {efforts.map((effort) => (
-                      <NativeSelectOption key={effort} value={effort}>
+                      <SelectOption key={effort} value={effort}>
                         {EFFORT_LABELS[effort]}
-                      </NativeSelectOption>
+                      </SelectOption>
                     ))}
                     {orphanEffort ? (
-                      <NativeSelectOption value={orphanEffort}>
+                      <SelectOption value={orphanEffort}>
                         {EFFORT_LABELS[orphanEffort]}（该模型不支持）
-                      </NativeSelectOption>
+                      </SelectOption>
                     ) : null}
-                  </NativeSelect>
+                  </SelectField>
                 </Field>
               </div>
             )}

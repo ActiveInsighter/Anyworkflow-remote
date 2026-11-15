@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
+import { SelectField, SelectOption } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { CRAWL_INTERVALS, isXUrl, optionsForUrl, parseCrawlUrls } from '@/lib/api/crawl'
 import type { CrawlRunner, CrawlTarget, CrawlTargetInput } from '@/types/crawl'
@@ -108,17 +108,17 @@ export function TargetSettings({
           <CategoryField id="target-category" value={draft.category} onChange={(value) => set('category', value)} known={categories} allowAuto={false} />
           <Field>
             <FieldLabel htmlFor="target-interval">抓取频率</FieldLabel>
-            <NativeSelect
+            <SelectField
               id="target-interval"
               value={draft.intervalMinutes}
-              onChange={(event) => {
-                const minutes = Number(event.target.value)
+              onValueChange={(value) => {
+                const minutes = Number(value)
                 // Choosing a frequency means "crawl on this schedule"; manual turns the schedule off.
                 setDraft((current) => ({ ...current, intervalMinutes: minutes, enabled: minutes > 0 }))
               }}
             >
-              {CRAWL_INTERVALS.map((option) => <NativeSelectOption key={option.minutes} value={option.minutes}>{option.label}</NativeSelectOption>)}
-            </NativeSelect>
+              {CRAWL_INTERVALS.map((option) => <SelectOption key={option.minutes} value={option.minutes}>{option.label}</SelectOption>)}
+            </SelectField>
           </Field>
           {draft.intervalMinutes > 0 ? (
             <Field orientation="horizontal" className="items-start sm:pt-7">

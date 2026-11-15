@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router'
-import { MessageSquare, RefreshCw } from 'lucide-react'
+import { MessageSquare, RefreshCw, Trash2 } from 'lucide-react'
+import { ConfirmDeleteDialog } from '@/components/feedback/confirm-dialog'
+import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
+import type { GeminiJob } from '@/types/gemini'
 import { ErrorAlert } from '@/components/feedback/error-alert'
 import { EmptyState } from '@/components/feedback/empty-state'
 import { LoadingState } from '@/components/feedback/loading-state'
@@ -11,7 +14,7 @@ import { GeminiConfigSheet } from './gemini-config-sheet'
 import { PageHeader, SectionHeader } from '@/components/layout/page'
 import { Pager } from '@/components/navigation/pager'
 import { Button } from '@/components/ui/button'
-import { JobNote, JobRow } from '@/features/tasks'
+import { JobMenu, JobNote, JobRow } from '@/features/tasks'
 import { geminiTextKind } from '@/lib/tasks'
 import { formatDateTime } from '@/lib/format'
 import { useGeminiJobs } from '../hooks/use-gemini-jobs'
@@ -20,9 +23,18 @@ import { GeminiJobSheet } from './gemini-job-sheet'
 
 export function GeminiWorkspace() {
   const jobs = useGeminiJobs()
+  const [deleting, setDeleting] = useState<GeminiJob | null>(null)
   const config = useAsyncData(getGeminiConfig, [])
-  const [params] = useSearchParams()
-  const [opened, setOpened] = useState<string | null>(() => params.get('job'))
+  const [params, setParams] = useSearchParams()
+  const opened = params.get('job')
+  function setOpened(id: string | null) {
+    setParams((current) => {
+      const next = new URLSearchParams(current)
+      if (id) next.set('job', id)
+      else next.delete('job')
+      return next
+    }, { replace: true })
+  }
   return (
     <>
       <PageHeader
@@ -76,10 +88,13 @@ export function GeminiWorkspace() {
             onOpen={() => setOpened(job.id)}
             meta={[
               formatDateTime(job.created),
-              `${job.completedChunks} / ${job.totalChunks} 段已保存`,
+              job.totalChunks > 1 ? `${job.completedChunks} / ${job.totalChunks} 段已保存` : '',
               job.failedChunks ? `${job.failedChunks} 段失败` : '',
               job.model,
             ]}
+            menu={geminiTextKind.isTerminal(job.status) ? <JobMenu label={`消息操作 ${job.title}`}>
+              <DropdownMenuItem variant="destructive" onSelect={() => setDeleting(job)}><Trash2 />删除消息</DropdownMenuItem>
+            </JobMenu> : undefined}
             action={
               geminiTextKind.isActive(job.status) ? (
                 <Button
@@ -112,6 +127,9 @@ export function GeminiWorkspace() {
           />
         ) : null}
       </section>
+      <ConfirmDeleteDialog open={Boolean(deleting)} onOpenChange={(open) => { if (!open) setDeleting(null) }}
+        title="删除消息" description={`删除「${deleting?.title ?? ''}」及其全部回复？`} busy={jobs.action.busy}
+        onConfirm={() => { if (deleting) void jobs.remove(deleting).then((done) => { if (done) setDeleting(null) }) }} />
       <GeminiJobSheet jobId={opened} onClose={() => setOpened(null)} />
     </>
   )

@@ -2,144 +2,38 @@ import * as React from 'react'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { PanelLeftIcon } from 'lucide-react'
 import { Slot } from 'radix-ui'
+import * as SidebarPrimitive from '@animate-ui/react/primitives/sidebar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { useIsMobile } from '@/hooks/use-mobile'
-import { isTextEntryTarget } from '@/lib/platform/keyboard'
 import { readStorage, writeStorage } from '@/lib/platform/storage'
 import { cn } from '@/lib/utils'
 
-/*
- * Project adaptations of the shadcn/ui sidebar:
- * - widths come from styles/tokens/layout.css (`--sidebar-width*`), not inline constants;
- * - the desktop state persists in localStorage under the key the previous sidebar used;
- * - Ctrl/⌘+B never fires while typing, composing, or repeating a held key;
- * - menu rows grow to touch size inside the mobile drawer.
- * A TooltipProvider is expected higher up (AppProviders).
- */
-
+// Animate UI owns responsive state, keyboard handling, collapse and item highlights.
+// Persist the desktop preference under the existing account-independent key.
 const SIDEBAR_STORAGE_KEY = 'anyworkflow.sidebar.desktop'
-const SIDEBAR_KEYBOARD_SHORTCUT = 'b'
+const useSidebar = SidebarPrimitive.useSidebar
 
-function readPersistedOpen(fallback: boolean): boolean {
-  const raw = readStorage(SIDEBAR_STORAGE_KEY)
-  return raw === 'true' ? true : raw === 'false' ? false : fallback
-}
-
-type SidebarContextProps = {
-  state: 'expanded' | 'collapsed'
-  open: boolean
-  setOpen: (open: boolean) => void
-  openMobile: boolean
-  setOpenMobile: (open: boolean) => void
-  isMobile: boolean
-  toggleSidebar: () => void
-}
-
-const SidebarContext = React.createContext<SidebarContextProps | null>(null)
-
-function useSidebar() {
-  const context = React.useContext(SidebarContext)
-  if (!context) {
-    throw new Error('useSidebar must be used within a SidebarProvider.')
-  }
-
-  return context
-}
-
-function SidebarProvider({
-  defaultOpen = true,
-  open: openProp,
-  onOpenChange: setOpenProp,
-  className,
-  style,
-  children,
-  ...props
-}: React.ComponentProps<'div'> & {
-  defaultOpen?: boolean
-  open?: boolean
-  onOpenChange?: (open: boolean) => void
-}) {
-  const isMobile = useIsMobile()
-  const [openMobile, setOpenMobile] = React.useState(false)
-
-  // This is the internal state of the sidebar.
-  // We use openProp and setOpenProp for control from outside the component.
-  const [_open, _setOpen] = React.useState(() => readPersistedOpen(defaultOpen))
-  const open = openProp ?? _open
-  const setOpen = React.useCallback(
-    (value: boolean | ((value: boolean) => boolean)) => {
-      const openState = typeof value === 'function' ? value(open) : value
-      if (setOpenProp) {
-        setOpenProp(openState)
-      } else {
-        _setOpen(openState)
-      }
-
-      writeStorage(SIDEBAR_STORAGE_KEY, String(openState))
-    },
-    [setOpenProp, open],
-  )
-
-  // Helper to toggle the sidebar.
-  const toggleSidebar = React.useCallback(() => {
-    return isMobile ? setOpenMobile((open) => !open) : setOpen((open) => !open)
-  }, [isMobile, setOpen, setOpenMobile])
-
-  // Adds a keyboard shortcut to toggle the sidebar.
-  React.useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (
-        event.key.toLowerCase() === SIDEBAR_KEYBOARD_SHORTCUT &&
-        (event.metaKey || event.ctrlKey) &&
-        !event.altKey &&
-        !event.repeat &&
-        !event.isComposing &&
-        !event.defaultPrevented &&
-        !isTextEntryTarget(event.target)
-      ) {
-        event.preventDefault()
-        toggleSidebar()
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [toggleSidebar])
-
-  // We add a state so that we can do data-state="expanded" or "collapsed".
-  // This makes it easier to style the sidebar with Tailwind classes.
-  const state = open ? 'expanded' : 'collapsed'
-
-  const contextValue = React.useMemo<SidebarContextProps>(
-    () => ({
-      state,
-      open,
-      setOpen,
-      isMobile,
-      openMobile,
-      setOpenMobile,
-      toggleSidebar,
-    }),
-    [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar],
-  )
-
-  return (
-    <SidebarContext.Provider value={contextValue}>
-      <div
-        data-slot="sidebar-wrapper"
-        style={style}
-        className={cn('group/sidebar-wrapper flex min-h-svh w-full has-data-[variant=inset]:bg-sidebar', className)}
-        {...props}
-      >
-        {children}
-      </div>
-    </SidebarContext.Provider>
-  )
+function SidebarProvider({ defaultOpen = true, open, onOpenChange, className, ...props }:
+  React.ComponentProps<typeof SidebarPrimitive.Provider>) {
+  const [persisted, setPersisted] = React.useState(() => {
+    const stored = readStorage(SIDEBAR_STORAGE_KEY)
+    return stored === 'true' ? true : stored === 'false' ? false : defaultOpen
+  })
+  return <SidebarPrimitive.Provider
+    open={open ?? persisted}
+    onOpenChange={(value) => {
+      setPersisted(value)
+      writeStorage(SIDEBAR_STORAGE_KEY, String(value))
+      onOpenChange?.(value)
+    }}
+    data-slot="sidebar-wrapper"
+    className={cn('group/sidebar-wrapper flex min-h-svh w-full has-data-[variant=inset]:bg-sidebar', className)}
+    {...props}
+  />
 }
 
 function Sidebar({
@@ -182,7 +76,7 @@ function Sidebar({
             <SheetTitle>导航</SheetTitle>
             <SheetDescription>应用主导航</SheetDescription>
           </SheetHeader>
-          <div className="flex h-full w-full flex-col">{children}</div>
+          <SidebarPrimitive.Highlight className="flex h-full w-full flex-col">{children}</SidebarPrimitive.Highlight>
         </SheetContent>
       </Sheet>
     )
@@ -198,10 +92,10 @@ function Sidebar({
       data-slot="sidebar"
     >
       {/* This is what handles the sidebar gap on desktop */}
-      <div
+      <SidebarPrimitive.Gap
         data-slot="sidebar-gap"
         className={cn(
-          'relative w-(--sidebar-width) bg-transparent transition-[width] duration-slow ease-standard',
+          'relative w-(--sidebar-width) bg-transparent',
           'group-data-[collapsible=offcanvas]:w-0',
           'group-data-[side=right]:rotate-180',
           variant === 'floating' || variant === 'inset'
@@ -209,10 +103,10 @@ function Sidebar({
             : 'group-data-[collapsible=icon]:w-(--sidebar-width-icon)',
         )}
       />
-      <div
+      <SidebarPrimitive.Container
         data-slot="sidebar-container"
         className={cn(
-          'fixed inset-y-0 z-raised hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-slow ease-standard md:flex',
+          'fixed inset-y-0 z-raised hidden h-svh w-(--sidebar-width) md:flex',
           side === 'left'
             ? 'left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]'
             : 'right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]',
@@ -224,14 +118,14 @@ function Sidebar({
         )}
         {...props}
       >
-        <div
+        <SidebarPrimitive.Highlight
           data-sidebar="sidebar"
           data-slot="sidebar-inner"
           className="flex h-full w-full flex-col bg-sidebar group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow-sm"
         >
           {children}
-        </div>
-      </div>
+        </SidebarPrimitive.Highlight>
+      </SidebarPrimitive.Container>
     </div>
   )
 }

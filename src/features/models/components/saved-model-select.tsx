@@ -2,7 +2,7 @@ import { Bot } from 'lucide-react'
 import { ErrorAlert } from '@/components/feedback/error-alert'
 import { Button } from '@/components/ui/button'
 import { Modal, ModalBody, ModalContent, ModalHeader, ModalTitle, ModalTrigger } from '@/components/ui/modal'
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
+import { SelectField, SelectOption } from '@/components/ui/select'
 import { useSavedModels } from '../hooks/use-saved-models'
 import { ModelLibrary } from './model-library'
 
@@ -25,26 +25,26 @@ export function SavedModelSelect({
   return (
     <div className="min-w-0">
       <div className="flex min-w-0 items-center gap-1">
-        <NativeSelect
+        <SelectField
           id={id}
           value={value}
-          onChange={(event) => onChange(event.target.value)}
+          onValueChange={(value) => onChange(value)}
           disabled={disabled || models.loading}
           className="w-full min-w-0"
           aria-label="选择已保存的模型"
         >
           {!hasCurrent ? (
-            <NativeSelectOption value={value}>
+            <SelectOption value={value}>
               {value}
               {models.data?.length ? '（当前）' : '（默认）'}
-            </NativeSelectOption>
+            </SelectOption>
           ) : null}
           {models.data?.map((model) => (
-            <NativeSelectOption key={model.id} value={model.modelId}>
+            <SelectOption key={model.id} value={model.modelId}>
               {model.name}
-            </NativeSelectOption>
+            </SelectOption>
           ))}
-        </NativeSelect>
+        </SelectField>
         {manage ? <ModelManagerButton /> : null}
       </div>
       <ErrorAlert inline className="mt-1">

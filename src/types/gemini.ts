@@ -74,3 +74,6 @@ export interface GeminiConfigRecord {
   config: GeminiConfig
   revision: number
 }
+
+export type GeminiMessageSummary = Pick<GeminiMessage, 'id' | 'owner' | 'job' | 'index' | 'part' | 'sourceName' | 'status' | 'error' | 'finishReason'> & { updated: string }
+export interface GeminiJobView { job: GeminiJob; messages: GeminiMessageSummary[] }

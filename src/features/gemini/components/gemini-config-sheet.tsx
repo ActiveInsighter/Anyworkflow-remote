@@ -14,7 +14,7 @@ import {
   ModalTitle,
   ModalTrigger,
 } from '@/components/ui/modal'
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
+import { SelectField, SelectOption } from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 import { SavedModelSelect } from '@/features/models/components/saved-model-select'
@@ -133,18 +133,18 @@ function ConfigEditor({
             <FieldGroup>
               <Field>
                 <FieldLabel htmlFor="gemini-thinking">思考程度</FieldLabel>
-                <NativeSelect
+                <SelectField
                   id="gemini-thinking"
                   value={draft.thinkingLevel}
-                  onChange={(event) => change('thinkingLevel', event.target.value)}
+                  onValueChange={(value) => change('thinkingLevel', value)}
                 >
-                  <NativeSelectOption value="">模型默认</NativeSelectOption>
+                  <SelectOption value="">模型默认</SelectOption>
                   {['minimal', 'low', 'medium', 'high'].map((value) => (
-                    <NativeSelectOption key={value} value={value}>
+                    <SelectOption key={value} value={value}>
                       {value}
-                    </NativeSelectOption>
+                    </SelectOption>
                   ))}
-                </NativeSelect>
+                </SelectField>
               </Field>
               <div className="grid min-w-0 grid-cols-2 gap-4">
                 {(

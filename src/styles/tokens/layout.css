@@ -8,6 +8,7 @@
  */
 
 :root {
+  --message-dialog-height: min(44rem, 86svh);
   /* Read by the shadcn Sidebar (components/ui/sidebar.tsx). */
   --sidebar-width: 15rem;
   --sidebar-width-icon: 3.25rem;

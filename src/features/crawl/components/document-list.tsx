@@ -8,7 +8,7 @@ import { SearchField } from '@/components/form/search-field'
 import { Pager } from '@/components/navigation/pager'
 import { Badge } from '@/components/ui/badge'
 import { DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
+import { SelectField, SelectOption } from '@/components/ui/select'
 import { JobMenu } from '@/features/tasks'
 import { formatRelativeTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -89,10 +89,10 @@ export function DocumentList({
       <div className={cn('mb-2 grid min-w-0 gap-2', !compact && 'sm:grid-cols-[minmax(0,1fr)_12rem]')}>
         <SearchField value={state.search} onValueChange={state.setSearch} label="搜索标题、正文或作者" size="touch" />
         {compact ? null : (
-          <NativeSelect aria-label="按分类筛选" value={state.category} onChange={(event) => state.chooseCategory(event.target.value)} className="h-touch sm:h-9">
-            <NativeSelectOption value="">全部分类</NativeSelectOption>
-            {categories.map((category) => <NativeSelectOption key={category} value={category}>{categoryLabel(category)}</NativeSelectOption>)}
-          </NativeSelect>
+          <SelectField aria-label="按分类筛选" value={state.category} onValueChange={(value) => state.chooseCategory(value)} className="h-touch sm:h-9">
+            <SelectOption value="">全部分类</SelectOption>
+            {categories.map((category) => <SelectOption key={category} value={category}>{categoryLabel(category)}</SelectOption>)}
+          </SelectField>
         )}
       </div>
 

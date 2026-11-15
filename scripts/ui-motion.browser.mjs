@@ -15,10 +15,12 @@ const file = {
 async function capture(page) {
   await page.evaluate(() => {
     window.motionFrames = new Promise(resolve => {
-      const frames = [], start = performance.now()
+      const frames = [], waitingSince = performance.now()
+      let startedAt = null
       function tick() {
         const popup = document.querySelector('[data-slot="modal-content"]')
         if (popup) {
+          startedAt ??= performance.now()
           const style = getComputedStyle(popup)
           frames.push({
             y: new DOMMatrixReadOnly(style.transform).m42, opacity: Number(style.opacity),
@@ -26,7 +28,10 @@ async function capture(page) {
             leaving: popup.hasAttribute('data-ending-style'),
           })
         }
-        if (performance.now() - start < 550) requestAnimationFrame(tick)
+        // Start sampling at mount, after Playwright's actionability wait.
+        // A fixed pre-click window could finish before a reduced-motion popup appeared.
+        const elapsed = performance.now() - (startedAt ?? waitingSince)
+        if (elapsed < (startedAt === null ? 5000 : 550)) requestAnimationFrame(tick)
         else resolve(frames)
       }
       requestAnimationFrame(tick)

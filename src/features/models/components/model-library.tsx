@@ -1,11 +1,12 @@
 import { useState } from 'react'
+import { ManualModelForm } from './manual-model-form'
 import { Bookmark, Check, Pencil, RefreshCw, Trash2 } from 'lucide-react'
 import { ErrorAlert } from '@/components/feedback/error-alert'
 import { LoadingState } from '@/components/feedback/loading-state'
 import { Button } from '@/components/ui/button'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
+import { SelectField, SelectOption } from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
 import { useAsyncAction } from '@/hooks/use-async-action'
 import { useAsyncData } from '@/hooks/use-async-data'
@@ -58,7 +59,7 @@ export function ModelLibrary() {
         <ErrorAlert className="mt-3">{saved.error}</ErrorAlert>
         {saved.loading && !saved.data ? <LoadingState label="加载模型…" /> : null}
         {saved.data?.length === 0 ? (
-          <p className="py-6 text-body text-muted-foreground">尚未保存模型，从下方官方目录添加。</p>
+          <p className="py-6 text-body text-muted-foreground">还没有保存的模型。可手动添加或从官方目录选择。</p>
         ) : null}
         <div className="mt-3 divide-y">
           {saved.data?.map((row) => (
@@ -66,6 +67,7 @@ export function ModelLibrary() {
           ))}
         </div>
       </section>
+      <ManualModelForm />
       <section className="min-w-0 border-t pt-6" aria-labelledby="official-models-heading">
         <div className="flex min-w-0 items-start justify-between gap-3">
           <div className="min-w-0">
@@ -109,19 +111,19 @@ export function ModelLibrary() {
             </Field>
             <Field>
               <FieldLabel htmlFor="catalog-model">选择模型</FieldLabel>
-              <NativeSelect
+              <SelectField
                 id="catalog-model"
                 value={model?.id ?? ''}
-                onChange={(event) => setSelected(event.target.value)}
+                onValueChange={(value) => setSelected(value)}
                 disabled={!models.length}
               >
-                {!models.length ? <NativeSelectOption value="">没有匹配的文本模型</NativeSelectOption> : null}
+                {!models.length ? <SelectOption value="">没有匹配的文本模型</SelectOption> : null}
                 {models.map((row) => (
-                  <NativeSelectOption key={row.id} value={row.id}>
+                  <SelectOption key={row.id} value={row.id}>
                     {row.displayName} · {row.id}
-                  </NativeSelectOption>
+                  </SelectOption>
                 ))}
-              </NativeSelect>
+              </SelectField>
               {model ? (
                 <FieldDescription className="break-words">
                   输入 {model.inputTokenLimit.toLocaleString()} · 输出{' '}

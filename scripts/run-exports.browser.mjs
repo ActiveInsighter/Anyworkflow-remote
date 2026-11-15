@@ -1,3 +1,4 @@
+import { selectOption, selectOptions } from './select-helpers.mjs'
 import assert from 'node:assert/strict'
 import { mkdir } from 'node:fs/promises'
 import { chromium } from 'playwright'
@@ -57,7 +58,7 @@ try {
   assert.equal(requests.some(url => url.pathname.includes('aw_run_exports')), false, 'exports are loaded only on demand')
   await openExport()
   await page.getByText('暂无导出记录', { exact: true }).waitFor()
-  await page.getByRole('combobox', { name: '导出内容' }).selectOption('assistant')
+  await selectOption(page.getByRole('combobox', { name: '导出内容' }), 'assistant')
   await page.getByRole('button', { name: '生成 ZIP', exact: true }).click()
   await page.getByRole('button', { name: '正在导出，请稍候' }).waitFor()
   assert.equal(submissions, 1)

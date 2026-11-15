@@ -4,7 +4,7 @@ import { ErrorAlert } from '@/components/feedback/error-alert'
 import { Button } from '@/components/ui/button'
 import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
+import { SelectField, SelectOption } from '@/components/ui/select'
 import {
   Modal,
   ModalContent,
@@ -98,28 +98,24 @@ export function ConversionConfigSheet({ config }: { config: ConversionConfigStat
                   <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-[9rem_minmax(0,1fr)]">
                     <Field>
                       <FieldLabel htmlFor="pdf-provider">接口</FieldLabel>
-                      <NativeSelect
+                      <SelectField
                         id="pdf-provider"
                         name="provider"
                         value={options.provider}
-                        onChange={(event) => config.setProvider(event.target.value as PdfConversionOptions['provider'])}
+                        onValueChange={(value) => config.setProvider(value as PdfConversionOptions['provider'])}
                       >
-                        <NativeSelectOption value="gemini">Gemini</NativeSelectOption>
-                        <NativeSelectOption value="modelflare">ModelFlare</NativeSelectOption>
-                      </NativeSelect>
+                        <SelectOption value="gemini">Gemini</SelectOption>
+                        <SelectOption value="modelflare">ModelFlare</SelectOption>
+                      </SelectField>
                     </Field>
                     <Field>
                       <FieldLabel htmlFor="pdf-model">
                         {options.provider === 'gemini' ? 'Gemini 模型' : 'ModelFlare 视觉模型 ID'}
                       </FieldLabel>
                       {options.provider === 'gemini' ? <SavedModelSelect id="pdf-model" value={options.model} onChange={value => config.setOption('model', value)} disabled={disabled} /> : <Input
-                        id="pdf-model" name="model" list="pdf-modelflare-models" required maxLength={107} className="font-mono" value={options.model} onChange={event => config.setOption('model', event.target.value)}
+                        id="pdf-model" name="model" required maxLength={107} placeholder={MODELFLARE_DEFAULT_MODEL} className="font-mono" value={options.model} onChange={event => config.setOption('model', event.target.value)}
                       />}
-                      {options.provider === 'modelflare' ? (
-                        <datalist id="pdf-modelflare-models">
-                          <option value={MODELFLARE_DEFAULT_MODEL} />
-                        </datalist>
-                      ) : null}
+
                     </Field>
                   </div>
                 </FieldSet>
@@ -182,18 +178,18 @@ function ChoiceOption({ config, name }: { config: ConversionConfigState; name: C
   return (
     <Field>
       <FieldLabel htmlFor={`pdf-${name}`}>{label}</FieldLabel>
-      <NativeSelect
+      <SelectField
         id={`pdf-${name}`}
         name={name}
         value={config.options[name]}
-        onChange={(event) => config.setOption(name, event.target.value as PdfConversionOptions[typeof name])}
+        onValueChange={(value) => config.setOption(name, value as PdfConversionOptions[typeof name])}
       >
         {values.map((value) => (
-          <NativeSelectOption key={value} value={value}>
+          <SelectOption key={value} value={value}>
             {choiceValueLabel(value)}
-          </NativeSelectOption>
+          </SelectOption>
         ))}
-      </NativeSelect>
+      </SelectField>
     </Field>
   )
 }

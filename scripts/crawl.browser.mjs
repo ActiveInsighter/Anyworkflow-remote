@@ -1,3 +1,4 @@
+import { selectOption, selectOptions } from './select-helpers.mjs'
 import assert from 'node:assert/strict'
 import { mkdir } from 'node:fs/promises'
 import { chromium } from 'playwright'
@@ -165,7 +166,7 @@ try {
   await page.getByText('2 个链接', { exact: true }).waitFor()
   await page.getByRole('button', { name: '采集选项', exact: true }).click()
   await page.getByLabel('正文选择器').fill('article')
-  await page.getByLabel('云端读取方式').selectOption('browser')
+  await selectOption(page.getByLabel('云端读取方式'), 'browser')
   await page.getByLabel('已设置 2 项').waitFor()
   await page.getByRole('button', { name: '开始抓取', exact: true }).click()
   await page.getByText('已提交 2 个抓取').waitFor()
@@ -185,7 +186,7 @@ try {
 
   // Saved as a page: a schedule, then its first crawl through the page; the view follows.
   await page.getByRole('switch', { name: '保存为页面' }).click()
-  await page.getByLabel('抓取频率').selectOption('180')
+  await selectOption(page.getByLabel('抓取频率'), '180')
   await page.getByRole('button', { name: '保存并抓取', exact: true }).click()
   await page.getByText('已保存 1 个页面，开始抓取').waitFor()
   assert.deepEqual(posted.targets.map((body) => [body.url, body.runner, body.intervalMinutes, body.enabled, body.options]), [
@@ -215,7 +216,7 @@ try {
   await page.getByRole('menuitem', { name: '抓取设置' }).click()
   await dialog.getByRole('tab', { name: '设置', selected: true }).waitFor()
   await dialog.getByLabel('名称').fill('被拦截的站点')
-  await dialog.getByLabel('抓取频率').selectOption('60')
+  await selectOption(dialog.getByLabel('抓取频率'), '60')
   await dialog.getByRole('radio', { name: '浏览器' }).click()
   await dialog.getByRole('button', { name: '保存设置' }).click()
   await page.getByText('设置已保存').waitFor()
