@@ -65,7 +65,17 @@ export function GeminiTranscript({ job, segment }: { job: GeminiJob; segment: Ge
                 {message.reply ? <MessageFooter className="flex-wrap gap-1 px-0">
                   <Button type="button" variant="ghost" size="icon-touch" aria-label="复制回复" onClick={() => void copy()}><Copy /></Button>
                   <Button type="button" variant="ghost" size="icon-touch" aria-label="下载回复" onClick={() => saveBlob(new Blob([message.reply], { type: 'text/markdown;charset=utf-8' }), safeFilename(job.title, 'Gemini 回复', 'md'))}><Download /></Button>
-                  {message.usage?.totalTokenCount ? <span className="ms-2 text-caption font-normal tabular-nums">{message.usage.totalTokenCount.toLocaleString()} Token</span> : null}
+                  {message.usage?.totalTokenCount ? <details className="ms-2 text-caption font-normal tabular-nums">
+                    <summary className="cursor-pointer select-none">{message.usage.totalTokenCount.toLocaleString()} Token · 明细</summary>
+                    <span className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-muted-foreground">
+                      {message.usage.promptTokenCount != null ? <span>输入 {message.usage.promptTokenCount.toLocaleString()}</span> : null}
+                      {message.usage.candidatesTokenCount != null ? <span>输出 {message.usage.candidatesTokenCount.toLocaleString()}</span> : null}
+                      {message.usage.thoughtsTokenCount != null ? <span>思考 {message.usage.thoughtsTokenCount.toLocaleString()}</span> : null}
+                      {message.usage.toolUseTokenCount != null ? <span>工具 {message.usage.toolUseTokenCount.toLocaleString()}</span> : null}
+                      {message.usage.cachedContentTokenCount != null ? <span>缓存 {message.usage.cachedContentTokenCount.toLocaleString()}</span> : null}
+                      {message.usage.agentStepCount != null ? <span>Agent 步骤 {message.usage.agentStepCount.toLocaleString()}</span> : null}
+                    </span>
+                  </details> : null}
                   {message.finishReason === 'MAX_TOKENS' && !message.error ? <span className="text-warning">达到输出上限</span> : null}
                 </MessageFooter> : null}
               </MessageContent>
