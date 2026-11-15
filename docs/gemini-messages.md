@@ -65,9 +65,11 @@ workflow input 只有 `request_id`。转换调度器按两个队列中最早的�
 
 1. 先部署 `AnyWorkflow-workers` 的 `1794700000_gemini_messages.js` migration 及三个
    `gemini*.js` hooks 和 `aw_gemini.pb.js`，重启 PB。
-2. 在 PB 的 `aw_gemini_services` 创建专用 email/password 账号。
-3. 在 `ActiveInsighter/file-converter-ai` 配置 Actions secrets `GEMINI_PB_EMAIL`、
-   `GEMINI_PB_PASSWORD`，复用 `GEMINI_API_KEYS` / `GEMINI_KEY_GROUPS`。
+2. 在 `ActiveInsighter/file-converter-ai` 配置 Actions Secret `POCKETBASE_SERVER_TOKEN`，
+   填入有效的 PB 超级用户令牌，执行器即可使用它读写整个数据库；不下发前端。
+   如需专用账号，可改为在 PB 的 `aw_gemini_services` 创建 email/password 账号。
+3. 使用专用账号时配置 Actions secrets `GEMINI_PB_EMAIL`、`GEMINI_PB_PASSWORD`；
+   `POCKETBASE_SERVER_TOKEN` 非空时优先使用它。复用 `GEMINI_API_KEYS` / `GEMINI_KEY_GROUPS`。
    `GEMINI_PB_URL` 为 Actions variable，默认 `https://pb.any1.tech`。
 4. 发布转换仓库，确保 `main` 有 `gemini-text.yml` 和 `gemini_text.py`。
 5. 发布 Remote 的 converter Worker，再发布 Remote Web Worker。沿用现有 PB/GitHub secrets
