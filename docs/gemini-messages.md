@@ -47,9 +47,11 @@ MD 与 PDF 复用文件夹、重命名、移动、删除和上传队列；重命
 删除任务级联删除该任务分段，不影响资料库文件。
 
 Cloudflare 复用 shared task kit 的 GitHub 执行器，派发 `file-converter-ai/gemini-text.yml`，
-workflow input 只有 `request_id`。转换调度器按两个队列中最早的任务共享单个 Gemini 配额槽，
-不会让 PDF 与文本任务同时扇出。GitHub 两种 workflow 另共用 concurrency group。
-运行内部用既有 KeyPool 控制 key/project 配额和分段并发。
+workflow input 只有 `request_id`。不同 Gemini 对话可独立并发执行（调度器同时最多 4 个），
+无需等待前一个对话结束；PDF 与文本任务也不再互相阻塞。
+GitHub Actions 按 `request_id` 分组，保证不同对话的工作流互不排队，
+同一请求不会因重复派发而相互取消。运行内部 KeyPool 仅控制单个 Runner，
+多个并行任务可能共同触发 Google 项目级配额，应关注 429/限额。
 
 执行器先领取任务，再为每段取得一次发送许可。重复领取、丢失派发响应、重跑 Actions 或
 丢失发送许可均不授权重复生成。429/临时服务错误有界重试；传输超时不盲目补发。
