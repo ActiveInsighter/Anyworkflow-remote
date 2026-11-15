@@ -47,7 +47,7 @@ export interface GeminiMessage {
   reply: string
   error: string
   finishReason: string
-  usage: { totalTokenCount?: number }
+  usage: { totalTokenCount?: number; promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number; cachedContentTokenCount?: number; toolUseTokenCount?: number; agentStepCount?: number }
   providerState?: { id?: string; environmentId?: string; status?: string }
 }
 

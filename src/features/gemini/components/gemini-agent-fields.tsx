@@ -16,7 +16,7 @@ export function GeminiAgentFields({ value, onChange }: { value: GeminiConfig; on
     <div className="grid grid-cols-2 gap-4">
       <Field><FieldLabel htmlFor="agent-budget">总 Token 预算</FieldLabel>
         <Input id="agent-budget" form="gemini-config-form" type="number" min={0} max={1000000000} step={1} required value={Number.isFinite(value.agentMaxTotalTokens ?? 0) ? value.agentMaxTotalTokens ?? 0 : ''} onChange={(event) => onChange('agentMaxTotalTokens', event.target.valueAsNumber)} />
-        <FieldDescription>0 表示不额外限制</FieldDescription>
+        <FieldDescription>0 表示使用安全默认预算 20,000 Token（防止 Agent 反复调用工具）</FieldDescription>
       </Field>
       <Field><FieldLabel htmlFor="agent-timeout">执行时限（分钟）</FieldLabel>
         <Input id="agent-timeout" form="gemini-config-form" type="number" min={1} max={175} step={1} required value={Number.isFinite(value.agentTimeoutMinutes ?? 175) ? value.agentTimeoutMinutes ?? 175 : ''} onChange={(event) => onChange('agentTimeoutMinutes', event.target.valueAsNumber)} />
