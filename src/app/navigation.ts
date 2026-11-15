@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
-import { BookMarked, CalendarClock, FileText, FolderOpen, Globe, LayoutList, Settings } from 'lucide-react'
+import { BookMarked, CalendarClock, FileText, FolderOpen, Globe, LayoutList, MessageSquare, Settings } from 'lucide-react'
 
 export interface AppNavItem {
   id: string
@@ -8,7 +8,7 @@ export interface AppNavItem {
   icon: LucideIcon
   match: (pathname: string) => boolean
   /** Task kind whose running count the item shows (ids from the shared task catalog). */
-  taskKind?: 'run' | 'file-conversion' | 'crawl'
+  taskKind?: 'run' | 'file-conversion' | 'crawl' | 'gemini-text'
 }
 
 export interface AppNavGroup {
@@ -69,6 +69,8 @@ const crawl: AppNavItem = {
   match: (pathname) => pathname === '/crawl',
 }
 
+const gemini: AppNavItem = { id: 'gemini', label: 'Gemini 消息', to: '/gemini', icon: MessageSquare, taskKind: 'gemini-text', match: pathname => pathname === '/gemini' }
+
 export const settingsNavItem: AppNavItem = {
   id: 'settings',
   label: '设置',
@@ -81,7 +83,7 @@ export const settingsNavItem: AppNavItem = {
 export const appNavigationGroups: AppNavGroup[] = [
   { id: 'work', label: '工作', items: [runs, schedules] },
   { id: 'resources', label: '资源', items: [favorites, library] },
-  { id: 'tools', label: '工具', items: [fileConverter, crawl] },
+  { id: 'tools', label: '工具', items: [fileConverter, gemini, crawl] },
 ]
 
 /** Every destination, flat; settings last. */

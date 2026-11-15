@@ -35,6 +35,13 @@ await context.route('**/api/library/files**', async route => {
   assert.equal(req.headers().authorization, 'Bearer fixture-token')
   assert.equal(req.headers()['x-pocketbase-url'], 'https://pb.example.invalid')
   if (url.pathname.endsWith('/import')) return route.fulfill({ json: { done: true, unavailable: 0 } })
+  if (url.pathname.endsWith('/markdown')) {
+    assert.equal(req.method(), 'PUT')
+    const id = '11111111-1111-4111-8111-111111111111.md'
+    const file = { id, fileName: decodeURIComponent(req.headers()['x-file-name']), size: req.postDataBuffer().length, sourceUrl: `https://files.example.invalid/api/library/sources/${id}`, expiresAt: '', createdAt: new Date().toISOString(), folder: '' }
+    files.push(file)
+    return route.fulfill({ status: 201, json: file })
+  }
   if (url.pathname.endsWith('/uploads/multipart')) {
     const id = ++uploads
     sessions.set(`upload-${id}`, req.postDataJSON())
@@ -48,7 +55,7 @@ await context.route('**/api/library/files**', async route => {
     files.push(file)
     return route.fulfill({ status: 201, json: file })
   }
-  if (url.pathname === '/api/library/files') return route.fulfill({ json: { items: files, cursor: '' } })
+  if (url.pathname === '/api/library/files') return route.fulfill({ json: { items: files.filter(file => !url.searchParams.get('ext') || file.id.endsWith(`.${url.searchParams.get('ext')}`)), cursor: '' } })
   const file = files.find(file => file.id === decodeURIComponent(url.pathname.split('/').at(-1)))
   if (!file) return route.fulfill({ status: 404, json: { message: '文件已删除或不存在' } })
   if (req.method() === 'PATCH') {
@@ -87,7 +94,7 @@ try {
   await page.getByText('资料库是空的', { exact: true }).waitFor()
   await page.getByRole('link', { name: '收藏和模板', exact: true }).waitFor()
   const pdf = { name: '数学讲义.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.7\nreusable\n%%EOF') }
-  await page.getByLabel('选择 PDF 文件', { exact: true }).setInputFiles(pdf)
+  await page.getByLabel('选择 PDF 或 Markdown 文件', { exact: true }).setInputFiles(pdf)
   await page.getByText('已完成 1 项上传', { exact: true }).waitFor()
   await more(pdf.name).waitFor()
   assert.equal(uploads, 1)
@@ -195,6 +202,14 @@ try {
   await sheet.getByRole('button', { name: '删除文件夹', exact: true }).click()
   await more('高数讲义.pdf').waitFor()
   assert.equal(folders.length, 0)
+
+  await page.getByLabel('选择 PDF 或 Markdown 文件', { exact: true }).setInputFiles({ name: '可发送的笔记.md', mimeType: 'text/markdown', buffer: Buffer.from('# Markdown\n<!-- aw:split -->\n正文') })
+  await more('可发送的笔记.md').waitFor()
+  await more('可发送的笔记.md').click()
+  const sendLink = sheet.getByRole('link', { name: '发给 Gemini', exact: true })
+  assert.ok((await sendLink.getAttribute('href')).includes('/gemini?file='))
+  assert.equal(await sheet.getByRole('link', { name: '转换为 Markdown', exact: true }).count(), 0)
+  await page.keyboard.press('Escape')
 
   await page.goto(`${base}/library?tab=templates`)
   await page.waitForURL('**/favorites-and-templates?tab=templates')

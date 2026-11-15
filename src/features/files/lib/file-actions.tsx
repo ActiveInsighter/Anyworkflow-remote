@@ -13,7 +13,9 @@ export function fileActions(file: LibraryFile, drive: FileDrive): DriveAction[][
   return [
     [
       { kind: 'link', id: 'open', label: '打开', icon: ExternalLink, href: file.sourceUrl, external: true },
-      { kind: 'link', id: 'convert', label: '转换为 Markdown', icon: FileOutput, href: `/file-converter?file=${encodeURIComponent(file.id)}` },
+      file.id.endsWith('.md')
+        ? { kind: 'link', id: 'gemini', label: '发给 Gemini', icon: FileOutput, href: `/gemini?file=${encodeURIComponent(file.id)}` }
+        : { kind: 'link', id: 'convert', label: '转换为 Markdown', icon: FileOutput, href: `/file-converter?file=${encodeURIComponent(file.id)}` },
     ],
     [
       {

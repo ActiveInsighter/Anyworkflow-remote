@@ -23,7 +23,7 @@ function fileEntry(file: LibraryFile, location?: string): DriveEntry {
     kind: 'item',
     name: file.fileName,
     icon: FileText,
-    tone: 'danger',
+    tone: file.id.endsWith('.md') ? 'neutral' : 'danger',
     meta: [formatFileSize(file.size), formatShortDate(file.updatedAt), location].filter(Boolean).join(' · '),
     href: file.sourceUrl,
     external: true,
@@ -86,7 +86,7 @@ export function FileLibrary() {
       : undefined
 
   const create: DriveCreateAction[] = [
-    { id: 'upload', label: '上传 PDF', icon: Upload, onSelect: () => input.current?.click() },
+    { id: 'upload', label: '上传文件', icon: Upload, onSelect: () => input.current?.click() },
     { id: 'folder', label: '新建文件夹', icon: FolderPlus, onSelect: () => setCreating(true) },
   ]
 
@@ -132,16 +132,16 @@ export function FileLibrary() {
           ) : null}
         </>
       }
-      empty={{ icon: HardDrive, title: '资料库是空的', description: '上传 PDF 后可在不同转换任务中重复使用' }}
+      empty={{ icon: HardDrive, title: '资料库是空的', description: '上传 PDF 用于转换，或上传 Markdown 发给 Gemini' }}
     >
       <input
         ref={input}
         type="file"
-        accept=".pdf,application/pdf"
+        accept=".pdf,application/pdf,.md,text/markdown"
         multiple
         className="sr-only"
         tabIndex={-1}
-        aria-label="选择 PDF 文件"
+        aria-label="选择 PDF 或 Markdown 文件"
         onChange={(event) => {
           const picked = [...(event.target.files ?? [])]
           event.target.value = ''

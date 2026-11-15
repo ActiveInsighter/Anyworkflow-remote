@@ -31,7 +31,7 @@ function FileOption({ file, checked, onSelect }: { file: LibraryFile; checked: b
 /** Choose a stored PDF from a searchable list. The chosen file stays listed whatever the search says. */
 export function LibraryFilePicker({ selected, onSelect }: { selected: LibraryFile | null; onSelect: (file: LibraryFile | null) => void }) {
   const [query, setQuery] = useState('')
-  const files = useLibraryFiles(query)
+  const files = useLibraryFiles(query, 'pdf')
   const items = (files.data?.items ?? []).filter(file => file.fileName.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
   const listed = selected && !items.some(file => file.id === selected.id) ? [selected, ...items] : items
   return <div className="flex min-w-0 flex-col gap-2">

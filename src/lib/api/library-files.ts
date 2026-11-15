@@ -19,9 +19,9 @@ export interface LibraryFileFolder {
   updatedAt: string
 }
 
-type Method = 'GET' | 'DELETE' | 'POST' | 'PATCH'
+type Method = 'GET' | 'DELETE' | 'POST' | 'PATCH' | 'PUT'
 
-export async function libraryRequest<T>(path = '', method: Method = 'GET', signal?: AbortSignal, body?: unknown, base = '/api/library/files'): Promise<T> {
+export async function libraryRequest<T>(path = '', method: Method = 'GET', signal?: AbortSignal, body?: unknown, base = '/api/library/files', fileName?: string): Promise<T> {
   const session = requireSession()
   let response: Response
   try {
@@ -31,9 +31,10 @@ export async function libraryRequest<T>(path = '', method: Method = 'GET', signa
         Accept: 'application/json',
         Authorization: `Bearer ${session.token}`,
         'X-PocketBase-Url': session.baseUrl,
-        ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+        ...(body === undefined ? {} : { 'Content-Type': body instanceof Blob ? 'text/plain; charset=utf-8' : 'application/json' }),
+        ...(fileName ? { 'X-File-Name': encodeURIComponent(fileName) } : {}),
       },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : body instanceof Blob ? body : JSON.stringify(body),
       signal: signal ?? AbortSignal.timeout(30_000),
     })
   } catch (error) {
@@ -52,20 +53,20 @@ export async function libraryRequest<T>(path = '', method: Method = 'GET', signa
   return payload as T
 }
 
-export async function listLibraryFiles(signal?: AbortSignal, query = '') {
+export async function listLibraryFiles(signal?: AbortSignal, query = '', extension?: 'md' | 'pdf') {
   let imported: unknown
   do {
     imported = await libraryRequest<unknown>('/import', 'POST', signal)
     if (!imported || typeof imported !== 'object' || !('done' in imported) || typeof imported.done !== 'boolean' || !('unavailable' in imported) || typeof imported.unavailable !== 'number') throw invalidResponse()
   } while (!imported.done)
-  const result = await listLibraryFilePage('', signal, query)
+  const result = await listLibraryFilePage('', signal, query, undefined, extension)
   return { ...result, unavailable: imported.unavailable }
 }
 
 function invalidResponse() { return new ApiError('资料库返回的数据无效，请刷新重试', 502, 'INVALID_LIBRARY_RESPONSE') }
 
 function normalizeFile(value: unknown): LibraryFile {
-  if (!value || typeof value !== 'object' || !('id' in value) || typeof value.id !== 'string' || !value.id || !('fileName' in value) || typeof value.fileName !== 'string' || !value.fileName || !('size' in value) || typeof value.size !== 'number' || !Number.isSafeInteger(value.size) || value.size < 5 || !('createdAt' in value) || typeof value.createdAt !== 'string' || !Number.isFinite(Date.parse(value.createdAt)) || !('sourceUrl' in value) || typeof value.sourceUrl !== 'string' || !('expiresAt' in value) || value.expiresAt !== '') throw invalidResponse()
+  if (!value || typeof value !== 'object' || !('id' in value) || typeof value.id !== 'string' || !value.id || !('fileName' in value) || typeof value.fileName !== 'string' || !value.fileName || !('size' in value) || typeof value.size !== 'number' || !Number.isSafeInteger(value.size) || value.size < 1 || !('createdAt' in value) || typeof value.createdAt !== 'string' || !Number.isFinite(Date.parse(value.createdAt)) || !('sourceUrl' in value) || typeof value.sourceUrl !== 'string' || !('expiresAt' in value) || value.expiresAt !== '') throw invalidResponse()
   try {
     const url = new URL(value.sourceUrl)
     if (url.protocol !== 'https:' || url.username || url.password || !url.pathname.endsWith(`/${value.id}`)) throw invalidResponse()
@@ -82,11 +83,12 @@ function normalizeFolder(value: unknown): LibraryFileFolder {
   return { id: value.id, name: value.name, parent: value.parent, createdAt: time('createdAt'), updatedAt: time('updatedAt') || time('createdAt') }
 }
 
-export async function listLibraryFilePage(cursor = '', signal?: AbortSignal, query = '', limit?: number) {
+export async function listLibraryFilePage(cursor = '', signal?: AbortSignal, query = '', limit?: number, extension?: 'md' | 'pdf') {
   const params = new URLSearchParams()
   if (cursor) params.set('cursor', cursor)
   if (query.trim()) params.set('q', query.trim())
   if (limit) params.set('limit', String(limit))
+  if (extension) params.set('ext', extension)
   const value = await libraryRequest<unknown>(params.size ? `?${params}` : '', 'GET', signal)
   if (!value || typeof value !== 'object' || !('items' in value) || !Array.isArray(value.items) || !('cursor' in value) || typeof value.cursor !== 'string') throw invalidResponse()
   return { items: value.items.map(normalizeFile), cursor: value.cursor }
@@ -96,6 +98,20 @@ export async function getLibraryFile(id: string, signal?: AbortSignal) {
   const file = normalizeFile(await libraryRequest<unknown>(`/${encodeURIComponent(id)}`, 'GET', signal))
   if (file.id !== id) throw invalidResponse()
   return file
+}
+
+export async function uploadLibraryMarkdown(file: File, options: { signal?: AbortSignal; onProgress?: (percent: number) => void } = {}) {
+  if (!/\.md$/iu.test(file.name) || file.size < 1 || file.size > 2 * 1024 * 1024) throw new ApiError('请选择不超过 2 MiB 的 .md 文件', 400, 'INVALID_MARKDOWN')
+  options.onProgress?.(0)
+  const uploaded = normalizeFile(await libraryRequest<unknown>('/markdown', 'PUT', options.signal, file, undefined, file.name))
+  options.onProgress?.(100)
+  return uploaded
+}
+
+export async function readLibraryMarkdown(id: string, signal?: AbortSignal): Promise<string> {
+  const result = await libraryRequest<unknown>(`/${encodeURIComponent(id)}/text`, 'GET', signal)
+  if (!result || typeof result !== 'object' || !('id' in result) || result.id !== id || !('content' in result) || typeof result.content !== 'string') throw invalidResponse()
+  return result.content
 }
 
 export function deleteLibraryFile(id: string) {

@@ -2,6 +2,7 @@ import { DurableObject } from 'cloudflare:workers'
 import { createFileConversionEngine, type TaskEngine, type TaskPassResult } from '../shared/task-kit/index.mjs'
 import { CONVERTER_REF, createGitHub } from './github.js'
 import { createStore } from './store.js'
+import { geminiEngine, geminiStore, geminiTextKind, sharedQuotaStore } from './gemini.js'
 
 /** External executors cannot push status: poll while anything is in flight. */
 const POLL_MS = 30_000
@@ -14,7 +15,12 @@ const MORE_MS = 1_000
  * converter workflow, a different executor - is one more entry here.
  */
 function createEngines(env: ConverterEnv): TaskEngine[] {
-  return [createFileConversionEngine({ store: createStore(env), github: createGitHub(env) })]
+  const pdf = createStore(env)
+  const gemini = geminiStore(env)
+  return [
+    createFileConversionEngine({ store: sharedQuotaStore(pdf, gemini, geminiTextKind), github: createGitHub(env) }),
+    geminiEngine(env, gemini, pdf),
+  ]
 }
 
 type PassSummary = { at: string; kinds: Record<string, TaskPassResult> }

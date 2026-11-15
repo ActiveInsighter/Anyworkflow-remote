@@ -8,6 +8,7 @@ export {
   TASK_KINDS,
   crawlJobKind,
   fileConversionKind,
+  geminiTextKind,
   hasResultState,
   isActiveState,
   isTerminalState,

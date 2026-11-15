@@ -10,6 +10,7 @@ import { LIBRARY_PATH, LIBRARY_SOURCE_PATH, libraryEnv, libraryFile, librarySour
 import { importLegacyFiles } from './library-import.js'
 import { LIBRARY_FOLDERS_PATH, folderCollection, folderItem } from './library-folders.js'
 import { createRouter, decodeParam, pattern, under, type Route } from './router.js'
+import { readMarkdown, uploadMarkdown } from './library-markdown.js'
 
 type Storage = (request: Request, env: Env) => PdfStorageEnv
 
@@ -61,6 +62,8 @@ const routes: Route[] = [
   { path: under(LIBRARY_SOURCE_PATH), any: ({ request, env, params, ctx }) => librarySource(request, env, params[0], ctx) },
   { path: LIBRARY_PATH, methods: { GET: async ({ request, env, owner }) => listLibraryFiles(request, libraryEnv(request, env), await owner()) } },
   ...multipartRoutes(`${LIBRARY_PATH}/uploads/multipart`, libraryEnv, 2),
+  { path: `${LIBRARY_PATH}/markdown`, methods: { PUT: async ({ request, env, owner }) => uploadMarkdown(request, env, await owner()) } },
+  { path: pattern(LIBRARY_PATH, '/:id/text'), methods: { GET: async ({ env, params, owner }) => readMarkdown(env, await owner(), params[0]) } },
   { path: under(LIBRARY_PATH), any: async ({ request, env, params, owner }) => libraryFile(request, libraryEnv(request, env), await owner(), params[0]) },
   {
     path: LIBRARY_FOLDERS_PATH,

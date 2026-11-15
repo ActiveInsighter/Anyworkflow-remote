@@ -50,6 +50,7 @@ export const runExportKind: TaskKind
 export const runKind: TaskKind
 export const crawlJobKind: TaskKind
 export const crawlDispatchKind: TaskKind
+export const geminiTextKind: TaskKind
 export const TASK_KINDS: readonly TaskKind[]
 export function taskKind(id: string): TaskKind
 
@@ -165,6 +166,13 @@ export function createFileConversionEngine<A>(options: {
 export interface SettlingStore<R extends TaskRecord = TaskRecord> extends TaskStore<R> {
   settle(id: string, outcome: { conclusion: string }): Promise<unknown>
 }
+
+export function createGeminiTextEngine(options: {
+  store: SettlingStore
+  github: GitHubActionsClient
+  now?: () => number
+  log?: (line: string) => void
+}): TaskEngine
 
 export function buildCrawlWorkflowInputs(row: TaskRecord): Record<string, string>
 export function createCrawlDispatchEngine(options: {
