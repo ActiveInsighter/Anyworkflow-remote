@@ -157,7 +157,7 @@ generateContent。别名解析为 `antigravity-preview-09-2026`；使用 Interac
 和思考程度，避免向 Agent 发送不支持的生成参数。
 
 默认使用 Gemini 4 Hydrogen；代码执行、文件系统、Google 搜索、URL Context 全开，
-不限制出站域名，无附加 Token 预算。时限默认 175 分钟，可在 Agent 配置内缩短。
+默认启用 20,000 Token 的 Agent 累计安全预算（旧配置值 0 也使用这个默认值），可在 Agent 配置内明确提高；时限默认 175 分钟，可缩短。需要 GitHub 仓库操作时才挂载 GitHub MCP，身份问答等普通问题不会附加 GitHub MCP。GitHub Actions 的 `[agent.telemetry]` 日志会记录耗时、模型、预算、Google 原始 Token 分类与工具步骤类型（不包含密钥、提示词正文或思考内容）。
 Agent 分段并发为 16，密钥轮转配置使用应用上限 RPM 60、RPD 10000；实际配额由
 上游返回的限流信息处理。权限仅作用于 Google 托管沙盒，不把 PB/GitHub/API Key
 配置为沙盒环境变量或文件。
