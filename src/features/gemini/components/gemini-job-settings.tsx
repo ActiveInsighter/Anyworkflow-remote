@@ -25,7 +25,6 @@ export function GeminiJobSettings({ job }: { job: GeminiJob }) {
             {isAntigravity(job.model) ? <>
               <dt className="text-muted-foreground">Agent</dt><dd className="break-all">{job.options.agent?.id ?? ANTIGRAVITY_AGENT_ID}</dd>
               <dt className="text-muted-foreground">推理模型</dt><dd>{job.options.agent?.model ?? ANTIGRAVITY_DEFAULTS.agentModel}</dd>
-              <dt className="text-muted-foreground">Token 预算</dt><dd>{job.options.agent?.maxTotalTokens || '默认 20,000 Token'}</dd>
               <dt className="text-muted-foreground">执行时限</dt><dd>{job.options.agent?.timeoutMinutes ?? 175} 分钟</dd>
               <dt className="text-muted-foreground">工具与网络</dt><dd>代码、文件、搜索、网页；不限制出站域名</dd>
             </> : <>
