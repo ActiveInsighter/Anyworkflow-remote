@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { isAntigravity } from '@/lib/domain/gemini-agent'
+import { GeminiAgentFields } from './gemini-agent-fields'
 import { Save, SlidersHorizontal } from 'lucide-react'
 import { ErrorAlert } from '@/components/feedback/error-alert'
 import { Button } from '@/components/ui/button'
@@ -131,6 +133,7 @@ function ConfigEditor({
         <ModalPane tone="muted">
           <fieldset disabled={action.busy} className="min-w-0">
             <FieldGroup>
+              {isAntigravity(draft.model) ? <GeminiAgentFields value={draft} onChange={change} /> : <>
               <Field>
                 <FieldLabel htmlFor="gemini-thinking">思考程度</FieldLabel>
                 <SelectField
@@ -174,6 +177,7 @@ function ConfigEditor({
                   </Field>
                 ))}
               </div>
+              </>}
             </FieldGroup>
           </fieldset>
         </ModalPane>

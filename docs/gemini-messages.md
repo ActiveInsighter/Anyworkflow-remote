@@ -146,3 +146,22 @@ PB 事务生成同步 nonce，同一轮只派发一次 `gemini-models.yml`。执
 模型库支持手动输入模型 ID（可带 `models/` 前缀）与自定义名称，
 不要求 `gemini-` 前缀，不依赖官方目录或目录能力标记；例如 `Antigravity` 可直接保存、配置和提交。与文件转换共用已保存模型。添加成功不代表模型在当前
 API Key 下可调用；真实 API 错误显示在相应消息中。
+
+## Antigravity Agent
+
+保存的 ID 为 `Antigravity` 或 `antigravity-*` 时自动按 Agent 调用，不再发给
+generateContent。别名解析为 `antigravity-preview-09-2026`；使用 Interactions API 的
+`agent` 参数。消息配置切换到该 ID 后显示 Agent 专属参数，隐藏普通模型的输出上限
+和思考程度，避免向 Agent 发送不支持的生成参数。
+
+默认使用 Gemini 4 Carbon；代码执行、文件系统、Google 搜索、URL Context 全开，
+不限制出站域名，无附加 Token 预算。时限默认 175 分钟，可在 Agent 配置内缩短。
+Agent 分段并发为 16，密钥轮转配置使用应用上限 RPM 60、RPD 10000；实际配额由
+上游返回的限流信息处理。权限仅作用于 Google 托管沙盒，不把 PB/GitHub/API Key
+配置为沙盒环境变量或文件。
+
+服务端在 `aw_gemini_messages.providerState` 保存 interaction ID、环境 ID、
+凭据指纹与状态；checkpoint 路由只接受匹配 GitHub execution ID 的执行器。
+创建的响应不确定时不会重发，已有 ID 仅通过 GET 轮询；用户取消会停止远程 Agent。
+发布顺序：PB migration/hooks → file-converter-ai 执行器 → Remote。
+官方协议：https://aistudio.google.com/docs/antigravity-agent
