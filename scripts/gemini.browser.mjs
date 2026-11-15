@@ -217,7 +217,7 @@ try {
   await agentSettings.getByRole('region', { name: 'Antigravity Agent 配置' }).waitFor()
   assert.equal(await agentSettings.getByLabel('总 Token 预算', { exact: true }).inputValue(), '0')
   assert.equal(await agentSettings.getByLabel('执行时限（分钟）', { exact: true }).inputValue(), '175')
-  assert.equal(await agentSettings.getByLabel('Agent 推理模型', { exact: true }).getAttribute('data-value'), 'gemini-4-carbon')
+  assert.equal(await agentSettings.getByLabel('Agent 推理模型', { exact: true }).getAttribute('data-value'), 'gemini-4-hydrogen')
   assert.equal(await agentSettings.getByLabel('输出 Token 上限', { exact: true }).count(), 0)
   await agentSettings.getByText('不限制出站域名', { exact: true }).waitFor()
   await agentSettings.getByRole('button', { name: '保存配置', exact: true }).click()
