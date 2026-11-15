@@ -1,5 +1,5 @@
 import { isAntigravity } from '@/lib/domain/gemini-agent'
-import { Bot, Copy, Download, UserRound } from 'lucide-react'
+import { Copy, Download, Sparkles, UserRound } from 'lucide-react'
 import { toast } from 'sonner'
 import { MarkdownReader } from '@/components/data-display/markdown-reader'
 import { ErrorAlert } from '@/components/feedback/error-alert'
@@ -15,6 +15,7 @@ import { getGeminiMessage } from '@/lib/api/gemini'
 import { writeClipboard } from '@/lib/platform/clipboard'
 import { safeFilename, saveBlob } from '@/lib/platform/download'
 import type { GeminiJob, GeminiMessageSummary } from '@/types/gemini'
+import { GeminiUsage } from './gemini-usage'
 
 export function GeminiTranscript({ job, segment }: { job: GeminiJob; segment: GeminiMessageSummary }) {
   const result = useAsyncData((signal) => getGeminiMessage(job.id, segment.id, signal),
@@ -34,13 +35,13 @@ export function GeminiTranscript({ job, segment }: { job: GeminiJob; segment: Ge
   return <MessageScrollerProvider autoScroll defaultScrollPosition="last-anchor">
     <MessageScroller aria-label="消息对话" className="flex-1">
       <MessageScrollerViewport>
-        <MessageScrollerContent className="mx-auto max-w-3xl gap-7 px-4 py-6 sm:px-8 sm:py-8">
+        <MessageScrollerContent className="mx-auto max-w-3xl gap-9 px-4 py-6 sm:px-8 sm:py-9">
           <MessageScrollerItem messageId={`${message.id}-question`} scrollAnchor>
             <Message align="end">
               <MessageContent>
                 <MessageHeader><UserRound className="me-1.5 size-3.5" />你</MessageHeader>
-                <Bubble variant="secondary" align="end" className="max-w-[95%] sm:max-w-[85%]">
-                  <BubbleContent className="space-y-4 px-4 py-3 text-body">
+                <Bubble variant="muted" align="end" className="max-w-full sm:max-w-[90%]">
+                  <BubbleContent className="flex flex-col gap-4 px-4 py-3 text-body leading-7">
                     {job.prompt ? <p className="whitespace-pre-wrap break-words">{job.prompt}</p> : null}
                     {message.inputText ? <div className="whitespace-pre-wrap break-words border-t first:border-t-0 first:pt-0 pt-3">{message.inputText}</div> : null}
                   </BubbleContent>
@@ -51,11 +52,11 @@ export function GeminiTranscript({ job, segment }: { job: GeminiJob; segment: Ge
           </MessageScrollerItem>
           <MessageScrollerItem messageId={`${message.id}-answer`}>
             <Message>
-              <MessageAvatar className="size-8 self-start translate-y-0! rounded-lg bg-primary-soft text-primary"><Bot className="size-4" /></MessageAvatar>
+              <MessageAvatar className="size-8 self-start translate-y-0! rounded-xl bg-primary-soft text-primary"><Sparkles className="size-4" /></MessageAvatar>
               <MessageContent>
-                <MessageHeader className="min-h-8 gap-2 px-0"><span>{isAntigravity(job.model) ? 'Antigravity' : 'Gemini'}</span><span className="truncate text-caption font-normal">{job.options.agent?.model ?? job.model}</span></MessageHeader>
+                <MessageHeader className="min-h-8 flex-wrap gap-x-2 gap-y-1 px-0"><span className="text-body font-semibold text-foreground">{isAntigravity(job.model) ? 'Antigravity' : 'Gemini'}</span><span className="break-all text-caption font-normal">{job.options.agent?.model ?? job.model}</span></MessageHeader>
                 <Bubble variant="ghost" className="w-full">
-                  <BubbleContent className="w-full text-body">
+                  <BubbleContent className="w-full text-body leading-7">
                     {message.reply ? <MarkdownReader markdown={message.reply} /> : pending ?
                       <Marker role="status"><MarkerIcon><Spinner /></MarkerIcon><MarkerContent>{message.status === 'queued' ? '等待发送…' : isAntigravity(job.model) ? 'Agent 正在执行…' : '正在生成回复…'}</MarkerContent></Marker> :
                       <p className="text-muted-foreground">{message.status === 'canceled' ? '消息已取消。' : '没有收到回复。'}</p>}
@@ -65,17 +66,7 @@ export function GeminiTranscript({ job, segment }: { job: GeminiJob; segment: Ge
                 {message.reply ? <MessageFooter className="flex-wrap gap-1 px-0">
                   <Button type="button" variant="ghost" size="icon-touch" aria-label="复制回复" onClick={() => void copy()}><Copy /></Button>
                   <Button type="button" variant="ghost" size="icon-touch" aria-label="下载回复" onClick={() => saveBlob(new Blob([message.reply], { type: 'text/markdown;charset=utf-8' }), safeFilename(job.title, 'Gemini 回复', 'md'))}><Download /></Button>
-                  {message.usage?.totalTokenCount ? <details className="ms-2 text-caption font-normal tabular-nums">
-                    <summary className="cursor-pointer select-none">{message.usage.totalTokenCount.toLocaleString()} Token · 明细</summary>
-                    <span className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-muted-foreground">
-                      {message.usage.promptTokenCount != null ? <span>输入 {message.usage.promptTokenCount.toLocaleString()}</span> : null}
-                      {message.usage.candidatesTokenCount != null ? <span>输出 {message.usage.candidatesTokenCount.toLocaleString()}</span> : null}
-                      {message.usage.thoughtsTokenCount != null ? <span>思考 {message.usage.thoughtsTokenCount.toLocaleString()}</span> : null}
-                      {message.usage.toolUseTokenCount != null ? <span>工具 {message.usage.toolUseTokenCount.toLocaleString()}</span> : null}
-                      {message.usage.cachedContentTokenCount != null ? <span>缓存 {message.usage.cachedContentTokenCount.toLocaleString()}</span> : null}
-                      {message.usage.agentStepCount != null ? <span>Agent 步骤 {message.usage.agentStepCount.toLocaleString()}</span> : null}
-                    </span>
-                  </details> : null}
+                  <GeminiUsage usage={message.usage} />
                   {message.finishReason === 'MAX_TOKENS' && !message.error ? <span className="text-warning">达到输出上限</span> : null}
                 </MessageFooter> : null}
               </MessageContent>

@@ -93,7 +93,7 @@ export const router = createBrowserRouter([
               route('file-converter', FileConverterPage),
               route('pdf-to-md', FileConverterPage),
               route('crawl', CrawlPage),
-              route('gemini', GeminiPage),
+              route('gemini', GeminiPage, { handle: { workspace: true } satisfies RouteHandle }),
               // The two pages this one replaced.
               { path: 'page-capture', element: <Navigate to="/crawl" replace /> },
               { path: 'web-crawl', element: <Navigate to="/crawl?tab=targets" replace /> },

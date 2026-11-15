@@ -52,7 +52,7 @@ await context.route('https://pb.example.invalid/**', route => {
     posts.push(body)
     let job = jobs.find(item => item.id === body.id)
     if (!job) {
-      job = { ...body, owner: 'owner-1', status: 'queued', totalChunks: body.sources.length ? 2 : 1, completedChunks: 0, failedChunks: 0, sources: body.sources.map(source => ({ id: source.id, name: source.name })), options: { concurrency: body.concurrency, maxOutputTokens: body.maxOutputTokens, thinkingLevel: body.thinkingLevel }, created: '2026-11-15T01:00:00Z', updated: '2026-11-15T01:00:00Z', error: '', githubRunId: '123' }
+      job = { ...body, title: body.title || body.prompt || 'Markdown 任务', owner: 'owner-1', status: 'queued', totalChunks: body.sources.length ? 2 : 1, completedChunks: 0, failedChunks: 0, sources: body.sources.map(source => ({ id: source.id, name: source.name })), options: { concurrency: body.concurrency, maxOutputTokens: body.maxOutputTokens, thinkingLevel: body.thinkingLevel }, created: '2026-11-15T01:00:00Z', updated: '2026-11-15T01:00:00Z', error: '', githubRunId: '123' }
       jobs.unshift(job)
     }
     if (loseOnce) { loseOnce = false; return route.fulfill({ status: 503, json: { message: '提交响应丢失，请重试' } }) }
@@ -85,18 +85,58 @@ await context.route('https://pb.example.invalid/**', route => {
   return route.fulfill({ json: listing([]) })
 })
 
+const current = () => page.getByRole('region', { name: '当前消息', exact: true })
+async function history() {
+  if (page.viewportSize().width < 1024) {
+    await page.getByRole('button', { name: '打开消息记录', exact: true }).click()
+    return page.getByRole('dialog', { name: '消息记录', exact: true })
+  }
+  return page.getByRole('complementary', { name: '消息记录', exact: true })
+}
+async function newMessage() {
+  await current().getByRole('button', { name: '新消息', exact: true }).last().click()
+  await page.getByLabel('消息与提示词', { exact: true }).waitFor()
+  await page.waitForFunction(() => document.activeElement?.id === 'gemini-prompt')
+}
+
 try {
   await page.goto(`${process.env.TEST_BASE_URL}/gemini`)
   await page.getByText('还没有消息记录', { exact: true }).waitFor()
   await page.getByLabel('消息与提示词', { exact: true }).fill('直接问题')
   await page.getByRole('button', { name: '发送', exact: true }).click()
   await page.getByRole('button', { name: '结束任务', exact: true }).waitFor()
-  assert.equal(await page.getByRole('dialog').getByRole('combobox', { name: '选择分段' }).count(), 0)
+  assert.equal(await current().getByRole('combobox', { name: '选择分段' }).count(), 0)
   assert.deepEqual(posts[0].sources, [])
   assert.equal(posts[0].prompt, '直接问题')
   await page.getByRole('button', { name: '结束任务', exact: true }).click()
   await page.getByText('已取消', { exact: true }).first().waitFor()
-  await page.getByRole('dialog').getByRole('button', { name: '关闭', exact: true }).click()
+  await newMessage()
+  // Opening history, switching records and browser Back must preserve an unsent draft.
+  const prompt = page.getByLabel('消息与提示词', { exact: true })
+  await prompt.fill('未发送的草稿')
+  const desktopHistory = await history()
+  await desktopHistory.getByLabel('搜索本页消息').fill('不存在的关键词')
+  await desktopHistory.getByText('没有匹配的消息', { exact: true }).waitFor()
+  await desktopHistory.getByRole('button', { name: '清除搜索', exact: true }).click()
+  await desktopHistory.getByRole('button', { name: '直接问题', exact: true }).click()
+  await current().getByRole('heading', { name: '直接问题', exact: true }).waitFor()
+  await page.goBack()
+  assert.equal(await prompt.inputValue(), '未发送的草稿')
+  for (const width of [320, 390, 760]) {
+    await page.setViewportSize({ width, height: 800 })
+    const mobileHistory = await history()
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `history overflow ${width}`)
+    await mobileHistory.getByRole('button', { name: '直接问题', exact: true }).click()
+    await mobileHistory.waitFor({ state: 'hidden' })
+    await current().getByRole('heading', { name: '直接问题', exact: true }).waitFor()
+    await newMessage()
+    assert.equal(await prompt.inputValue(), '未发送的草稿')
+    assert.equal(await prompt.evaluate(element => element === document.activeElement), true)
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await prompt.fill('')
+  await page.getByRole('button', { name: '逐段整理', exact: true }).click()
+  assert.match(await prompt.inputValue(), /保留原有结构/u)
   await page.getByRole('button', { name: '添加 Markdown', exact: true }).click()
   const picker = page.getByRole('dialog', { name: '添加资料库文件' })
   await picker.getByRole('checkbox').check()
@@ -134,16 +174,17 @@ try {
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${theme} composer overflow ${width}`)
       if (process.env.SCREENSHOT_DIR) {
         await mkdir(process.env.SCREENSHOT_DIR, { recursive: true })
-        await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/gemini-${theme}-${width}.png`, fullPage: true })
+        await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/gemini-${theme}-${width}.png`, fullPage: true, style: '[data-sonner-toaster] { visibility: hidden !important; }' })
       }
     }
   }
+  await page.setViewportSize({ width: 1440, height: 1000 })
   loseOnce = true
   await page.getByRole('button', { name: '发送', exact: true }).click()
   await page.getByText('提交响应丢失，请重试', { exact: true }).waitFor()
   await page.getByRole('button', { name: '发送', exact: true }).click()
-  await page.getByRole('dialog', { name: '讲义处理', exact: true }).waitFor()
-  await page.getByRole('dialog', { name: '讲义处理', exact: true }).getByRole('button', { name: '关闭', exact: true }).click()
+  await current().getByRole('heading', { name: '讲义处理', exact: true }).waitFor()
+  await newMessage()
   assert.equal(posts.at(-1).id, posts.at(-2).id, 'a lost create response reuses the task id')
   assert.equal(jobs.length, 2)
   assert.equal(posts.at(-1).systemPrompt, '准确保留公式')
@@ -151,14 +192,17 @@ try {
   assert.equal(posts.at(-1).concurrency, 3)
   assert.equal(posts.at(-1).model, 'gemini-example-latest')
   Object.assign(jobs[0], { status: 'partial', completedChunks: 1, failedChunks: 1 })
-  await page.getByRole('button', { name: '刷新消息记录' }).click()
-  await page.getByRole('button', { name: '讲义处理', exact: true }).click()
-  const details = page.getByRole('dialog', { name: '讲义处理', exact: true })
+  const records = await history()
+  await records.getByRole('button', { name: '刷新消息记录' }).click()
+  await records.getByRole('button', { name: '讲义处理', exact: true }).click()
+  const details = current()
   await details.getByRole('heading', { name: '逐段保存的回复', exact: true }).waitFor()
   await details.getByText('94,123 Token · 明细', { exact: true }).click()
-  await details.getByText('输入 40,000', { exact: true }).waitFor()
-  await details.getByText('思考 30,000', { exact: true }).waitFor()
-  await details.getByText('工具 22,123', { exact: true }).waitFor()
+  const usage = page.locator('[data-slot="popover-content"]')
+  await usage.getByText('40,000', { exact: true }).waitFor()
+  await usage.getByText('30,000', { exact: true }).waitFor()
+  await usage.getByText('22,123', { exact: true }).waitFor()
+  await page.keyboard.press('Escape')
   assert.equal(await page.evaluate(() => window.unsafe), undefined)
   await details.getByText('# 第一节\n原始正文', { exact: true }).waitFor()
   assert.equal(await details.locator('[data-slot="message"]').count(), 2)
@@ -173,21 +217,21 @@ try {
     for (const width of [320, 390, 760, 1440]) {
       await page.setViewportSize({ width, height: 1000 })
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${theme} reply overflow ${width}`)
-      if (width < 768) await selectOption(details.getByRole('combobox', { name: '选择分段' }), '222222222222222')
+      if (width < 1280) await selectOption(details.getByRole('combobox', { name: '选择分段' }), '222222222222222')
       if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/reply-${theme}-${width}.png`, style: '[data-sonner-toaster] { visibility: hidden !important; }' })
     }
   }
   // Long answers use shadcn's scroll state and built-in jump control.
   longReply = true
   await page.reload()
-  const longDialog = page.getByRole('dialog', { name: '讲义处理', exact: true })
+  const longDialog = current()
   await longDialog.getByText('第 100 行：完整的长回复内容，用于核对消息滚动。', { exact: true }).waitFor()
   const viewport = longDialog.locator('[data-slot="message-scroller-viewport"]')
   await viewport.evaluate(element => { element.scrollTop = 200; element.dispatchEvent(new Event('scroll')) })
   await viewport.evaluate(element => { element.scrollTop = 0; element.dispatchEvent(new Event('scroll')) })
   await longDialog.getByRole('button', { name: '滚动到最新回复', exact: true }).click()
   await page.waitForFunction(() => document.querySelector('[data-slot="message-scroller-viewport"]').scrollTop > 0)
-  await longDialog.getByRole('button', { name: '关闭', exact: true }).click()
+  await newMessage()
   longReply = false
   // The same saved models are available in file conversion, without re-entering an ID.
   await page.goto(`${process.env.TEST_BASE_URL}/file-converter`)
@@ -219,7 +263,7 @@ try {
   const agentSettings = page.getByRole('dialog', { name: '消息配置', exact: true })
   await selectOption(agentSettings.locator('#gemini-default-model'), 'Antigravity')
   await agentSettings.getByRole('region', { name: 'Antigravity Agent 配置' }).waitFor()
-  assert.equal(await agentSettings.getByLabel('总 Token 预算', { exact: true }).inputValue(), '0')
+  assert.equal(await agentSettings.getByLabel('总 Token 预算', { exact: true }).count(), 0)
   assert.equal(await agentSettings.getByLabel('执行时限（分钟）', { exact: true }).inputValue(), '175')
   assert.equal(await agentSettings.getByLabel('Agent 推理模型', { exact: true }).getAttribute('data-value'), 'gemini-4-hydrogen')
   assert.equal(await agentSettings.getByLabel('输出 Token 上限', { exact: true }).count(), 0)
@@ -228,17 +272,17 @@ try {
   await agentSettings.waitFor({ state: 'hidden' })
   await selectOption(page.locator('#gemini-model'), 'Antigravity')
   await page.getByLabel('消息与提示词', { exact: true }).fill('自定义模型提交验证')
-  await page.getByRole('button', { name: '发送', exact: true }).click()
-  await page.getByRole('dialog').waitFor()
+  await page.getByLabel('消息与提示词', { exact: true }).press('Control+Enter')
+  await current().waitFor()
   assert.equal(posts.at(-1).model, 'Antigravity')
-  await page.getByRole('dialog').getByRole('button', { name: '结束任务', exact: true }).click()
-  await page.getByRole('dialog').getByRole('button', { name: '关闭', exact: true }).click()
+  await current().getByRole('button', { name: '结束任务', exact: true }).click()
+  await newMessage()
   await page.goto(`${process.env.TEST_BASE_URL}/gemini`)
-  await page.getByRole('button', { name: '消息操作 讲义处理', exact: true }).click()
+  await (await history()).getByRole('button', { name: '消息操作 讲义处理', exact: true }).click()
   await page.getByRole('menuitem', { name: '删除消息', exact: true }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: '确认删除', exact: true }).click()
   await page.getByRole('alertdialog').waitFor({ state: 'hidden' })
   assert.equal(jobs.some(job => job.title === '讲义处理'), false)
   assert.deepEqual(errors, [])
-  console.log('gemini: direct text, MD selection/preview, model options, idempotent submission, cancel, partial replies, safe rendering and responsive themes passed')
+  console.log('gemini: inline workspace, direct text, MD selection/preview, model options, idempotent submission, cancel, partial replies, safe rendering and responsive themes passed')
 } finally { await browser.close() }
