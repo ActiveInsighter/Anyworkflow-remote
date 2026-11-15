@@ -1,3 +1,4 @@
+import { selectOption, selectOptions } from './select-helpers.mjs'
 // Runtime configuration UI proof against an isolated API, never production records.
 import assert from 'node:assert/strict'
 import { chromium } from 'playwright'
@@ -124,11 +125,8 @@ async function saveDefaults() {
       [...document.querySelectorAll('button')].some((b) => b.textContent === '保存默认配置' && b.disabled),
   )
 }
-const optionValues = (label) =>
-  page
-    .getByLabel(label, { exact: true })
-    .locator('option')
-    .evaluateAll((options) => options.map((option) => option.value))
+const optionValues = (label) => selectOptions(page.getByLabel(label, { exact: true }))
+
 try {
   for (const width of [320, 390, 760, 1440]) {
     await page.setViewportSize({ width, height: 900 })
@@ -147,7 +145,7 @@ try {
   await choose('chatgpt-images')
   assert.equal(await page.getByLabel('回复超时（分钟）').inputValue(), '30')
   await page.getByLabel('回复超时（分钟）').fill('120')
-  await page.getByLabel('ChatGPT 模型', { exact: true }).selectOption('GPT-5.6 Sol')
+  await selectOption(page.getByLabel('ChatGPT 模型', { exact: true }), 'GPT-5.6 Sol')
   await choose()
   assert.equal(
     await page.getByLabel('回复超时（分钟）').inputValue(),
@@ -244,20 +242,20 @@ try {
   await page.getByLabel('ChatGPT 模型', { exact: true }).waitFor()
   assert.equal(await page.getByLabel('ChatGPT 思考程度', { exact: true }).isDisabled(), true)
   assert.deepEqual(await optionValues('ChatGPT 模型'), ['', 'GPT-6', 'GPT-5.6 Sol'])
-  await page.getByLabel('ChatGPT 模型', { exact: true }).selectOption('GPT-6')
-  await page.getByLabel('ChatGPT 思考程度', { exact: true }).selectOption('high')
+  await selectOption(page.getByLabel('ChatGPT 模型', { exact: true }), 'GPT-6')
+  await selectOption(page.getByLabel('ChatGPT 思考程度', { exact: true }), 'high')
   await choose('claude-new')
-  await page.getByLabel('Claude 模型', { exact: true }).selectOption('Sonnet 5.5')
-  await page.getByLabel('Claude 思考程度', { exact: true }).selectOption('xhigh')
-  await page.getByLabel('Claude 模型', { exact: true }).selectOption('Opus 4.6')
-  assert.equal(await page.getByLabel('Claude 思考程度', { exact: true }).inputValue(), '')
-  await page.getByLabel('Claude 模型', { exact: true }).selectOption('Haiku 4.5')
+  await selectOption(page.getByLabel('Claude 模型', { exact: true }), 'Sonnet 5.5')
+  await selectOption(page.getByLabel('Claude 思考程度', { exact: true }), 'xhigh')
+  await selectOption(page.getByLabel('Claude 模型', { exact: true }), 'Opus 4.6')
+  assert.equal(await page.getByLabel('Claude 思考程度', { exact: true }).getAttribute('data-value'), '')
+  await selectOption(page.getByLabel('Claude 模型', { exact: true }), 'Haiku 4.5')
   assert.equal(await page.getByLabel('Claude 思考程度', { exact: true }).isDisabled(), true)
-  await page.getByLabel('Claude 模型', { exact: true }).selectOption('Sonnet 5.5')
-  await page.getByLabel('Claude 思考程度', { exact: true }).selectOption('xhigh')
+  await selectOption(page.getByLabel('Claude 模型', { exact: true }), 'Sonnet 5.5')
+  await selectOption(page.getByLabel('Claude 思考程度', { exact: true }), 'xhigh')
   await choose('claude-code')
   assert.equal(
-    await page.getByLabel('Claude 模型', { exact: true }).inputValue(),
+    await page.getByLabel('Claude 模型', { exact: true }).getAttribute('data-value'),
     '',
     'Claude Code preferences are independent',
   )
@@ -284,25 +282,25 @@ try {
   await choose()
   assert.equal(await page.getByLabel('异步回收', { exact: true }).isChecked(), false, 'async collection settings are scoped to the page')
   assert.equal(await page.getByLabel('回复超时（分钟）').inputValue(), '90')
-  assert.equal(await page.getByLabel('ChatGPT 模型', { exact: true }).inputValue(), 'GPT-6')
-  await page.getByLabel('ChatGPT 模型', { exact: true }).selectOption('GPT-5.6 Sol')
+  assert.equal(await page.getByLabel('ChatGPT 模型', { exact: true }).getAttribute('data-value'), 'GPT-6')
+  await selectOption(page.getByLabel('ChatGPT 模型', { exact: true }), 'GPT-5.6 Sol')
   await choose('chatgpt-cloud')
-  await page.getByLabel('ChatGPT Cloud 模型', { exact: true }).selectOption('GPT-6.1 Sol')
+  await selectOption(page.getByLabel('ChatGPT Cloud 模型', { exact: true }), 'GPT-6.1 Sol')
   assert.deepEqual(await optionValues('ChatGPT Cloud 思考程度'), ['', 'low', 'medium', 'high', 'xhigh'])
-  await page.getByLabel('ChatGPT Cloud 思考程度', { exact: true }).selectOption('high')
+  await selectOption(page.getByLabel('ChatGPT Cloud 思考程度', { exact: true }), 'high')
   for (const width of [320, 390, 760, 1440]) {
     await page.setViewportSize({ width, height: 900 })
     await noOverflow()
   }
   await page.getByRole('button', { name: '返回运行配置', exact: true }).click()
-  await page.getByLabel('默认开始链接', { exact: true }).selectOption(cloud)
+  await selectOption(page.getByLabel('默认开始链接', { exact: true }), cloud)
   await done()
   await page.waitForTimeout(650)
   await page.reload()
   await page.getByRole('button', { name: '恢复', exact: true }).click()
   await editorConfig('chatgpt-cloud')
-  assert.equal(await page.getByLabel('ChatGPT Cloud 模型', { exact: true }).inputValue(), 'GPT-6.1 Sol')
-  assert.equal(await page.getByLabel('ChatGPT Cloud 思考程度', { exact: true }).inputValue(), 'high')
+  assert.equal(await page.getByLabel('ChatGPT Cloud 模型', { exact: true }).getAttribute('data-value'), 'GPT-6.1 Sol')
+  assert.equal(await page.getByLabel('ChatGPT Cloud 思考程度', { exact: true }).getAttribute('data-value'), 'high')
   await choose('chatgpt-images')
   assert.equal(await page.getByLabel('回复超时（分钟）').inputValue(), '120')
   assert.equal(await page.getByLabel('异步回收', { exact: true }).isChecked(), true)

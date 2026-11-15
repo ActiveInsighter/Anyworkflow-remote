@@ -27,3 +27,13 @@ Modal 由唯一 Drawer 负责拖拽关闭、滚动锁定和焦点陷阱。Esc / 
 
 验证：`npm run preflight` 与 `npm run test:browser`。检查 320px、390px、760px 和桌面，
 亮 / 暗色、减少动态效果、动画中间帧、快速开关、嵌套返回和关闭后的焦点恢复。
+
+全站选择字段由 `components/ui/select.tsx` 的 Animate UI Radix Select 渲染，
+使用 `value/onValueChange`，手机也显示应用内菜单。空字符串选项编码后交给
+Radix，以支持「保持当前」等默认项。不要重新引入原生 select 或 datalist。
+Sidebar 的状态、快捷键、宽度过渡和滑动高亮由官方 Sidebar primitives 提供；
+本地包装仅保留主题样式、触摸布局和既有的桌面偏好持久化。
+
+Gemini 对话使用 shadcn 的 Message Scroller / Message / Bubble / Marker。
+滚动跟随、提问锚点和回到底部按钮由 `@shadcn/react/message-scroller` 管理。
+单段消息直接展示提问与回复，多段任务才显示分段导航。

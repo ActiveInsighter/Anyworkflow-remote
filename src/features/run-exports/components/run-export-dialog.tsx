@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Empty, EmptyDescription, EmptyHeader } from '@/components/ui/empty'
 import { Modal, ModalBody, ModalContent, ModalDescription, ModalHeader, ModalTitle } from '@/components/ui/modal'
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
+import { SelectField, SelectOption } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
@@ -32,13 +32,13 @@ export function RunExportDialog({ run, open, onOpenChange, returnFocus }: {
             <FieldGroup>
               <Field>
                 <FieldLabel htmlFor="run-export-content">导出内容</FieldLabel>
-                <NativeSelect id="run-export-content" name="contentMode" value={state.contentMode} onChange={event => {
-                  const value = event.target.value
+                <SelectField id="run-export-content" name="contentMode" value={state.contentMode} onValueChange={(next) => {
+                  const value = next
                   if (value === 'conversation' || value === 'assistant') state.setContentMode(value)
                 }} disabled={action.busy}>
-                  <NativeSelectOption value="conversation">完整对话（提问和 AI 回复）</NativeSelectOption>
-                  <NativeSelectOption value="assistant">仅 AI 回复</NativeSelectOption>
-                </NativeSelect>
+                  <SelectOption value="conversation">完整对话（提问和 AI 回复）</SelectOption>
+                  <SelectOption value="assistant">仅 AI 回复</SelectOption>
+                </SelectField>
                 <FieldDescription>按 Task、Event、Act 命名，省略单项目录。保留原会话链接，文件保存 7 天。</FieldDescription>
               </Field>
             </FieldGroup>

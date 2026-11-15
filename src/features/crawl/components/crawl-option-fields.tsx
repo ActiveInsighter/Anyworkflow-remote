@@ -1,7 +1,7 @@
 import { useState, type ChangeEvent } from 'react'
 import { Field, FieldContent, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
+import { SelectField, SelectOption } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import type { CrawlRunner } from '@/types/crawl'
@@ -50,12 +50,12 @@ export function CrawlOptionFields({
       {runner === 'cloud' ? (
         <Field>
           <FieldLabel htmlFor={`${id}-transport`}>云端读取方式</FieldLabel>
-          <NativeSelect id={`${id}-transport`} value={draft.transport} onChange={(event) => set('transport', event.target.value as OptionDraft['transport'])}>
-            <NativeSelectOption value="">默认</NativeSelectOption>
-            <NativeSelectOption value="auto">先静态读取，没有内容再用浏览器</NativeSelectOption>
-            <NativeSelectOption value="http">只静态读取</NativeSelectOption>
-            <NativeSelectOption value="browser">浏览器渲染</NativeSelectOption>
-          </NativeSelect>
+          <SelectField id={`${id}-transport`} value={draft.transport} onValueChange={(value) => set('transport', value as OptionDraft['transport'])}>
+            <SelectOption value="">默认</SelectOption>
+            <SelectOption value="auto">先静态读取，没有内容再用浏览器</SelectOption>
+            <SelectOption value="http">只静态读取</SelectOption>
+            <SelectOption value="browser">浏览器渲染</SelectOption>
+          </SelectField>
           <FieldDescription>默认：X 先静态读取，其他网页用浏览器。</FieldDescription>
         </Field>
       ) : null}
@@ -96,11 +96,11 @@ export function CrawlOptionFields({
         <>
           <Field>
             <FieldLabel htmlFor={`${id}-scope`}>读取范围</FieldLabel>
-            <NativeSelect id={`${id}-scope`} value={draft.scope} onChange={(event) => set('scope', event.target.value as OptionDraft['scope'])}>
-              <NativeSelectOption value="">按链接决定</NativeSelectOption>
-              <NativeSelectOption value="target">只要链接指向的帖子</NativeSelectOption>
-              <NativeSelectOption value="visible">页面上的帖子</NativeSelectOption>
-            </NativeSelect>
+            <SelectField id={`${id}-scope`} value={draft.scope} onValueChange={(value) => set('scope', value as OptionDraft['scope'])}>
+              <SelectOption value="">按链接决定</SelectOption>
+              <SelectOption value="target">只要链接指向的帖子</SelectOption>
+              <SelectOption value="visible">页面上的帖子</SelectOption>
+            </SelectField>
             <FieldDescription>主页链接总是读取页面上的帖子。</FieldDescription>
           </Field>
           {draft.scope === 'visible' ? (
@@ -162,19 +162,19 @@ export function CategoryField({
     <Field>
       <FieldLabel htmlFor={id}>分类</FieldLabel>
       <div className="flex min-w-0 flex-col gap-2">
-        <NativeSelect
+        <SelectField
           id={id}
           value={typing ? CUSTOM : value}
-          onChange={(event) => {
-            const next = event.target.value
+          onValueChange={(value) => {
+            const next = value
             setTyping(next === CUSTOM)
             onChange(next === CUSTOM ? '' : next)
           }}
         >
-          {allowAuto ? <NativeSelectOption value="">自动</NativeSelectOption> : null}
-          {options.map((category) => <NativeSelectOption key={category} value={category}>{categoryLabel(category)}</NativeSelectOption>)}
-          <NativeSelectOption value={CUSTOM}>新建分类…</NativeSelectOption>
-        </NativeSelect>
+          {allowAuto ? <SelectOption value="">自动</SelectOption> : null}
+          {options.map((category) => <SelectOption key={category} value={category}>{categoryLabel(category)}</SelectOption>)}
+          <SelectOption value={CUSTOM}>新建分类…</SelectOption>
+        </SelectField>
         {typing ? (
           <Input aria-label="新分类名称" value={value} maxLength={64} placeholder="例如：行业新闻" onChange={(event) => onChange(event.target.value)} autoFocus />
         ) : null}

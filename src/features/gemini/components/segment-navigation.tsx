@@ -1,4 +1,4 @@
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
+import { SelectField, SelectOption } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 
 export interface SegmentItem {
@@ -27,14 +27,14 @@ export function SegmentNavigation({
   return (
     <>
       <div className="md:hidden">
-        <NativeSelect aria-label="选择分段" value={value} onChange={(event) => onChange(event.target.value)}>
+        <SelectField aria-label="选择分段" value={value} onValueChange={(value) => onChange(value)}>
           {items.map((item) => (
-            <NativeSelectOption key={item.id} value={item.id}>
+            <SelectOption key={item.id} value={item.id}>
               {item.index}. {item.sourceName} · 第 {item.part} 段
               {item.status ? ` · ${LABELS[item.status] || item.status}` : ''}
-            </NativeSelectOption>
+            </SelectOption>
           ))}
-        </NativeSelect>
+        </SelectField>
       </div>
       <nav aria-label="分段列表" className="hidden flex-col gap-1 md:flex">
         {items.map((item) => (

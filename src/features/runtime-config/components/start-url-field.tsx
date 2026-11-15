@@ -1,6 +1,6 @@
 import { Link } from 'react-router'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
+import { SelectField, SelectOption } from '@/components/ui/select'
 import { displayStartUrl } from '@/lib/domain/start-links'
 import { useStartLinks } from '@/features/start-links/hooks/use-start-links'
 
@@ -11,14 +11,14 @@ export function StartUrlField({ id, value, onChange }: { id: string; value: stri
   return (
     <Field>
       <FieldLabel htmlFor={id}>默认开始链接</FieldLabel>
-      <NativeSelect id={id} value={value} onChange={(event) => onChange(event.target.value)}>
+      <SelectField id={id} value={value} onValueChange={(value) => onChange(value)}>
         {links.map((link) => (
-          <NativeSelectOption key={link.id} value={link.url}>
+          <SelectOption key={link.id} value={link.url}>
             {link.label} · {displayStartUrl(link.url)}
-          </NativeSelectOption>
+          </SelectOption>
         ))}
-        {known ? null : <NativeSelectOption value={value}>{value}</NativeSelectOption>}
-      </NativeSelect>
+        {known ? null : <SelectOption value={value}>{value}</SelectOption>}
+      </SelectField>
       <FieldDescription>
         Task 中 start_url 为空时打开此页面。选项来自
         <Link to="/settings/start-links" className="mx-0.5 underline underline-offset-4 hover:text-foreground">

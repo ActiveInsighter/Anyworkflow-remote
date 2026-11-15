@@ -1,6 +1,6 @@
 import { ApiError, assertOwner, listOwnedCollection, quoteFilter, request } from './client'
 import { requireSession } from './session'
-import type { GeminiInput, GeminiJob, GeminiMessage, GeminiPreview } from '@/types/gemini'
+import type { GeminiInput, GeminiJob, GeminiMessage, GeminiPreview, GeminiJobView } from '@/types/gemini'
 
 const API = '/api/anyworkflow/gemini'
 export function previewGemini(input: GeminiInput, signal?: AbortSignal) {
@@ -28,35 +28,21 @@ export function listGeminiJobs(page: number, signal?: AbortSignal) {
     signal,
   )
 }
-export async function getGeminiJob(id: string, signal?: AbortSignal) {
-  return assertOwner(
-    await request<GeminiJob>(`/api/collections/aw_gemini_jobs/records/${encodeURIComponent(id)}`, { signal }),
-  )
-}
-export async function listGeminiMessages(jobId: string, signal?: AbortSignal) {
-  const response = await listOwnedCollection<GeminiMessage>(
-    'aw_gemini_messages',
-    {
-      page: 1,
-      perPage: 100,
-      sort: 'index',
-      filter: `owner="${quoteFilter(requireSession().record.id)}" && job="${quoteFilter(jobId)}"`,
-      fields: 'id,owner,job,index,part,sourceName,status,error,finishReason,usage',
-    },
-    (row) => row,
-    signal,
-  )
-  if (response.items.some((row) => row.job !== jobId)) throw new ApiError('分段归属无效', 502)
-  return response.items
+/** One transaction returns the task and segment states from the same snapshot. */
+export async function getGeminiView(id: string, signal?: AbortSignal) {
+  const view = await request<GeminiJobView>(`${API}/jobs/${encodeURIComponent(id)}`, { signal })
+  if (!view || !Array.isArray(view.messages)) throw new ApiError('消息详情格式无效', 502)
+  assertOwner(view.job)
+  if (view.job.id !== id || view.messages.some((row) => assertOwner(row).job !== id)) throw new ApiError('分段归属无效', 502)
+  return view
 }
 export async function getGeminiMessage(jobId: string, id: string, signal?: AbortSignal) {
-  const record = assertOwner(
-    await request<GeminiMessage>(`/api/collections/aw_gemini_messages/records/${encodeURIComponent(id)}`, {
-      signal,
-    }),
-  )
-  if (record.job !== jobId) throw new ApiError('分段归属无效', 502)
-  return record
+  const message = assertOwner(await request<GeminiMessage>(`${API}/jobs/${encodeURIComponent(jobId)}/messages/${encodeURIComponent(id)}`, { signal }))
+  if (message.job !== jobId || message.id !== id) throw new ApiError('分段归属无效', 502)
+  return message
+}
+export function deleteGeminiJob(id: string) {
+  return request(`${API}/jobs/${encodeURIComponent(id)}`, { method: 'DELETE' })
 }
 export async function cancelGemini(job: GeminiJob) {
   assertOwner(job)

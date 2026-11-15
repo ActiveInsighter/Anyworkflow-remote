@@ -2,7 +2,7 @@ import { Clock, TriangleAlert } from 'lucide-react'
 import { SegmentedControl } from '@/components/form/segmented-control'
 import { Field, FieldDescription, FieldGroup, FieldLabel, FieldTitle } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
+import { SelectField, SelectOption } from '@/components/ui/select'
 import { formatUtcOffset, type DailyRecurrence } from '@/lib/domain/recurrence'
 import {
   describeSchedule,
@@ -109,18 +109,18 @@ export function SchedulePicker({
           </Field>
           <Field>
             <FieldLabel htmlFor="run-daily-zone">时区（固定 UTC 偏移）</FieldLabel>
-            <NativeSelect
+            <SelectField
               id="run-daily-zone"
               value={recurrence.utcOffsetMinutes}
-              onChange={(event) => onRecurrenceChange({ ...recurrence, utcOffsetMinutes: Number(event.target.value) })}
+              onValueChange={(value) => onRecurrenceChange({ ...recurrence, utcOffsetMinutes: Number(value) })}
             >
               {UTC_OFFSETS.map((offset) => (
-                <NativeSelectOption key={offset} value={offset}>
+                <SelectOption key={offset} value={offset}>
                   {formatUtcOffset(offset)}
                   {offset === 480 ? ' · 北京时间' : ''}
-                </NativeSelectOption>
+                </SelectOption>
               ))}
-            </NativeSelect>
+            </SelectField>
             <FieldDescription>前一次尚未结束时跳过本次。暂停计划不影响已提交的 Run。</FieldDescription>
           </Field>
         </>
@@ -140,17 +140,17 @@ export function SchedulePicker({
               value={delayAmount}
               onChange={(event) => onDelayAmountChange(event.target.value)}
             />
-            <NativeSelect
+            <SelectField
               aria-label="延时单位"
               value={delayUnit}
-              onChange={(event) => onDelayUnitChange(event.target.value as DelayUnit)}
+              onValueChange={(value) => onDelayUnitChange(value as DelayUnit)}
             >
               {DELAY_UNITS.map((unit) => (
-                <NativeSelectOption key={unit.value} value={unit.value}>
+                <SelectOption key={unit.value} value={unit.value}>
                   {unit.label}
-                </NativeSelectOption>
+                </SelectOption>
               ))}
-            </NativeSelect>
+            </SelectField>
           </div>
         </Field>
       ) : null}

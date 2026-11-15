@@ -130,3 +130,19 @@ PB 事务生成同步 nonce，同一轮只派发一次 `gemini-models.yml`。执
 增量发布：先应用 `1794710000_shared_models.js` 和 `models.js`、`aw_models.pb.js`，
 同时更新 `gemini.js` 的完整预览字段；再发布执行器 workflow 并完成首次目录同步，最后发布 Remote。
 无需新增 Gemini Secret，使用仓库已有密钥即可。
+
+## 消息界面与读取接口
+
+发送成功后直接打开对话，地址中的 `job` 参数可复制或刷新。
+提问与回复使用 shadcn Message Scroller、Message 和 Bubble，支持复制、Markdown
+下载和滚动到最新回复；批量任务保留桌面分段列表和手机 Animate UI 选择器。
+
+消息详情改为 `GET /api/anyworkflow/gemini/jobs/{id}`，在同一事务内返回任务与
+分段摘要；摘要查询不读取正文或回复大字段。选中的分段通过
+`GET /api/anyworkflow/gemini/jobs/{id}/messages/{message}` 按需读取。
+后端逐级核对属主和任务关系，旧消息无需迁移。执行器仍使用现有 claim/start/complete
+协议；全部结果保存后立即更新终态，取消立即阻止后续发送，已获许可的结果仍能补存。
+
+模型库支持手动输入 Gemini 模型 ID（可带 `models/` 前缀）与自定义名称，
+无需等待官方目录同步。与文件转换共用已保存模型。添加成功不代表模型在当前
+API Key 下可调用；真实 API 错误显示在相应消息中。

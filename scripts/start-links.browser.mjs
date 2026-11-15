@@ -1,3 +1,4 @@
+import { selectOption, selectOptions } from './select-helpers.mjs'
 // Start links: edited in settings, stored per account, offered by the editor's start-page menu.
 import assert from 'node:assert/strict'
 import { chromium } from 'playwright'
@@ -103,7 +104,7 @@ try {
     await page.getByRole('button', { name: '运行配置', exact: true }).click()
     const select = page.getByLabel('默认开始链接', { exact: true })
     await select.waitFor()
-    const values = await select.locator('option').evaluateAll((options) => options.map((option) => option.value))
+    const values = await selectOptions(select)
     assert.ok(values.includes('https://docs.example.org/start'), 'default start link options follow the start links')
     await page.getByRole('button', { name: '完成', exact: true }).click()
 

@@ -1,3 +1,4 @@
+import { selectOption, selectOptions } from './select-helpers.mjs'
 // Exercise deployed assets with an isolated API; never submits real workflow work.
 import assert from 'node:assert/strict'
 import { mkdir } from 'node:fs/promises'
@@ -49,7 +50,7 @@ try {
   await page.getByRole('radio', { name: '立即', exact: true }).click()
   await page.getByRole('radio', { name: '每天', exact: true }).click()
   await page.getByLabel('每天执行时间', { exact: true }).fill('09:30')
-  await page.getByLabel('时区（固定 UTC 偏移）').selectOption('480')
+  await selectOption(page.getByLabel('时区（固定 UTC 偏移）'), '480')
   for (const width of [320, 390, 760, 1440]) { await page.setViewportSize({ width, height: 900 }); await noOverflow(); await screenshot('daily-picker-' + width) }
   await page.getByRole('button', { name: '完成', exact: true }).click()
   await page.setViewportSize({ width: 320, height: 900 }); await noOverflow()

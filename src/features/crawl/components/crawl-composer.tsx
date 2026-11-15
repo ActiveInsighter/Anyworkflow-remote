@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Field, FieldContent, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Label } from '@/components/ui/label'
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
+import { SelectField, SelectOption } from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
@@ -135,9 +135,9 @@ export function CrawlComposer({
             {save ? (
               <Field>
                 <FieldLabel htmlFor="crawl-interval">抓取频率</FieldLabel>
-                <NativeSelect id="crawl-interval" value={intervalMinutes} onChange={(event) => setIntervalMinutes(Number(event.target.value))}>
-                  {CRAWL_INTERVALS.map((option) => <NativeSelectOption key={option.minutes} value={option.minutes}>{option.label}</NativeSelectOption>)}
-                </NativeSelect>
+                <SelectField id="crawl-interval" value={intervalMinutes} onValueChange={(value) => setIntervalMinutes(Number(value))}>
+                  {CRAWL_INTERVALS.map((option) => <SelectOption key={option.minutes} value={option.minutes}>{option.label}</SelectOption>)}
+                </SelectField>
               </Field>
             ) : null}
           </div>
