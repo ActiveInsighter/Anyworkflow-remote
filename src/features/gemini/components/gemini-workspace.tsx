@@ -14,8 +14,9 @@ import { GeminiConfigSheet } from './gemini-config-sheet'
 import { PageHeader, SectionHeader } from '@/components/layout/page'
 import { Pager } from '@/components/navigation/pager'
 import { Button } from '@/components/ui/button'
+import { SegmentRail } from '@/components/data-display/segment-rail'
 import { JobMenu, JobNote, JobRow } from '@/features/tasks'
-import { geminiTextKind } from '@/lib/tasks'
+import { geminiTextKind, taskStatusMeta } from '@/lib/tasks'
 import { formatDateTime } from '@/lib/format'
 import { useGeminiJobs } from '../hooks/use-gemini-jobs'
 import { GeminiComposer } from './gemini-composer'
@@ -79,43 +80,56 @@ export function GeminiWorkspace() {
             description="直接提问，或添加 Markdown 文件批量处理。"
           />
         ) : null}
-        {jobs.data.data?.items.map((job) => (
-          <JobRow
-            key={job.id}
-            kind={geminiTextKind}
-            record={job}
-            title={job.title}
-            onOpen={() => setOpened(job.id)}
-            meta={[
-              formatDateTime(job.created),
-              job.totalChunks > 1 ? `${job.completedChunks} / ${job.totalChunks} 段已保存` : '',
-              job.failedChunks ? `${job.failedChunks} 段失败` : '',
-              job.model,
-            ]}
-            menu={geminiTextKind.isTerminal(job.status) ? <JobMenu label={`消息操作 ${job.title}`}>
-              <DropdownMenuItem variant="destructive" onSelect={() => setDeleting(job)}><Trash2 />删除消息</DropdownMenuItem>
-            </JobMenu> : undefined}
-            action={
-              geminiTextKind.isActive(job.status) ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => jobs.cancel(job)}
-                  disabled={jobs.action.busy || job.cancelRequested}
-                >
-                  {job.cancelRequested ? '结束中…' : '结束任务'}
-                </Button>
-              ) : (
-                <Button type="button" size="sm" variant="secondary" onClick={() => setOpened(job.id)}>
-                  查看回复
-                </Button>
-              )
-            }
-          >
-            {job.error ? <JobNote>{job.error}</JobNote> : null}
-          </JobRow>
-        ))}
+        {jobs.data.data?.items.map((job) => {
+          const tone = taskStatusMeta(geminiTextKind, job).tone
+          return (
+            <JobRow
+              key={job.id}
+              kind={geminiTextKind}
+              record={job}
+              title={job.title}
+              onOpen={() => setOpened(job.id)}
+              meta={[
+                formatDateTime(job.created),
+                job.totalChunks > 1 ? `${job.completedChunks} / ${job.totalChunks} 段已保存` : '',
+                job.failedChunks ? `${job.failedChunks} 段失败` : '',
+                job.model,
+              ]}
+              menu={geminiTextKind.isTerminal(job.status) ? <JobMenu label={`消息操作 ${job.title}`}>
+                <DropdownMenuItem variant="destructive" onSelect={() => setDeleting(job)}><Trash2 />删除消息</DropdownMenuItem>
+              </JobMenu> : undefined}
+              action={
+                geminiTextKind.isActive(job.status) ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => jobs.cancel(job)}
+                    disabled={jobs.action.busy || job.cancelRequested}
+                  >
+                    {job.cancelRequested ? '结束中…' : '结束任务'}
+                  </Button>
+                ) : (
+                  <Button type="button" size="sm" variant="secondary" onClick={() => setOpened(job.id)}>
+                    查看回复
+                  </Button>
+                )
+              }
+            >
+              {job.totalChunks > 1 ? (
+                <SegmentRail
+                  total={job.totalChunks}
+                  done={job.completedChunks}
+                  live={geminiTextKind.isActive(job.status)}
+                  tone={tone}
+                  label={`${job.title} 分段进度`}
+                  className="max-w-md"
+                />
+              ) : null}
+              {job.error ? <JobNote>{job.error}</JobNote> : null}
+            </JobRow>
+          )
+        })}
         {jobs.data.data ? (
           <Pager
             page={jobs.page}

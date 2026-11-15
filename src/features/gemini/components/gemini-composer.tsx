@@ -1,4 +1,4 @@
-import { FileText, MessageSquareText, Scissors, Send, X } from 'lucide-react'
+import { FileText, Scissors, Send, X } from 'lucide-react'
 import { ErrorAlert } from '@/components/feedback/error-alert'
 import { Composer, ComposerBar, ComposerBody } from '@/components/layout/composer'
 import { Button } from '@/components/ui/button'
@@ -20,32 +20,89 @@ export function GeminiComposer({ jobs, config }: {
 }) {
   const state = useGeminiComposer(jobs, config)
   return <>
-    <Composer className="focus-within:ring-2 focus-within:ring-ring/25" aria-label="Gemini 消息" onSubmit={(event) => { event.preventDefault(); state.send() }}>
+    <Composer
+      className="border border-border/80 focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-ring/20"
+      aria-label="Gemini 消息"
+      onSubmit={(event) => { event.preventDefault(); state.send() }}
+    >
       <ComposerBody className="space-y-3 p-4 sm:p-5">
-        <div className="flex items-center gap-2 text-caption font-medium text-muted-foreground"><MessageSquareText className="size-4" />新消息</div>
         <Field>
           <FieldLabel htmlFor="gemini-prompt" className="sr-only">消息与提示词</FieldLabel>
-          <Textarea id="gemini-prompt" value={state.prompt} disabled={state.busy} maxLength={12000} rows={4}
+          <Textarea
+            id="gemini-prompt"
+            value={state.prompt}
+            disabled={state.busy}
+            maxLength={12000}
+            rows={3}
             onChange={(event) => { state.setPrompt(event.target.value); state.clearErrors() }}
-            className="min-h-32 resize-y border-0 bg-transparent p-0 text-body shadow-none focus-visible:ring-0"
-            placeholder="想让 Gemini 帮你做什么？" />
+            onKeyDown={(event) => {
+              if ((event.metaKey || event.ctrlKey) && event.key === 'Enter' && state.canSend) {
+                event.preventDefault()
+                state.send()
+              }
+            }}
+            className="min-h-24 resize-none border-0 bg-transparent p-0 text-[0.9375rem] leading-relaxed shadow-none placeholder:text-muted-foreground/70 focus-visible:ring-0"
+            placeholder="想让 Gemini 帮你做什么？"
+          />
         </Field>
-        {state.selected.length || state.text ? <ul className="flex min-w-0 flex-col gap-2" aria-label="已添加的内容">
-          {state.selected.map((file) => <li key={file.id} className="flex min-w-0 items-center gap-2 rounded-lg border px-3">
-            <FileText className="size-4 shrink-0 text-primary" /><span className="min-w-0 flex-1 truncate text-body">{file.fileName}</span>
-            <span className="text-caption text-muted-foreground">{formatFileSize(file.size)}</span>
-            <Button type="button" variant="ghost" size="icon-touch" disabled={state.busy} aria-label={`移除 ${file.fileName}`} onClick={() => state.toggle(file)}><X /></Button>
-          </li>)}
-          {state.text ? <li className="flex min-w-0 items-center gap-2 rounded-lg border px-3">
-            <FileText className="size-4 shrink-0 text-primary" /><span className="min-w-0 flex-1 truncate text-body">粘贴的 Markdown</span>
-            <Button type="button" variant="ghost" size="sm" disabled={state.busy} onClick={() => state.setDetailsOpen(true)}>编辑</Button>
-            <Button type="button" variant="ghost" size="icon-touch" disabled={state.busy} aria-label="移除粘贴正文" onClick={() => state.setText('')}><X /></Button>
-          </li> : null}
-        </ul> : null}
-        <div className="flex flex-wrap items-center gap-1">
+        {state.selected.length || state.text ? (
+          <ul className="flex min-w-0 flex-wrap gap-2" aria-label="已添加的内容">
+            {state.selected.map((file) => (
+              <li
+                key={file.id}
+                className="inline-flex max-w-full min-w-0 items-center gap-2 rounded-lg border border-border/80 bg-subtle py-1 ps-2.5 pe-1"
+              >
+                <FileText className="size-3.5 shrink-0 text-primary" />
+                <span className="max-w-44 truncate text-caption font-medium text-foreground sm:max-w-64">{file.fileName}</span>
+                <span className="shrink-0 text-micro text-muted-foreground tabular-nums">{formatFileSize(file.size)}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="size-7 rounded-md text-muted-foreground hover:text-foreground"
+                  disabled={state.busy}
+                  aria-label={`移除 ${file.fileName}`}
+                  onClick={() => state.toggle(file)}
+                >
+                  <X className="size-3.5" />
+                </Button>
+              </li>
+            ))}
+            {state.text ? (
+              <li className="inline-flex max-w-full min-w-0 items-center gap-1.5 rounded-lg border border-border/80 bg-subtle py-1 ps-2.5 pe-1">
+                <FileText className="size-3.5 shrink-0 text-primary" />
+                <span className="truncate text-caption font-medium text-foreground">粘贴的 Markdown</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-caption text-primary"
+                  disabled={state.busy}
+                  onClick={() => state.setDetailsOpen(true)}
+                >
+                  编辑
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="size-7 rounded-md text-muted-foreground hover:text-foreground"
+                  disabled={state.busy}
+                  aria-label="移除粘贴正文"
+                  onClick={() => state.setText('')}
+                >
+                  <X className="size-3.5" />
+                </Button>
+              </li>
+            ) : null}
+          </ul>
+        ) : null}
+        <div className="flex flex-wrap items-center gap-1.5 pt-1">
           <MarkdownPicker selected={state.selected} onToggle={state.toggle} disabled={state.busy} />
           <Modal open={state.detailsOpen} onOpenChange={state.setDetailsOpen}>
-            <ModalTrigger render={<Button type="button" variant="ghost" size="touch" disabled={state.busy} />}><FileText />粘贴正文</ModalTrigger>
+            <ModalTrigger render={<Button type="button" variant="ghost" size="touch" className="text-muted-foreground hover:text-foreground" disabled={state.busy} />}>
+              <FileText />粘贴正文
+            </ModalTrigger>
             <ModalContent size="md">
               <ModalHeader><ModalTitle>补充正文</ModalTitle></ModalHeader>
               <ModalBody className="space-y-5">
@@ -59,15 +116,31 @@ export function GeminiComposer({ jobs, config }: {
               <ModalFooter><Button type="button" onClick={() => state.setDetailsOpen(false)}>完成</Button></ModalFooter>
             </ModalContent>
           </Modal>
-          {state.text || state.selected.length ? <Button type="button" variant="ghost" size="touch" aria-label="预览分段" onClick={state.inspect} disabled={!state.canSend}>
-            {state.action.pending === 'preview' ? <Spinner /> : <Scissors />}<span className="hidden sm:inline">预览分段</span>
-          </Button> : null}
+          {state.text || state.selected.length ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="touch"
+              className="text-muted-foreground hover:text-foreground"
+              aria-label="预览分段"
+              onClick={state.inspect}
+              disabled={!state.canSend}
+            >
+              {state.action.pending === 'preview' ? <Spinner /> : <Scissors />}
+              <span>预览分段</span>
+            </Button>
+          ) : null}
         </div>
         <ErrorAlert>{state.fileError || state.action.error || jobs.creating.error}</ErrorAlert>
       </ComposerBody>
-      <ComposerBar className="justify-between gap-3">
-        <div className="min-w-0 flex-1 sm:max-w-80"><SavedModelSelect id="gemini-model" manage={false} value={state.model || config?.model || 'gemini-3.5-flash-lite'} onChange={state.setModel} disabled={state.busy || !config} /></div>
-        <Button type="submit" size="touch" disabled={!state.canSend}>{state.action.pending === 'send' ? <Spinner /> : <Send />}{state.action.pending === 'send' ? '发送中…' : '发送'}</Button>
+      <ComposerBar className="justify-between gap-3 bg-subtle/50 rounded-b-2xl">
+        <div className="min-w-0 flex-1 sm:max-w-72">
+          <SavedModelSelect id="gemini-model" manage={false} value={state.model || config?.model || 'gemini-3.5-flash-lite'} onChange={state.setModel} disabled={state.busy || !config} />
+        </div>
+        <Button type="submit" size="touch" disabled={!state.canSend}>
+          {state.action.pending === 'send' ? <Spinner /> : <Send />}
+          {state.action.pending === 'send' ? '发送中…' : '发送'}
+        </Button>
       </ComposerBar>
     </Composer>
     <GeminiPreviewSheet preview={state.preview} prompt={state.prompt} onClose={() => state.setPreview(null)} />
