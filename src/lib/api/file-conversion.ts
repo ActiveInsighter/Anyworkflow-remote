@@ -153,7 +153,7 @@ function normalizeOptions(raw: unknown): PdfConversionOptions {
       throw new ApiError('转换配置数值格式无效', 502, 'INVALID_CONFIG_RESPONSE')
     }
   }
-  if (result.provider === 'gemini' && !/^gemini-[a-zA-Z0-9._-]{1,100}$/u.test(result.model)) {
+  if (result.provider === 'gemini' && (!/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,109}$/u.test(result.model) || result.model.split('/').some(part => part === '.' || part === '..'))) {
     throw new ApiError('转换配置模型格式无效', 502, 'INVALID_CONFIG_RESPONSE')
   }
   if (result.provider === 'modelflare' && (!/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,100}$/u.test(result.model) || result.model.startsWith('gemini-'))) {

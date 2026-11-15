@@ -27,7 +27,7 @@ export function ManualModelForm() {
       <Field>
         <FieldLabel htmlFor="manual-model-id">模型 ID</FieldLabel>
         <Input id="manual-model-id" value={id} onChange={(event) => { setId(event.target.value); action.clearError() }}
-          placeholder="gemini-…" required maxLength={117} autoCapitalize="none" autoCorrect="off" spellCheck={false} disabled={action.busy} />
+          placeholder="例如 Antigravity 或你的模型 ID" required maxLength={117} autoCapitalize="none" autoCorrect="off" spellCheck={false} disabled={action.busy} />
       </Field>
       <Field>
         <FieldLabel htmlFor="manual-model-name">显示名称（可选）</FieldLabel>
