@@ -1,3 +1,4 @@
+import { isAntigravity } from '@/lib/domain/gemini-agent'
 import { Bot, Copy, Download, UserRound } from 'lucide-react'
 import { toast } from 'sonner'
 import { MarkdownReader } from '@/components/data-display/markdown-reader'
@@ -52,11 +53,11 @@ export function GeminiTranscript({ job, segment }: { job: GeminiJob; segment: Ge
             <Message>
               <MessageAvatar className="size-8 self-start translate-y-0! rounded-lg bg-primary-soft text-primary"><Bot className="size-4" /></MessageAvatar>
               <MessageContent>
-                <MessageHeader className="min-h-8 gap-2 px-0"><span>Gemini</span><span className="truncate text-caption font-normal">{job.model}</span></MessageHeader>
+                <MessageHeader className="min-h-8 gap-2 px-0"><span>{isAntigravity(job.model) ? 'Antigravity' : 'Gemini'}</span><span className="truncate text-caption font-normal">{job.options.agent?.model ?? job.model}</span></MessageHeader>
                 <Bubble variant="ghost" className="w-full">
                   <BubbleContent className="w-full text-body">
                     {message.reply ? <MarkdownReader markdown={message.reply} /> : pending ?
-                      <Marker role="status"><MarkerIcon><Spinner /></MarkerIcon><MarkerContent>{message.status === 'queued' ? '等待发送…' : '正在生成回复…'}</MarkerContent></Marker> :
+                      <Marker role="status"><MarkerIcon><Spinner /></MarkerIcon><MarkerContent>{message.status === 'queued' ? '等待发送…' : isAntigravity(job.model) ? 'Agent 正在执行…' : '正在生成回复…'}</MarkerContent></Marker> :
                       <p className="text-muted-foreground">{message.status === 'canceled' ? '消息已取消。' : '没有收到回复。'}</p>}
                   </BubbleContent>
                 </Bubble>
