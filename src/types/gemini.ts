@@ -1,6 +1,5 @@
 export interface GeminiInput {
   agentModel?: string
-  agentMaxTotalTokens?: number
   agentTimeoutMinutes?: number
   title: string
   prompt: string
@@ -22,7 +21,7 @@ export interface GeminiJob {
   systemPrompt: string
   delimiter: string
   model: string
-  options: { concurrency: number; thinkingLevel: string; maxOutputTokens: number; agent?: { id: string; model: string; maxTotalTokens: number; timeoutMinutes: number } }
+  options: { concurrency: number; thinkingLevel: string; maxOutputTokens: number; agent?: { id: string; model: string; timeoutMinutes: number } }
   sources: { id: string; name: string }[]
   status: string
   totalChunks: number
@@ -65,7 +64,6 @@ export interface GeminiPreview {
 
 export interface GeminiConfig {
   agentModel?: string
-  agentMaxTotalTokens?: number
   agentTimeoutMinutes?: number
   model: string
   systemPrompt: string
