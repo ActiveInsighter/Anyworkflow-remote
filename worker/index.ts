@@ -56,6 +56,10 @@ const conversionStorage: Storage = (_request, env) => env
  * reach this table. Specific paths come before the prefixes that contain them.
  */
 const routes: Route[] = [
+  { path: '/api/models/catalog/refresh', methods: { POST: async ({ env, owner }) => {
+    await owner()
+    return env.FILE_CONVERTER.fetch('https://converter.internal/models/refresh', { method: 'POST' })
+  } } },
   { path: under(ARCHIVE_ADMIN_PATH), any: ({ request, env, ctx }) => archiveAdmin(request, env, ctx) },
   // Persistent file library (R2 LIBRARY_FILES).
   { path: `${LIBRARY_PATH}/import`, methods: { POST: async ({ request, env, owner }) => importLegacyFiles(request, env, await owner()) } },

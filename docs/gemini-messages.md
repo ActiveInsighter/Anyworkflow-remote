@@ -1,7 +1,7 @@
 # Gemini 文本消息
 
 入口 `/gemini`，侧边栏「Gemini 消息」。直接填写消息即可提问；也可从资料库多选 `.md`
-文件，或在「正文与模型设置」粘贴 Markdown。每个分段是独立请求，不共享对话历史。
+文件，或在「粘贴正文」粘贴 Markdown。每个分段是独立请求，不共享对话历史。
 系统提示词以 Gemini `systemInstruction` 发送；消息提示词与当前分段作为 user 文本发送。
 没有 PDF 转录规则、图片、附件上传或 Gemini Files API。
 
@@ -102,3 +102,31 @@ python -m unittest discover -s tests
 
 真实 PB 验证使用临时数据库与账号；浏览器、Cloudflare 和 Gemini 测试使用隔离 fixture/mock，
 不向生产 Gemini 发消息，也不写生产 PB/R2。
+
+
+## 模型库与消息配置
+
+`/settings/models` 管理当前账号保存的 Gemini 模型。消息页标题栏和文件转换配置中的
+模型管理按钮打开同一模型库，所有选择器使用 `features/models` 的 `SavedModelSelect`。
+模型别名、添加和移除保存在 `aw_saved_models`，按 owner 隔离；移除不改写已有任务或配置。
+当前历史模型 ID 即使未加入模型库仍可选，避免旧配置失效。
+
+官方目录使用 `GET https://generativelanguage.googleapis.com/v1beta/models`，处理全部分页，
+保留真实返回的模型 ID、方法、上下文上限与思考能力。当前选择器只提供支持 `generateContent`
+的常规 Gemini 模型，过滤专用语音、图像等接口；目录本身保留所有元数据。Models API 未提供
+完整的输入模态标记，不能把它当作视觉能力保证，文件转换需选支持图像输入的模型。
+
+刷新通过已认证的 `POST /api/models/catalog/refresh` 进入私有 converter service binding，
+PB 事务生成同步 nonce，同一轮只派发一次 `gemini-models.yml`。执行器使用仓库已有的
+`GEMINI_API_KEYS` 调用官方接口，使用 `POCKETBASE_SERVER_TOKEN` 写入 `aw_model_catalog`。
+密钥不经过浏览器。每日 UTC 02:17 自动同步，也可点击刷新；失败保留上次成功目录，
+过期同步可在 10 分钟后重新发起。普通账号不能覆盖目录或伪造模型元数据。
+
+消息页的默认模型、系统提示词、分隔符、并发和配额参数在「消息配置」统一编辑。
+配置通过 `/api/anyworkflow/gemini/config` 保存在 `aw_gemini_configs`，使用 expectedRevision
+拒绝覆盖其他页面的修改。提交时冻结当前配置与所选模型，后续修改不影响历史任务。
+分段预览为独立阅读窗；回复桌面为左侧分段导航、右侧回复/原文，手机使用原生分段选择器。
+
+增量发布：先应用 `1794710000_shared_models.js` 和 `models.js`、`aw_models.pb.js`，
+同时更新 `gemini.js` 的完整预览字段；再发布执行器 workflow 并完成首次目录同步，最后发布 Remote。
+无需新增 Gemini Secret，使用仓库已有密钥即可。

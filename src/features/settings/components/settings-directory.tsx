@@ -1,4 +1,4 @@
-import { Keyboard, Link2, Palette, Plug, SlidersHorizontal } from 'lucide-react'
+import { Bot, Keyboard, Link2, Palette, Plug, SlidersHorizontal } from 'lucide-react'
 import { SettingsRow } from '@/components/navigation/settings-row'
 import { useSession } from '@/lib/api/session'
 
@@ -6,6 +6,7 @@ export function SettingsDirectory() {
   const session = useSession()
   return (
     <nav aria-label="设置目录" className="divide-y overflow-hidden rounded-xl border bg-card">
+      <SettingsRow title="模型库" description="保存常用模型，供所有 AI 页面使用" icon={Bot} to="/settings/models" />
       <SettingsRow
         title="运行配置"
         description="默认开始链接与各页面的运行偏好"

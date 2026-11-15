@@ -49,5 +49,28 @@ export interface GeminiMessage {
 
 export interface GeminiPreview {
   totalChunks: number
-  chunks: { index: number; sourceName: string; part: number; bytes: number; excerpt: string }[]
+  chunks: {
+    index: number
+    sourceName: string
+    part: number
+    bytes: number
+    excerpt: string
+    inputText: string
+  }[]
+}
+
+export interface GeminiConfig {
+  model: string
+  systemPrompt: string
+  delimiter: string
+  concurrency: number
+  thinkingLevel: string
+  maxOutputTokens: number
+  rpmPerKey: number
+  rpdPerKey: number
+}
+export interface GeminiConfigRecord {
+  owner: string
+  config: GeminiConfig
+  revision: number
 }
