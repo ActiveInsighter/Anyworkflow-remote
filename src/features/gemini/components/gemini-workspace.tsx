@@ -58,16 +58,24 @@ export function GeminiWorkspace() {
         <SectionHeader
           title="消息记录"
           trailing={
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-touch"
-              aria-label="刷新消息记录"
-              onClick={() => void jobs.data.reload()}
-              disabled={jobs.data.refreshing}
-            >
-              <RefreshCw />
-            </Button>
+            <div className="flex items-center gap-2">
+              {jobs.data.data?.totalItems ? (
+                <span className="text-caption text-muted-foreground tabular-nums">
+                  {jobs.data.data.totalItems} 条
+                </span>
+              ) : null}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-touch"
+                aria-label="刷新消息记录"
+                onClick={() => void jobs.data.reload()}
+                disabled={jobs.data.refreshing}
+                className="sm:size-8"
+              >
+                <RefreshCw />
+              </Button>
+            </div>
           }
         />
         <ErrorAlert>{jobs.data.error || jobs.action.error}</ErrorAlert>
@@ -130,7 +138,11 @@ export function GeminiWorkspace() {
       <ConfirmDeleteDialog open={Boolean(deleting)} onOpenChange={(open) => { if (!open) setDeleting(null) }}
         title="删除消息" description={`删除「${deleting?.title ?? ''}」及其全部回复？`} busy={jobs.action.busy}
         onConfirm={() => { if (deleting) void jobs.remove(deleting).then((done) => { if (done) setDeleting(null) }) }} />
-      <GeminiJobSheet jobId={opened} onClose={() => setOpened(null)} />
+      <GeminiJobSheet
+        jobId={opened}
+        initialJob={jobs.data.data?.items.find((job) => job.id === opened) ?? null}
+        onClose={() => setOpened(null)}
+      />
     </>
   )
 }
