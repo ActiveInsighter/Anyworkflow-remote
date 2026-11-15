@@ -29,7 +29,7 @@ await context.route('**/api/library/files**', route => {
 })
 
 function messagesFor(job) {
-  return Array.from({ length: job.totalChunks }, (_, index) => index + 1).map(index => ({ id: String(index).repeat(15), owner: 'owner-1', job: job.id, index, part: index, sourceName: file.fileName, status: index === 1 ? 'succeeded' : 'failed', reply: index === 1 ? (longReply ? Array.from({ length: 100 }, (_, line) => `第 ${line + 1} 行：完整的长回复内容，用于核对消息滚动。`).join('\n\n') : '# 逐段保存的回复\n<script>window.unsafe = true</script>') : '已保留的截断正文', inputText: index === 1 ? '# 第一节\n原始正文' : '# 第二节', error: index === 2 ? '回复达到输出上限' : '', finishReason: index === 2 ? 'MAX_TOKENS' : 'STOP', usage: { totalTokenCount: 123 } }))
+  return Array.from({ length: job.totalChunks }, (_, index) => index + 1).map(index => ({ id: String(index).repeat(15), owner: 'owner-1', job: job.id, index, part: index, sourceName: file.fileName, status: index === 1 ? 'succeeded' : 'failed', reply: index === 1 ? (longReply ? Array.from({ length: 100 }, (_, line) => `第 ${line + 1} 行：完整的长回复内容，用于核对消息滚动。`).join('\n\n') : '# 逐段保存的回复\n<script>window.unsafe = true</script>') : '已保留的截断正文', inputText: index === 1 ? '# 第一节\n原始正文' : '# 第二节', error: index === 2 ? '回复达到输出上限' : '', finishReason: index === 2 ? 'MAX_TOKENS' : 'STOP', usage: index === 1 ? { totalTokenCount: 94123, promptTokenCount: 40000, candidatesTokenCount: 2000, thoughtsTokenCount: 30000, toolUseTokenCount: 22123, cachedContentTokenCount: 5000, agentStepCount: 8 } : { totalTokenCount: 123 } }))
 }
 await context.route('https://pb.example.invalid/**', route => {
   const request = route.request(), url = new URL(request.url()), body = ['POST', 'PUT'].includes(request.method()) ? request.postDataJSON() : null
@@ -155,6 +155,10 @@ try {
   await page.getByRole('button', { name: '讲义处理', exact: true }).click()
   const details = page.getByRole('dialog', { name: '讲义处理', exact: true })
   await details.getByRole('heading', { name: '逐段保存的回复', exact: true }).waitFor()
+  await details.getByText('94,123 Token · 明细', { exact: true }).click()
+  await details.getByText('输入 40,000', { exact: true }).waitFor()
+  await details.getByText('思考 30,000', { exact: true }).waitFor()
+  await details.getByText('工具 22,123', { exact: true }).waitFor()
   assert.equal(await page.evaluate(() => window.unsafe), undefined)
   await details.getByText('# 第一节\n原始正文', { exact: true }).waitFor()
   assert.equal(await details.locator('[data-slot="message"]').count(), 2)
