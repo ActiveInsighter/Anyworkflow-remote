@@ -191,7 +191,7 @@ try {
     prompt: 'usr',
     options: savedSvg.options,
   })
-  assert.deepEqual(JSON.parse(workflowInputs.svg_config), {
+  assert.deepEqual(JSON.parse(workflowInputs.image_config).svg, {
     enabled: true,
     provider: 'modelflare',
     model: 'gpt-6-sol',

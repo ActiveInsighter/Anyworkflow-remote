@@ -15,7 +15,7 @@ import { countFailures } from '../retry.mjs';
 
 export const PDF_TO_MD = 'pdf_to_md';
 
-const PDF_OPTION_INPUTS = ['images_per_request', 'adjacent_pages', 'concurrency', 'provider', 'model', 'reasoning_effort', 'max_output_tokens', 'thinking_level', 'dpi', 'image_format', 'jpeg_quality', 'verification_passes', 'media_resolution', 'rpm_per_key', 'rpd_per_key', 'start_page', 'end_page'];
+const PDF_OPTION_INPUTS = ['images_per_request', 'adjacent_pages', 'concurrency', 'provider', 'model', 'reasoning_effort', 'max_output_tokens', 'thinking_level', 'dpi', 'image_format', 'verification_passes', 'media_resolution', 'rpm_per_key', 'rpd_per_key', 'start_page', 'end_page'];
 
 /** Whitelisted workflow inputs, built from the saved job only (never from a browser payload). */
 export function buildPdfWorkflowInputs(row) {
@@ -36,14 +36,19 @@ export function buildPdfWorkflowInputs(row) {
   for (const key of PDF_OPTION_INPUTS) {
     if (options[key] !== undefined && options[key] !== '') inputs[key] = String(options[key]);
   }
-  if (options.svg_enabled) {
-    inputs.svg_config = JSON.stringify({
+  // The explicit switch comes from the persisted snapshot; old queued jobs
+  // without SVG settings retain their original raster behavior.
+  const image = {};
+  if (options.jpeg_quality !== undefined) image.jpeg_quality = options.jpeg_quality;
+  if (options.svg_enabled === true) {
+    image.svg = {
       enabled: true,
       provider: String(options.svg_provider || options.provider || 'gemini'),
       model: String(options.svg_model || ''),
       prompt: String(options.svg_prompt || ''),
-    });
+    };
   }
+  if (Object.keys(image).length) inputs.image_config = JSON.stringify(image);
   return inputs;
 }
 

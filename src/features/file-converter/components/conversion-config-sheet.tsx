@@ -110,7 +110,7 @@ export function ConversionConfigSheet({ config }: { config: ConversionConfigStat
                     aria-describedby="pdf-svg-prompt-help"
                   />
                   <FieldDescription id="pdf-svg-prompt-help" className="flex min-w-0 justify-between gap-3">
-                    <span className="min-w-0 flex-1">OCR 切分并合并后的每张图片将按此提示词重写为 SVG；留空恢复默认</span>
+                    <span className="min-w-0 flex-1">图片重绘要求；留空恢复默认</span>
                     <span className="shrink-0 whitespace-nowrap tabular-nums">
                       {options.svg_prompt.length} / {MAX_SYSTEM_PROMPT_CHARS}
                     </span>
@@ -150,12 +150,12 @@ export function ConversionConfigSheet({ config }: { config: ConversionConfigStat
                 </FieldSet>
 
                 <FieldSet className="min-w-0 gap-4 border-t pt-6">
-                  <FieldLegend variant="label" className="float-left mb-2 w-full text-sm">图片 SVG 重绘（独立 AI）</FieldLegend>
+                  <FieldLegend variant="label" className="float-left mb-2 w-full text-sm">图片 SVG 重绘</FieldLegend>
                   <Field orientation="horizontal" className="items-start">
                     <FieldContent>
                       <FieldLabel htmlFor="pdf-svg-enabled">启用 SVG 重绘</FieldLabel>
                       <FieldDescription id="pdf-svg-enabled-help">
-                        百度 OCR 切分并合并图片后，同步调用独立 AI 将图片重写为矢量 SVG。
+                        自动拼接同图碎片，再交给所选 AI 重绘。失败时保留原图；与正文共用密钥时共用配额。
                       </FieldDescription>
                     </FieldContent>
                     <Switch
