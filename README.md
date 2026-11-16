@@ -480,3 +480,13 @@ UTC+08:00），保存草稿不会启动，点击“启用重复”才提交首�
 
 模型库入口 `/settings/models`，可同步官方模型目录，保存并命名常用模型。文件转换与消息页
 共用模型选择器；消息的系统提示词、分段和并发参数集中在「消息配置」，配置同步保存在 PB。
+
+## PDF 图片 SVG 重绘
+
+转换配置中可启用图片 SVG 重绘，分别选择正文与 SVG 的接口、模型、提示词。
+同图碎片先按 PDF 原位置恢复成完整裁图，再发送给 SVG 模型；不同图和正文保持分开。
+成功时下载包引用 SVG 并保留原图，失败时继续引用原图。新任务默认启用，历史任务保持原快照。
+
+此功能需要配套的 file-converter-ai 工作流与 AnyWorkflow-workers PocketBase hooks；
+`shared/task-kit` 从后端源目录同步，派发使用 `image_config` JSON，以保持在 GitHub 的 25 个输入以内。
+发布顺序和验证范围见 [SVG 重绘验证记录](docs/svg-figure-rewrite-2026-11-16.md)。

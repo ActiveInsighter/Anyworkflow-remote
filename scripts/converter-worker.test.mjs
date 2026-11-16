@@ -24,7 +24,7 @@ const pb = config.vars.POCKETBASE_URL
 const persist = new URL(`../.deployment-evidence/converter-test-${crypto.randomUUID()}/`, import.meta.url)
 await mkdir(persist, { recursive: true })
 function row(id, status = 'queued') {
-  return { id, status, sourceUrl: 'https://example.invalid/file.pdf', outputName: '中文文档', systemPrompt: 'system', prompt: 'per-job', options: { concurrency: 5, start_page: 1, end_page: 1, adjacent_pages: true, ref: 'old-branch' } }
+  return { id, status, sourceUrl: 'https://example.invalid/file.pdf', outputName: '中文文档', systemPrompt: 'system', prompt: 'per-job', options: { concurrency: 5, start_page: 1, end_page: 1, adjacent_pages: true, svg_enabled: true, svg_provider: 'modelflare', svg_model: 'gpt-6-sol', svg_prompt: '保留箭头', ref: 'old-branch' } }
 }
 async function outbound(request) {
   const url = new URL(request.url)
@@ -84,6 +84,7 @@ async function outbound(request) {
     assert.equal(body.inputs.prompt, 'per-job')
     assert.equal(body.inputs.start_page, '1')
     assert.equal(body.inputs.adjacent_pages, 'true')
+    assert.deepEqual(JSON.parse(body.inputs.image_config).svg, { enabled: true, provider: 'modelflare', model: 'gpt-6-sol', prompt: '保留箭头' })
     }
     dispatches.push(body)
     return uncertainDispatch ? new Response(null, { status: 502 }) : Response.json({ workflow_run_id: 100 + dispatches.length })

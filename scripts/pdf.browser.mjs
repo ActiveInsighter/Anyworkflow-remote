@@ -3,7 +3,7 @@ import { mkdtemp, open, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { chromium } from 'playwright'
-import { DEFAULT_PDF_SYSTEM_PROMPT } from '../src/lib/file-conversion-prompt.ts'
+import { DEFAULT_PDF_SVG_PROMPT, DEFAULT_PDF_SYSTEM_PROMPT } from '../src/lib/file-conversion-prompt.ts'
 const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] })
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } })
 const page = await context.newPage()
@@ -131,6 +131,30 @@ try {
      await page.emulateMedia({ colorScheme: 'light' })
    }
  }
+ const svgSwitch = sheet.getByRole('switch', { name: '启用 SVG 重绘', exact: true })
+ const svgPrompt = sheet.getByLabel('SVG 重绘提示词', { exact: true })
+ assert.equal(await svgSwitch.getAttribute('aria-checked'), 'true')
+ assert.equal(await svgPrompt.inputValue(), DEFAULT_PDF_SVG_PROMPT)
+ await svgPrompt.fill('临时 SVG 草稿')
+ await sheet.getByRole('button', { name: '恢复默认 SVG 提示词', exact: true }).click()
+ assert.equal(await svgPrompt.inputValue(), DEFAULT_PDF_SVG_PROMPT)
+ await svgPrompt.fill('保留图中所有节点和箭头')
+ await svgSwitch.click()
+ assert.equal(await svgPrompt.count(), 0)
+ await svgSwitch.click()
+ assert.equal(await svgPrompt.inputValue(), '保留图中所有节点和箭头')
+ await sheet.getByLabel('SVG 接口', { exact: true }).click()
+ await page.getByRole('option', { name: 'ModelFlare', exact: true }).click()
+ const svgModel = sheet.getByLabel('SVG ModelFlare 模型 ID', { exact: true })
+ assert.equal(await svgModel.inputValue(), 'gpt-6-sol')
+ await svgModel.fill('test-svg-vision')
+ assert.equal(await sheet.locator('#pdf-model').getAttribute('data-value'), 'gemini-3.5-flash-lite')
+ for (const width of [320, 760, 1440]) {
+   await page.setViewportSize({ width, height: 1000 })
+   await svgModel.scrollIntoViewIfNeeded()
+   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `SVG config overflow ${width}`)
+   if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/pdf-svg-${width}.png` })
+ }
  const promptInput = sheet.getByLabel('系统提示词', { exact: true })
  assert.equal(await promptInput.inputValue(), DEFAULT_PDF_SYSTEM_PROMPT)
  await promptInput.fill('临时草稿')
@@ -158,6 +182,9 @@ try {
  assert.equal(configPatchCount, 2)
  assert.equal(config.systemPrompt, '按图片与 OCR 草稿转录，保留脚注和表格。')
  assert.equal(config.options.images_per_request, 5)
+ assert.equal(config.options.svg_model, 'test-svg-vision')
+ assert.equal(config.options.svg_provider, 'modelflare')
+ assert.equal(config.options.svg_prompt, '保留图中所有节点和箭头')
  await promptInput.fill('这个未保存的草稿不能进入新任务')
  await concurrency.fill('80')
  await page.keyboard.press('Escape')
@@ -186,8 +213,17 @@ try {
 assert.equal(created.outputName, '数学笔记')
  assert.equal(created.configId, 'config-1')
  assert.equal(created.options.images_per_request, 5)
+ assert.equal(created.options.svg_enabled, true)
+ assert.equal(created.options.svg_model, 'test-svg-vision')
  assert.equal(created.systemPrompt, '按图片与 OCR 草稿转录，保留脚注和表格。')
  assert.equal(created.options.concurrency, 60)
+ if (process.env.PDF_CONFIG_ONLY) {
+   assert.deepEqual(errors, [])
+   console.log('PDF SVG config: enable/disable, separate provider/model/prompt, saved snapshot and 320/760/1440px passed')
+   await browser.close()
+   process.exit(0)
+ }
+
  assert.equal(created.options.start_page, 1)
  assert.equal(created.adjacentPages, true)
  await page.getByText('第 1 页', { exact: true }).waitFor()

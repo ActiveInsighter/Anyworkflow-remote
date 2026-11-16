@@ -61,6 +61,7 @@ export function useConversionConfig() {
 
   function setOption<K extends keyof PdfConversionOptions>(key: K, value: PdfConversionOptions[K]) {
     setOptions((current) => ({ ...current, [key]: value }))
+    setError('')
   }
 
   /** Switching provider resets the model to that provider's default. */
@@ -70,6 +71,16 @@ export function useConversionConfig() {
       provider,
       model: provider === 'gemini' ? DEFAULT_PDF_TO_MD_OPTIONS.model : MODELFLARE_DEFAULT_MODEL,
     }))
+  }
+
+  /** Switching the independent SVG provider resets the SVG model to that provider's default. */
+  function setSvgProvider(provider: PdfConversionOptions['svg_provider']) {
+    setOptions((current) => ({
+      ...current,
+      svg_provider: provider,
+      svg_model: provider === 'gemini' ? DEFAULT_PDF_TO_MD_OPTIONS.svg_model : MODELFLARE_DEFAULT_MODEL,
+    }))
+    setError('')
   }
 
   function setNumberText(key: NumericOptionKey, value: string) {
@@ -125,6 +136,7 @@ export function useConversionConfig() {
     options,
     setOption,
     setProvider,
+    setSvgProvider,
     numberText,
     setNumberText,
     commitNumber,

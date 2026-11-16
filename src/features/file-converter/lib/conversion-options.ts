@@ -73,17 +73,20 @@ export function choiceAppliesTo(key: ChoiceOptionKey, provider: PdfConversionOpt
 
 /** Readable label and value for one entry of a job's parameter snapshot. */
 export function describeJobOption(key: string, value: unknown): { label: string; value: string } | null {
-  if (key === 'start_page' || key === 'end_page') return null
+  if (key === 'start_page' || key === 'end_page' || key === 'svg_prompt') return null
   const labels: Record<string, string> = {
     provider: '模型接口',
     model: '模型',
     adjacent_pages: '附带相邻页',
+    svg_enabled: '图片 SVG 重绘',
+    svg_provider: 'SVG 模型接口',
+    svg_model: 'SVG 模型',
     ...Object.fromEntries(numberFields.map(([fieldKey, label]) => [fieldKey, label])),
     ...Object.fromEntries(choiceFields.map(([fieldKey, label]) => [fieldKey, label])),
   }
   const label = labels[key] ?? key
   if (typeof value === 'boolean') return { label, value: value ? '是' : '否' }
-  if (key === 'provider') return { label, value: value === 'modelflare' ? 'ModelFlare' : 'Gemini' }
+  if (key === 'provider' || key === 'svg_provider') return { label, value: value === 'modelflare' ? 'ModelFlare' : 'Gemini' }
   if (key === 'max_output_tokens' && value === 0) return { label, value: '自动' }
   if (choiceFields.some(([fieldKey]) => fieldKey === key)) return { label, value: choiceValueLabel(String(value)) }
   return { label, value: String(value) }
