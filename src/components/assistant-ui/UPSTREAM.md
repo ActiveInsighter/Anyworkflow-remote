@@ -1,26 +1,36 @@
-# Official assistant-ui components
+# The website HomeDemo, installed with official setup
 
-Installed through the official shadcn registry, Radix/new-york variant:
+This route uses the **actual assistant-ui.com homepage demo**, from
+`apps/docs/components/pages/home/demo`, rather than the default starter's layout.
+
+Source: https://github.com/assistant-ui/assistant-ui/tree/294e932dbb073b75ebc3c24540f98909a64f18c9/apps/docs/components/pages/home/demo
+
+Setup followed the official `npx assistant-ui@latest setup` guide, approved for
+the existing Vite app and PocketBase backend. Prerequisites were installed with:
 
 ```sh
-npx shadcn add @assistant-ui/thread @assistant-ui/thread-list @assistant-ui/threadlist-sidebar @assistant-ui/model-selector
+npx assistant-ui@latest add thread thread-list model-selector quote directive-text composer-trigger-popover context-display message-timing --yes --overwrite
+npx assistant-ui@latest doctor
 ```
 
-Registry: https://r.assistant-ui.com/styles/new-york/{name}.json
-Source: https://github.com/assistant-ui/assistant-ui
-Reference checkout: `294e932dbb073b75ebc3c24540f98909a64f18c9`.
+The elements use the official Base UI variant (`base-nova`), as does the website.
+They remain isolated from the other app's primitives. The CLI performs its own
+Base UI `render` transformations. `upstream.json` records installed hashes,
+registry origins, source comparisons and integration changes.
 
-`upstream.json` records the published registry items, installed file hashes and
-source comparisons. All 24 assistant-ui files match published registry source
-when local import aliases are normalized. The registry itself generates the
-Radix variant from upstream Base UI sources; those differences are upstream.
-`ui/` contains the official shadcn prerequisites installed alongside them.
+The HomeDemo shell, message layout, composer, action bar, suggestion chips,
+reasoning disclosure, sidebar, fullscreen handling and tool JSON panels are
+copied from the website. Original style literals are retained; the favicon's
+asset path is namespaced. The theme uses the website's sand colors and its
+Public Sans / JetBrains Mono fonts, scoped to the Gemini route. Its source and
+font licenses are included alongside the distributed assets.
 
-Integration changes are import aliases only: primitives and hooks are isolated
-under this directory to preserve the rest of AnyWorkflow, and `cn` resolves to
-`@/lib/utils`. Chat components, markup, labels and styles are upstream source.
-The Gemini feature supplies the external-store runtime and the official starter
-shell, plus backend settings, segment selection and response metadata controls.
-The model selector uses the supported `ComposerExtra` slot.
+Only app integration replaces website services: model/effort preferences,
+account controls, token usage, public response data, feedback persistence,
+regeneration/editing, configuration and segment menus. Website quota gating,
+login and memory endpoints are not called. App-provided follow-up shortcuts
+use the original FollowUps component. No call goes to the website's model API.
 
-The upstream MIT license is included in `LICENSE`.
+Public tools execute on the existing backend; replaying saved response data
+cannot run a browser tool. Unlinked results/artifacts are shown using the same
+ToolTraceCard without inventing an association. The MIT license is in `LICENSE`.

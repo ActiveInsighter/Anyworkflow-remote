@@ -1,129 +1,96 @@
-import { createContext, useContext, useEffect, useLayoutEffect, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { AssistantRuntimeProvider, useAui } from '@assistant-ui/react'
-import { Link, useSearchParams } from 'react-router'
-import { Archive, Download, FileJson } from 'lucide-react'
-import { Thread } from '@/components/assistant-ui/elements/thread.aui'
-import { ThreadListSidebar } from '@/components/assistant-ui/elements/threadlist-sidebar.aui'
-import { ModelSelector } from '@/components/assistant-ui/elements/model-selector.aui'
-import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
-import { SidebarInset, SidebarProvider, SidebarTrigger, useSidebar } from '@/components/assistant-ui/ui/sidebar'
-import { Separator } from '@/components/assistant-ui/ui/separator'
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/assistant-ui/ui/breadcrumb'
+import { useSearchParams } from 'react-router'
+import { Menu } from '@base-ui/react/menu'
+import { Download, FileJson, Home, RotateCcw, Settings } from 'lucide-react'
+import { toast } from 'sonner'
+import { DemoShell, type DemoView } from '@/components/assistant-ui/home-demo/shell'
+import { DemoIntegrationProvider } from '@/components/assistant-ui/home-demo/integration'
+import { useFullscreenOverlay } from '@/components/assistant-ui/home-demo/fullscreen'
+import { menuItemClass } from '@/components/assistant-ui/home-demo/styles'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/assistant-ui/ui/dialog'
 import { Button } from '@/components/assistant-ui/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/assistant-ui/ui/dialog'
-import { SelectField, SelectOption } from '@/components/ui/select'
-import { ErrorAlert } from '@/components/feedback/error-alert'
 import { useSavedModels } from '@/features/models/hooks/use-saved-models'
+import { getModelCatalog } from '@/lib/api/models'
 import { getLibraryFile } from '@/lib/api/library-files'
-import { updateGeminiThread } from '@/lib/api/gemini'
+import { clearSession, useSession } from '@/lib/api/session'
 import { saveBlob, safeFilename } from '@/lib/platform/download'
-import { useGeminiBackend, type GeminiBackend } from '../hooks/use-gemini-backend'
+import { useAsyncData } from '@/hooks/use-async-data'
+import { GeminiMarkIcon } from '@/components/icons/gemini-mark'
+import { useGeminiBackend } from '../hooks/use-gemini-backend'
 import { libraryAttachment } from '../lib/markdown-attachments'
+import { GeminiResponseData } from './gemini-response-data'
 import { GeminiConfigSheet } from './gemini-config-sheet'
 
-const BackendContext = createContext<GeminiBackend | null>(null)
-function useBackend() {
-  const value = useContext(BackendContext)
-  if (!value) throw new Error('Gemini backend provider is missing')
-  return value
-}
-
-/** Official templates/default/app/assistant.tsx with the backend runtime and route controls. */
+/** The website's HomeDemo shell and renderer, with our backend in its integration slots. */
 export function GeminiWorkspace() {
-  const backend = useGeminiBackend()
-  useLayoutEffect(() => {
-    document.documentElement.dataset.chatUi = 'official'
-    return () => { delete document.documentElement.dataset.chatUi }
-  }, [])
-  return <BackendContext.Provider value={backend}>
+  const backend=useGeminiBackend(), session=useSession(), saved=useSavedModels()
+  const modelCatalog=useAsyncData(getModelCatalog,[])
+  const [view,setView]=useState<DemoView>('thread'),[sidebarCollapsed,setSidebarCollapsed]=useState(false)
+  const [settingsOpen,setSettingsOpen]=useState(false),[responseId,setResponseId]=useState<string | null>(null)
+  const {expanded,toggle,overlayRef}=useFullscreenOverlay()
+  const records=[...(backend.message ? [backend.message] : []),...backend.priorMessages]
+  const response=records.find(record=>record.id===responseId)
+  const modelInfo=modelCatalog.data?.models.find(model=>model.id===backend.model || model.id===backend.job?.options.agent?.model)
+  const models=[...new Map([{id:backend.model,name:modelInfo?.displayName || backend.model},...(saved.data ?? []).map(model=>({id:model.modelId,name:model.name}))].map(model=>[model.id,{...model,
+    icon:<GeminiMarkIcon className="size-3.5" />,
+    ...(modelCatalog.data?.models.find(item=>item.id===model.id)?.thinking ? {efforts:[{id:'minimal',name:'Minimal'},{id:'low',name:'Low'},{id:'medium',name:'Med'},{id:'high',name:'High'}]} : {}),
+  }])).values()]
+  const usage=backend.message?.usage
+  const lastError=useRef('')
+  useLayoutEffect(()=>{document.documentElement.dataset.chatUi='home-demo';return()=>{delete document.documentElement.dataset.chatUi}},[])
+  useEffect(()=>{setResponseId(null)},[backend.id])
+  useEffect(()=>{if(backend.error && backend.error!==lastError.current)toast.error(backend.error);lastError.current=backend.error},[backend.error])
+  const reload=()=>{void backend.config.reload();void backend.view.reload();void backend.detail.reload();void backend.ancestors.reload();void backend.catalog.reload()}
+  const shell=<DemoShell expanded={expanded} onToggleExpanded={toggle} view={view} onViewChange={setView} sidebarCollapsed={sidebarCollapsed} onSidebarCollapsedChange={setSidebarCollapsed}
+    menuExtra={defer=><>
+      <Menu.Item className={menuItemClass} onClick={()=>defer(()=>setSettingsOpen(true))}><Settings className="size-3.5" />Message settings</Menu.Item>
+      {backend.message ? <Menu.Item className={menuItemClass} onClick={()=>defer(()=>setResponseId(backend.message!.id))}><FileJson className="size-3.5" />Response details</Menu.Item> : null}
+      {(backend.view.data?.messages.length ?? 0)>1 ? <>
+        <Menu.Separator className="bg-border my-1 h-px" />
+        <Menu.Group><Menu.GroupLabel className="px-2 py-1 text-xs text-muted-foreground">Segments</Menu.GroupLabel>
+          {backend.view.data!.messages.map(message=><Menu.Item key={message.id} className={menuItemClass} onClick={()=>backend.setSelected(message.id)}>{message.index}. {message.sourceName} · {message.part}</Menu.Item>)}
+        </Menu.Group>
+      </> : null}
+      <Menu.Item className={menuItemClass} onClick={reload}><RotateCcw className="size-3.5" />Refresh conversation</Menu.Item>
+      <Menu.Item className={menuItemClass} render={<a href="/" />}><Home className="size-3.5" />AnyWorkflow</Menu.Item>
+    </>} />
+  return <DemoIntegrationProvider value={{model:backend.model,setModel:backend.setModel,models,effort:backend.effort,setEffort:backend.setEffort,
+    contextWindow:modelInfo?.inputTokenLimit,threadId:backend.threadRoot,
+    usage:usage ? {totalTokens:usage.totalTokenCount,inputTokens:usage.promptTokenCount,outputTokens:usage.candidatesTokenCount,reasoningTokens:usage.thoughtsTokenCount,cachedInputTokens:usage.cachedContentTokenCount} : undefined,
+    accountName:session?.record.name || session?.record.email || 'Account',openSettings:()=>setSettingsOpen(true),signOut:clearSession,submitFeedback:backend.feedback,showResponse:setResponseId}}>
     <AssistantRuntimeProvider runtime={backend.runtime}>
-      <SidebarProvider>
-        <div className="flex h-dvh w-full pr-0.5" data-testid="gemini-workspace">
-          <BackendSidebar />
-          <SidebarInset className="min-w-0">
-            <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-              <SidebarTrigger />
-              <Separator orientation="vertical" className="mr-2 h-4" />
-              <Breadcrumb className="min-w-0 flex-1">
-                <BreadcrumbList className="flex-nowrap">
-                  <BreadcrumbItem className="hidden md:block"><BreadcrumbLink asChild><Link to="/">AnyWorkflow</Link></BreadcrumbLink></BreadcrumbItem>
-                  <BreadcrumbSeparator className="hidden md:block" />
-                  <BreadcrumbItem className="min-w-0"><BreadcrumbPage className="truncate">{backend.job?.title || 'New chat'}</BreadcrumbPage></BreadcrumbItem>
-                </BreadcrumbList>
-              </Breadcrumb>
-              <ArchivedChats />
-              {backend.message ? <ResponseDetails /> : null}
-              <GeminiConfigSheet config={backend.config} />
-            </header>
-            {(backend.view.data?.messages.length ?? 0) > 1 ? <div className="px-4 py-2"><SelectField aria-label="选择分段" value={backend.selected} onValueChange={backend.setSelected}>
-              {backend.view.data!.messages.map(message => <SelectOption key={message.id} value={message.id}>{message.index}. {message.sourceName} · 第 {message.part} 段</SelectOption>)}
-            </SelectField></div> : null}
-            {backend.error ? <div className="px-4 pt-2"><ErrorAlert>{backend.error}</ErrorAlert><Button variant="ghost" size="sm" onClick={() => { void backend.config.reload(); void backend.view.reload(); void backend.detail.reload(); void backend.ancestors.reload(); void backend.catalog.reload() }}>重新加载</Button></div> : null}
-            <div className="min-h-0 flex-1 overflow-hidden">
-              <Thread components={{ ComposerExtra: ComposerBackendOptions }} />
-            </div>
-          </SidebarInset>
-          <RuntimeSync />
-        </div>
-      </SidebarProvider>
+      <div className="h-dvh w-full overflow-hidden bg-background text-foreground" data-testid="gemini-workspace">
+        {expanded ? createPortal(<div ref={overlayRef} role="dialog" aria-modal="true" aria-label="Thread fullscreen" tabIndex={-1} className="bg-background fixed inset-0 z-50 overflow-hidden outline-none">{shell}</div>,document.body) : shell}
+      </div>
+      <GeminiConfigSheet config={backend.config} open={settingsOpen} onOpenChange={setSettingsOpen} hideTrigger />
+      <Dialog open={Boolean(responseId)} onOpenChange={open=>{if(!open)setResponseId(null)}}>
+        <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader><DialogTitle>Response details</DialogTitle><DialogDescription>模型返回的用量、工具、引用和响应信息。</DialogDescription></DialogHeader>
+          {response ? <>
+            <pre className="overflow-auto whitespace-pre-wrap break-all rounded-md bg-muted/50 p-3 text-xs leading-6">{JSON.stringify({usage:response.usage,finishReason:response.finishReason,error:response.error,
+              reasoning:response.response?.parts.some(part=>part.type==='reasoning' && part.text) ? 'Public summary returned' : 'The API did not return a public reasoning summary',response:response.response ?? null},null,2)}</pre>
+            <Button variant="outline" onClick={()=>saveBlob(new Blob([JSON.stringify({reply:response.reply,usage:response.usage,finishReason:response.finishReason,error:response.error,response:response.response},null,2)],{type:'application/json'}),safeFilename(backend.job?.title || '', 'Gemini response','json'))}><Download />Export JSON</Button>
+          </> : null}
+        </DialogContent>
+      </Dialog>
+      <GeminiResponseData />
+      <RuntimeSync onError={backend.setError} />
     </AssistantRuntimeProvider>
-  </BackendContext.Provider>
+  </DemoIntegrationProvider>
 }
-function BackendSidebar() {
-  const sidebar = useSidebar()
-  return <ThreadListSidebar onClick={event => {
-    if (event.target instanceof Element && event.target.closest('[data-slot="aui_thread-list-item-trigger"], [data-slot="aui_thread-list-new"]')) sidebar.setOpenMobile(false)
-  }} />
-}
-function ComposerBackendOptions() {
-  const backend = useBackend()
-  const saved = useSavedModels()
-  const models = [...new Map([{ id: backend.model, name: backend.model }, ...(saved.data ?? []).map(model => ({ id: model.modelId, name: model.name }))].map(model => [model.id, model])).values()]
-  return <ModelSelector models={models} value={backend.model} onValueChange={backend.setModel} variant="ghost" size="sm" className="max-w-40 sm:max-w-56" searchable />
-}
-function RuntimeSync() {
-  const backend = useBackend()
-  const aui = useAui()
-  const sidebar = useSidebar()
-  const [params, setParams] = useSearchParams()
-  const file = params.get('file')
-  useEffect(() => { sidebar.setOpenMobile(false) }, [backend.id, sidebar.setOpenMobile])
-  useEffect(() => {
-    if (!file) return
-    const abort = new AbortController()
-    void getLibraryFile(file, abort.signal).then(value => libraryAttachment(value, abort.signal)).then(attachment => {
-      if (abort.signal.aborted) return
-      void aui.composer().addAttachment(attachment)
-      setParams(current => { const next = new URLSearchParams(current); next.delete('file'); return next }, { replace: true })
-    }).catch(error => { if (!abort.signal.aborted) backend.setError(error instanceof Error ? error.message : '无法读取 Markdown 文件') })
-    return () => abort.abort()
-  }, [file, aui, setParams, backend.setError])
+function RuntimeSync({onError}:{onError:(error:string)=>void}) {
+  const aui=useAui(),[params,setParams]=useSearchParams(),file=params.get('file')
+  useEffect(()=>{
+    if(!file)return
+    const abort=new AbortController()
+    void getLibraryFile(file,abort.signal).then(value=>libraryAttachment(value,abort.signal)).then(async attachment=>{
+      if(abort.signal.aborted)return
+      await aui.composer.addAttachment(attachment)
+      if(!abort.signal.aborted)setParams(current=>{const next=new URLSearchParams(current);next.delete('file');return next},{replace:true})
+    }).catch(error=>{if(!abort.signal.aborted)onError(error instanceof Error ? error.message : '无法读取 Markdown 文件')})
+    return()=>abort.abort()
+  },[file,aui,setParams,onError])
   return null
-}
-function ArchiveDialogBody({ children }: { children: ReactNode }) {
-  return <DialogContent><DialogHeader><DialogTitle>Archived chats</DialogTitle><DialogDescription>打开或恢复已归档的对话。</DialogDescription></DialogHeader>{children}</DialogContent>
-}
-function ArchivedChats() {
-  const backend = useBackend()
-  const rows = backend.threads.filter(job => job.archived)
-  return <Dialog><DialogTrigger asChild><TooltipIconButton tooltip="Archived chats"><Archive /></TooltipIconButton></DialogTrigger>
-    <ArchiveDialogBody>{rows.length ? rows.map(job => <div key={job.id} className="flex min-w-0 items-center gap-2">
-      <Button variant="ghost" className="min-w-0 flex-1 justify-start truncate" onClick={() => backend.open(job.id)}>{job.title}</Button>
-      <Button variant="outline" size="sm" onClick={() => { void updateGeminiThread(job.id, { archived: false }).then(() => backend.catalog.reload()).catch(error => backend.setError(error.message)) }}>Restore</Button>
-    </div>) : <p className="text-sm text-muted-foreground">No archived chats</p>}</ArchiveDialogBody>
-  </Dialog>
-}
-function ResponseDetails() {
-  const { message, job } = useBackend()
-  if (!message || !job) return null
-  const response = { usage: message.usage, finishReason: message.finishReason, error: message.error,
-    reasoning: message.response?.parts.some(part => part.type === 'reasoning' && part.text) ? 'Public summary returned' : 'The API did not return a public reasoning summary',
-    response: message.response ?? null }
-  return <Dialog><DialogTrigger asChild><TooltipIconButton tooltip="Response details"><FileJson /></TooltipIconButton></DialogTrigger>
-    <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
-      <DialogHeader><DialogTitle>Response details</DialogTitle><DialogDescription>模型返回的用量、工具、引用和响应元数据。</DialogDescription></DialogHeader>
-      <pre className="min-w-0 overflow-auto whitespace-pre-wrap break-all rounded-md bg-muted p-3 text-xs leading-6">{JSON.stringify(response, null, 2)}</pre>
-      <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => saveBlob(new Blob([JSON.stringify({ reply: message.reply, ...response }, null, 2)], { type: 'application/json' }), safeFilename(job.title, 'Gemini response', 'json'))}><Download />Export JSON</Button></div>
-    </DialogContent>
-  </Dialog>
 }

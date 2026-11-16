@@ -69,12 +69,12 @@ export async function saveGeminiConfig(
   )
 }
 
-export type GeminiThreadSummary = Pick<GeminiJob, 'id' | 'owner' | 'title' | 'status' | 'created' | 'updated' | 'parentMessage'> & { archived?: boolean; threadRoot?: string }
+export type GeminiThreadSummary = Pick<GeminiJob, 'id' | 'owner' | 'title' | 'status' | 'created' | 'updated' | 'parentMessage'> & { archived?: boolean; pinned?: boolean; threadRoot?: string }
 export async function listGeminiThreads(signal?: AbortSignal): Promise<GeminiThreadSummary[]> {
   const owner = requireSession().record.id
   const page = (value: number) => listOwnedCollection<GeminiThreadSummary>('aw_gemini_jobs', {
     page: value, perPage: 100, sort: '-created,-id', filter: `owner="${quoteFilter(owner)}"`,
-    fields: 'id,owner,title,status,created,updated,parentMessage,archived,threadRoot',
+    fields: 'id,owner,title,status,created,updated,parentMessage,archived,threadRoot,pinned',
   }, row => row, signal)
   const first = await page(1)
   const items = [...first.items]
@@ -84,7 +84,7 @@ export async function listGeminiThreads(signal?: AbortSignal): Promise<GeminiThr
   }
   return items
 }
-export async function updateGeminiThread(id: string, metadata: { title?: string; archived?: boolean }) {
+export async function updateGeminiThread(id: string, metadata: { title?: string; archived?: boolean; pinned?: boolean }) {
   const record = assertOwner(await request<{ id: string; owner: string; title: string; archived: boolean }>(`${API}/jobs/${encodeURIComponent(id)}/metadata`, { method: 'PATCH', data: metadata }))
   if (record.id !== id) throw new ApiError('对话归属无效', 502)
   return record
@@ -109,4 +109,10 @@ export async function getGeminiAncestors(job: GeminiJob, catalog: GeminiThreadSu
     parent = records.get(message.job)?.parentMessage
   }
   return ancestors
+}
+
+export async function submitGeminiFeedback(jobId: string, id: string, type: 'positive' | 'negative', comment?: string) {
+  const record = assertOwner(await request<{id: string; owner: string; job: string; feedback: string}>(`${API}/jobs/${encodeURIComponent(jobId)}/messages/${encodeURIComponent(id)}/feedback`, {method:'POST', data:{type, ...(comment ? {comment} : {})}}))
+  if (record.id !== id || record.job !== jobId) throw new ApiError('评价归属无效',502)
+  return record
 }

@@ -1,5 +1,6 @@
 export interface GeminiInput {
   responseVersion?: 1
+  replacesMessage?: string
   parentMessage?: string
   agentModel?: string
   agentTimeoutMinutes?: number
@@ -16,8 +17,10 @@ export interface GeminiInput {
 }
 
 export interface GeminiJob {
+  pinned?: boolean
   archived?: boolean
   threadRoot?: string
+  replacesMessage?: string
   parentMessage?: string
   history?: { role: 'user' | 'model'; text: string }[]
   id: string
@@ -41,6 +44,11 @@ export interface GeminiJob {
 }
 
 export interface GeminiMessage {
+  feedback?: 'positive' | 'negative' | ''
+  feedbackComment?: string
+  startedAt?: string
+  finishedAt?: string
+  updated?: string
   response?: GeminiResponse | null
   id: string
   owner: string
@@ -48,6 +56,7 @@ export interface GeminiMessage {
   index: number
   part: number
   sourceName: string
+  sourceId?: string
   inputText: string
   status: string
   reply: string
