@@ -32,9 +32,9 @@ export function MarkdownPicker({
   const [open, setOpen] = useState(false)
   return (
     <Modal open={open} onOpenChange={setOpen}>
-      <ModalTrigger render={<Button type="button" variant="ghost" size="touch" disabled={disabled} />}>
+      <ModalTrigger render={<Button type="button" variant="ghost" size="icon-touch" aria-label="添加 Markdown" disabled={disabled} />}>
         <FolderOpen data-icon="inline-start" />
-        添加 Markdown
+        <span className="sr-only">添加 Markdown</span>
       </ModalTrigger>
       <ModalContent size="md">
         <ModalHeader>

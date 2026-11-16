@@ -1,6 +1,8 @@
-import { FileText, MessageSquareText, Scissors, Send, X } from 'lucide-react'
+import { useEffect } from 'react'
+import { ComposerPrimitive, useAui } from '@assistant-ui/react'
+import { FileText, Scissors, Send, X } from 'lucide-react'
 import { ErrorAlert } from '@/components/feedback/error-alert'
-import { Composer, ComposerBar, ComposerBody } from '@/components/layout/composer'
+import { ComposerBar, ComposerBody } from '@/components/layout/composer'
 import { Button } from '@/components/ui/button'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
@@ -11,23 +13,24 @@ import { SavedModelSelect } from '@/features/models/components/saved-model-selec
 import { formatFileSize } from '@/lib/format'
 import type { GeminiConfig } from '@/types/gemini'
 import { useGeminiComposer } from '../hooks/use-gemini-composer'
-import type { useGeminiJobs } from '../hooks/use-gemini-jobs'
 import { GeminiPreviewSheet } from './gemini-preview'
 import { MarkdownPicker } from './markdown-picker'
 
-export function GeminiComposer({ jobs, config }: {
-  jobs: ReturnType<typeof useGeminiJobs>; config: GeminiConfig | null
+export function GeminiComposer({ state, config, error, blocked }: {
+  state: ReturnType<typeof useGeminiComposer>; config: GeminiConfig | null; error: string; blocked: boolean
 }) {
-  const state = useGeminiComposer(jobs, config)
+  const aui = useAui()
+  useEffect(() => {
+    if (error && state.prompt && !aui.composer().getState().text) aui.composer().setText(state.prompt)
+  }, [aui, error, state.prompt])
   return <>
-    <Composer className="focus-within:ring-2 focus-within:ring-ring/25" aria-label="Gemini 消息" onSubmit={(event) => { event.preventDefault(); state.send() }}>
-      <ComposerBody className="space-y-3 p-4 sm:p-5">
-        <div className="flex items-center gap-2 text-caption font-medium text-muted-foreground"><MessageSquareText className="size-4" />新消息</div>
+    <ComposerPrimitive.Root className="min-w-0 overflow-hidden rounded-2xl border bg-background shadow-sm focus-within:ring-2 focus-within:ring-ring/25" aria-label="Gemini 消息">
+      <ComposerBody className="space-y-2 p-3 sm:p-4">
         <Field>
           <FieldLabel htmlFor="gemini-prompt" className="sr-only">消息与提示词</FieldLabel>
-          <Textarea id="gemini-prompt" value={state.prompt} disabled={state.busy} maxLength={12000} rows={4}
+          <ComposerPrimitive.Input id="gemini-prompt" disabled={state.busy || !config} maxLength={12000} rows={2}
             onChange={(event) => { state.setPrompt(event.target.value); state.clearErrors() }}
-            className="min-h-32 resize-y border-0 bg-transparent p-0 text-body shadow-none focus-visible:ring-0"
+            className="max-h-40 min-h-12 w-full resize-none border-0 bg-transparent p-0 text-body outline-none"
             placeholder="想让 Gemini 帮你做什么？" />
         </Field>
         {state.selected.length || state.text ? <ul className="flex min-w-0 flex-col gap-2" aria-label="已添加的内容">
@@ -45,7 +48,7 @@ export function GeminiComposer({ jobs, config }: {
         <div className="flex flex-wrap items-center gap-1">
           <MarkdownPicker selected={state.selected} onToggle={state.toggle} disabled={state.busy} />
           <Modal open={state.detailsOpen} onOpenChange={state.setDetailsOpen}>
-            <ModalTrigger render={<Button type="button" variant="ghost" size="touch" disabled={state.busy} />}><FileText />粘贴正文</ModalTrigger>
+            <ModalTrigger render={<Button type="button" variant="ghost" size="icon-touch" aria-label="粘贴正文" disabled={state.busy} />}><FileText /><span className="sr-only">粘贴正文</span></ModalTrigger>
             <ModalContent size="md">
               <ModalHeader><ModalTitle>补充正文</ModalTitle></ModalHeader>
               <ModalBody className="space-y-5">
@@ -63,13 +66,13 @@ export function GeminiComposer({ jobs, config }: {
             {state.action.pending === 'preview' ? <Spinner /> : <Scissors />}<span className="hidden sm:inline">预览分段</span>
           </Button> : null}
         </div>
-        <ErrorAlert>{state.fileError || state.action.error || jobs.creating.error}</ErrorAlert>
+        <ErrorAlert>{state.fileError || state.action.error || error}</ErrorAlert>
       </ComposerBody>
       <ComposerBar className="justify-between gap-3">
         <div className="min-w-0 flex-1 sm:max-w-80"><SavedModelSelect id="gemini-model" manage={false} value={state.model || config?.model || 'gemini-3.5-flash-lite'} onChange={state.setModel} disabled={state.busy || !config} /></div>
-        <Button type="submit" size="touch" disabled={!state.canSend}>{state.action.pending === 'send' ? <Spinner /> : <Send />}{state.action.pending === 'send' ? '发送中…' : '发送'}</Button>
+        <Button type="button" size="touch" disabled={blocked || state.busy || !config || (!state.prompt.trim() && !state.text.trim() && !state.selected.length)} onClick={() => { if (!aui.composer().getState().text.trim()) aui.composer().setText('处理添加的 Markdown'); aui.composer().send() }}>{state.action.pending === 'send' ? <Spinner /> : <Send />}{state.action.pending === 'send' ? '发送中…' : '发送'}</Button>
       </ComposerBar>
-    </Composer>
+    </ComposerPrimitive.Root>
     <GeminiPreviewSheet preview={state.preview} prompt={state.prompt} onClose={() => state.setPreview(null)} />
   </>
 }

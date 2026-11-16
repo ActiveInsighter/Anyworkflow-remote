@@ -25,6 +25,8 @@
   },
   "dependencies": {
     "@animate-ui/react": "^2.4.3",
+    "@assistant-ui/react": "^0.15.36",
+    "@assistant-ui/react-markdown": "^0.14.26",
     "@base-ui/react": "1.9.0",
     "@codemirror/autocomplete": "^6.20.4",
     "@codemirror/commands": "^6.11.1",

@@ -1,4 +1,6 @@
 export interface GeminiInput {
+  responseVersion?: 1
+  parentMessage?: string
   agentModel?: string
   agentTimeoutMinutes?: number
   title: string
@@ -14,6 +16,8 @@ export interface GeminiInput {
 }
 
 export interface GeminiJob {
+  parentMessage?: string
+  history?: { role: 'user' | 'model'; text: string }[]
   id: string
   owner: string
   title: string
@@ -35,6 +39,7 @@ export interface GeminiJob {
 }
 
 export interface GeminiMessage {
+  response?: GeminiResponse | null
   id: string
   owner: string
   job: string
@@ -82,3 +87,21 @@ export interface GeminiConfigRecord {
 
 export type GeminiMessageSummary = Pick<GeminiMessage, 'id' | 'owner' | 'job' | 'index' | 'part' | 'sourceName' | 'status' | 'error' | 'finishReason'> & { updated: string }
 export interface GeminiJobView { job: GeminiJob; messages: GeminiMessageSummary[] }
+
+export interface GeminiResponsePart {
+  id: string
+  type: 'text' | 'reasoning' | 'tool-call' | 'tool-result' | 'artifact'
+  text?: string
+  name?: string
+  callId?: string
+  providerType?: string
+  step?: number
+  data?: unknown
+}
+export interface GeminiResponse {
+  version: 1
+  protocol: 'generateContent' | 'interactions'
+  parts: GeminiResponsePart[]
+  metadata: Record<string, unknown>
+  capture: { totalParts: number; omittedParts: number; truncated: boolean }
+}

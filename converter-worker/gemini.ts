@@ -20,9 +20,23 @@ export function geminiStore(env: ConverterEnv, fetchImpl: typeof fetch = fetch):
 
 /** Different conversations have independent GitHub Actions runs and model budgets. */
 export function geminiEngine(env: ConverterEnv, own: SettlingStore) {
+  const task = { workflow: 'gemini-text.yml', prefixes: ['gemini-text'] }
+  const github = createGitHub(env, fetch, task)
   return createGeminiTextEngine({
     store: own,
-    github: createGitHub(env, fetch, { workflow: 'gemini-text.yml', prefixes: ['gemini-text'] }),
+    github: {
+      ...github,
+      async dispatch(inputs) {
+        const job = await own.get(inputs.request_id)
+        const options = 'options' in job ? job.options : undefined
+        if (options && typeof options === 'object' && 'responseVersion' in options && options.responseVersion === 1) {
+          // Only deployment configuration chooses executable code. Browser input cannot choose a Git ref.
+          if (!env.GITHUB_GEMINI_RESPONSE_REF) throw new Error('Gemini response executor is not configured')
+          return createGitHub(env, fetch, { ...task, ref: env.GITHUB_GEMINI_RESPONSE_REF }).dispatch(inputs)
+        }
+        return github.dispatch(inputs)
+      },
+    },
   })
 }
 

@@ -10,7 +10,8 @@
     "POCKETBASE_URL": "https://pb.any1.tech",
     "GITHUB_FILE_CONVERTER_REPOSITORY": "ActiveInsighter/file-converter-ai",
     "GITHUB_FILE_CONVERTER_WORKFLOW": "pdf-to-md.yml",
-    "CONVERTER_ENABLED": "true"
+    "CONVERTER_ENABLED": "true",
+    "GITHUB_GEMINI_RESPONSE_REF": "preview/gemini-response-a8289bd"
   },
   "secrets": { "required": ["POCKETBASE_SERVER_TOKEN", "GITHUB_FILE_CONVERTER_TOKEN"] },
   "durable_objects": {

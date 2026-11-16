@@ -19,14 +19,16 @@ export function SegmentNavigation({
   items,
   value,
   onChange,
+  compact = false,
 }: {
+  compact?: boolean
   items: SegmentItem[]
   value: string
   onChange: (id: string) => void
 }) {
   return (
     <>
-      <div className="md:hidden">
+      <div className={compact ? undefined : "md:hidden"}>
         <SelectField aria-label="选择分段" value={value} onValueChange={(value) => onChange(value)}>
           {items.map((item) => (
             <SelectOption key={item.id} value={item.id}>
@@ -36,7 +38,7 @@ export function SegmentNavigation({
           ))}
         </SelectField>
       </div>
-      <nav aria-label="分段列表" className="hidden flex-col gap-1 md:flex">
+      <nav aria-label="分段列表" className={compact ? "hidden" : "hidden flex-col gap-1 md:flex"}>
         {items.map((item) => (
           <button
             key={item.id}

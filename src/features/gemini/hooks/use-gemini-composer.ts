@@ -49,7 +49,7 @@ export function useGeminiComposer(jobs: ReturnType<typeof useGeminiJobs>, config
         : [...current, file],
     )
   }
-  async function input(): Promise<GeminiInput> {
+  async function input(promptOverride?: string, parentMessage?: string): Promise<GeminiInput> {
     if (!config) throw new Error('请等待消息配置加载完成')
     if (
       selected.reduce((sum, file) => sum + file.size, 0) +
@@ -73,7 +73,7 @@ export function useGeminiComposer(jobs: ReturnType<typeof useGeminiJobs>, config
             })),
         )),
       )
-    return { ...config, title, prompt, text, model: model || config.model, sources }
+    return { ...config, responseVersion: 1, title, prompt: promptOverride ?? prompt, text, model: model || config.model, sources, ...(parentMessage ? { parentMessage } : {}) }
   }
   function inspect() {
     void action.run(
@@ -82,11 +82,11 @@ export function useGeminiComposer(jobs: ReturnType<typeof useGeminiJobs>, config
       { failure: false },
     )
   }
-  function send() {
-    void action.run(
+  async function send(promptOverride?: string, parentMessage?: string) {
+    const sent = await action.run(
       'send',
       async () => {
-        const created = await jobs.create(await input())
+        const created = await jobs.create(await input(promptOverride, parentMessage))
         if (created) {
           setTitle('')
           setPrompt('')
@@ -102,10 +102,13 @@ export function useGeminiComposer(jobs: ReturnType<typeof useGeminiJobs>, config
             },
             { replace: true },
           )
+          return true
         }
+        return false
       },
       { failure: false },
     )
+    if (!sent) throw new Error('消息未发送，请检查错误后重试')
   }
   const canSend = Boolean(prompt.trim() || text.trim() || selected.length) && Boolean(config) && !busy
   return { prompt, setPrompt, text, setText, title, setTitle, model, setModel, detailsOpen, setDetailsOpen,
