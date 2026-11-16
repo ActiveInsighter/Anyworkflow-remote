@@ -2,4 +2,5 @@
 export interface RouteHandle {
   /** The page fills the viewport and owns its scrolling (e.g. the CodeMirror editor). */
   workspace?: boolean
+  standaloneChat?: boolean
 }

@@ -11,19 +11,32 @@ adapter reads the selected segment, polls job status, and displays the saved com
 reply. It does not call Gemini from the browser or consume model token streams.
 Persisted tool calls are read-only UI data and cannot invoke frontend tools.
 
-The page fills the application viewport. It provides desktop history, a mobile history
-modal, a fixed composer, model/configuration controls, Markdown batching with previews,
-segment selection, cancellation, safe Markdown, copy/download and JSON response export.
-Follow-up sends a `parentMessage` ID and the backend builds its history from owned
-persisted messages. The new job stores that context so browser refreshes preserve it.
-A new conversation clears the context. Canceled or empty replies cannot be continued.
+The chat UI is installed directly from assistant-ui's official shadcn registry
+(Radix/new-york): Thread, ThreadList, ThreadListSidebar, attachments, reasoning,
+tool fallback, Markdown and model selector. The former hand-authored chat,
+composer, history and response components have been removed. The route uses the
+official starter shell without the surrounding AnyWorkflow navigation. The
+registry components are unchanged except for local import aliases; provenance,
+24 source comparisons and installed hashes are in
+`src/components/assistant-ui/upstream.json`, with its MIT license alongside.
 
-Response version 1 renders ordered thought summaries, tool requests/results with call
-IDs, artifact descriptors, source links, token details and raw public response metadata.
-Only http(s) source links are clickable. Signatures and credentials are not displayed;
-metadata is normalized/redacted by the executor and validated by the backend. Model
-thought usage without a returned summary has an explicit unavailable state. Old records
-still show their saved reply and usage, without invented tool activity.
+The backend adapter supplies model presets, Markdown attachments, segment
+selection, settings, cancellation and persisted conversation history. Native
+assistant-ui handles composer draft/attachment restoration through
+`MessageNotSentError`; retries reuse the same backend idempotency key.
+Follow-ups share a persistent thread root, so one conversation occupies one
+sidebar row. Official rename/archive/delete actions update the owned entire
+conversation through authenticated backend endpoints. Apply
+`1794800100_gemini_thread_metadata.js` and the associated hooks before this UI.
+The migration retains existing data and adds owner/thread indexing.
+
+Public thought summaries and matched tool calls/results are converted to native
+assistant-ui message parts and displayed by its original components. The
+Response details dialog provides usage, finish reason, artifacts, citations and
+all captured public response metadata, with a JSON download. Unmatched tool
+results are preserved without inventing call associations. Signatures and
+credentials are normalized/redacted by the executor and validated by the
+backend. No private reasoning is fabricated when the provider returns none.
 
 Apply the workers backend's `1794800000_gemini_response_snapshots.js` migration and
 associated Gemini hooks first. Push the converter executor, pin
@@ -38,8 +51,9 @@ PocketBase and uses the established preview file-library bucket.
 
 Required checks: `npm run preflight`, `npm run test:browser`. The Gemini browser
 regression covers send/cancel, lost-submit retry identity and draft restoration,
-Markdown batching, thought/tool/source/usage display, response downloads, continued
-conversation identity, refresh, mobile history, light/dark and 320/390/760/1440 widths.
+native Markdown upload and library deep links, thought/tool/usage metadata, response
+downloads, grouped follow-ups, rename/archive/restore/delete, refresh, mobile sidebar,
+light/dark and 320/390/760/1440 widths.
 
 Capture semantics: https://ai.google.dev/gemini-api/docs/generate-content/thinking
 and https://ai.google.dev/gemini-api/docs/thinking . Only provider-labelled public

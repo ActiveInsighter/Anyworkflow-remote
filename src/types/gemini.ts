@@ -16,6 +16,8 @@ export interface GeminiInput {
 }
 
 export interface GeminiJob {
+  archived?: boolean
+  threadRoot?: string
   parentMessage?: string
   history?: { role: 'user' | 'model'; text: string }[]
   id: string

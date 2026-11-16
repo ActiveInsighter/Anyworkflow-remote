@@ -1,0 +1,152 @@
+{
+  "repository": "https://github.com/assistant-ui/assistant-ui",
+  "referenceCommit": "294e932dbb073b75ebc3c24540f98909a64f18c9",
+  "registry": "https://r.assistant-ui.com/styles/new-york",
+  "variant": "Official Radix/new-york registry output",
+  "files": [
+    {
+      "file": "src/components/assistant-ui/elements/attachment-state.ts",
+      "registryItem": "elements-attachment-state",
+      "sha256": "a789f2469c96e2524e38281aaaf5c65490c1d5b603fd2e31aaa019eb553d1326",
+      "matchesPublishedSource": true
+    },
+    {
+      "file": "src/components/assistant-ui/elements/attachment.aui.tsx",
+      "registryItem": "attachment",
+      "sha256": "f07878f84010d3d7eb318d209857b53ea03ea55e9cf876203c33439656e7085a",
+      "matchesPublishedSource": true
+    },
+    {
+      "file": "src/components/assistant-ui/elements/collapsible-root.tsx",
+      "registryItem": "elements-collapsible-root",
+      "sha256": "ebea1fff3af62e619a63680227b3c4b89cec449fac059f5fcd6695cc128f38b8",
+      "matchesPublishedSource": true
+    },
+    {
+      "file": "src/components/assistant-ui/elements/file.tsx",
+      "registryItem": "file",
+      "sha256": "af6c5c38b0409f168e1bcebacffa9efaf7ff17ecc3cc0b5fab8d4770df0454a0",
+      "matchesPublishedSource": true
+    },
+    {
+      "file": "src/components/assistant-ui/elements/follow-up-suggestions.aui.tsx",
+      "registryItem": "follow-up-suggestions",
+      "sha256": "f0db1e9cfc5f648adeb57c8ac61fbeca4ebbb4d55267a9c107709af01b73abb4",
+      "matchesPublishedSource": true
+    },
+    {
+      "file": "src/components/assistant-ui/elements/image.tsx",
+      "registryItem": "image",
+      "sha256": "916b2ca0f1097a2eb22e6e5c3ffd39a918dec71abff424b6b8795939733d53fb",
+      "matchesPublishedSource": true
+    },
+    {
+      "file": "src/components/assistant-ui/elements/markdown-text.tsx",
+      "registryItem": "markdown-text",
+      "sha256": "dec8502f9b0bb6f85399a614625706c9df2d78dbc8adba24958a7bbc4aa5eeae",
+      "matchesPublishedSource": true
+    },
+    {
+      "file": "src/components/assistant-ui/elements/media-player.tsx",
+      "registryItem": "elements-media-player",
+      "sha256": "c7bfde0e52e5d98739f14b55eb792436fae148f4d13b64d6879fd7fb8941b19f",
+      "matchesPublishedSource": true
+    },
+    {
+      "file": "src/components/assistant-ui/elements/model-selector.aui.tsx",
+      "registryItem": "model-selector",
+      "sha256": "fa58d6cb2392e7d57d58d7d560008953f95025b1bd0a58b7539a61f7283557c1",
+      "matchesPublishedSource": true
+    },
+    {
+      "file": "src/components/assistant-ui/elements/model-selector.tsx",
+      "registryItem": "elements-model-selector",
+      "sha256": "cc7bf977b6f02afd2897919c08ca918a3ebd641c27f8898e111ef4debf488069",
+      "matchesPublishedSource": true
+    },
+    {
+      "file": "src/components/assistant-ui/elements/reasoning.aui.tsx",
+      "registryItem": "reasoning",
+      "sha256": "3ae8bcf0d84fcb9ac37a40c2046abbf46d7b8f3967b482eec84f0a743aefce65",
+      "matchesPublishedSource": true
+    },
+    {
+      "file": "src/components/assistant-ui/elements/reasoning.tsx",
+      "registryItem": "elements-reasoning",
+      "sha256": "02c42a1cad5fd56f4479fe65c779e9f9934c03a6e935ac92ebf98cbb46ef3cc7",
+      "matchesPublishedSource": true
+    },
+    {
+      "file": "src/components/assistant-ui/elements/surfaces.tsx",
+      "registryItem": "elements-surfaces",
+      "sha256": "5d81fbb669e67ae20026cd30ed57efc51a5e3ee0f4f5d265e1723de75359b8fa",
+      "matchesPublishedSource": true
+    },
+    {
+      "file": "src/components/assistant-ui/elements/thread-list.aui.tsx",
+      "registryItem": "thread-list",
+      "sha256": "72b9c60e2fbadf78b9469a14165059a71055e9a57e6f7d899992b4cd7566a06b",
+      "matchesPublishedSource": true
+    },
+    {
+      "file": "src/components/assistant-ui/elements/thread.aui.tsx",
+      "registryItem": "thread",
+      "sha256": "e497d23546ebaa9f529ddd251a06ca0fe58700deee3957b5aab940e520af2b7c",
+      "matchesPublishedSource": true
+    },
+    {
+      "file": "src/components/assistant-ui/elements/threadlist-sidebar.aui.tsx",
+      "registryItem": "threadlist-sidebar",
+      "sha256": "5fefb1167aa858a0838bf4d0273e0d9a2949c5e0cf5949eb8aa8183408bba9b9",
+      "matchesPublishedSource": true
+    },
+    {
+      "file": "src/components/assistant-ui/elements/tool-fallback.aui.tsx",
+      "registryItem": "tool-fallback",
+      "sha256": "51505fb755e1930abc036618016db18dec952d3dac4b73d436f38e95707a1d9f",
+      "matchesPublishedSource": true
+    },
+    {
+      "file": "src/components/assistant-ui/elements/tool-group.aui.tsx",
+      "registryItem": "tool-group",
+      "sha256": "757caf28ee232d4f500c8af7d6837fe7d6d2b144774a6a0bcdaff8c0c517bd9e",
+      "matchesPublishedSource": true
+    },
+    {
+      "file": "src/components/assistant-ui/elements/tooltip-icon-button.tsx",
+      "registryItem": "tooltip-icon-button",
+      "sha256": "74c7ad45c07f10009e401412e27eb4a12cb63318851617f60996ac1f2263f008",
+      "matchesPublishedSource": true
+    },
+    {
+      "file": "src/components/assistant-ui/utils/href.ts",
+      "registryItem": "elements-href",
+      "sha256": "3a8038d038b1918ae3f58a61dcd30933633131dda341eb5bea5b6a650b31a912",
+      "matchesPublishedSource": true
+    },
+    {
+      "file": "src/components/assistant-ui/utils/model-selection.ts",
+      "registryItem": "elements-model-selection",
+      "sha256": "019d3dca2d33724de16b9eb54757344cd05bd5c89f2fc3cb2885cdcc2590f4d9",
+      "matchesPublishedSource": true
+    },
+    {
+      "file": "src/components/assistant-ui/utils/useIsomorphicLayoutEffect.ts",
+      "registryItem": "elements-reasoning",
+      "sha256": "8db117d730e640655e5099e086af4e00d545c283839d9ef5885ca93419d51893",
+      "matchesPublishedSource": true
+    },
+    {
+      "file": "src/components/assistant-ui/utils/useIsomorphicLayoutEffect.ts",
+      "registryItem": "elements-surfaces",
+      "sha256": "8db117d730e640655e5099e086af4e00d545c283839d9ef5885ca93419d51893",
+      "matchesPublishedSource": true
+    },
+    {
+      "file": "src/components/icons/github.tsx",
+      "registryItem": "threadlist-sidebar",
+      "sha256": "bdeb11f3ab33e218ced1a89e14acc50a4ea52d552baec3d37e4697a40e6d62e3",
+      "matchesPublishedSource": true
+    }
+  ]
+}
