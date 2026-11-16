@@ -29,6 +29,7 @@ export function geminiEngine(env: ConverterEnv, own: SettlingStore) {
       async dispatch(inputs) {
         const job = await own.get(inputs.request_id)
         const options = 'options' in job ? job.options : undefined
+        console.log(JSON.stringify({ event: 'gemini_executor_selection', jobId: job.id, optionsType: typeof options, responseVersion: options && typeof options === 'object' && 'responseVersion' in options ? options.responseVersion : null, responseRef: env.GITHUB_GEMINI_RESPONSE_REF }))
         if (options && typeof options === 'object' && 'responseVersion' in options && options.responseVersion === 1) {
           // Only deployment configuration chooses executable code. Browser input cannot choose a Git ref.
           if (!env.GITHUB_GEMINI_RESPONSE_REF) throw new Error('Gemini response executor is not configured')

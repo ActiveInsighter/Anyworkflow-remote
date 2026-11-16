@@ -28,8 +28,8 @@ still show their saved reply and usage, without invented tool activity.
 Apply the workers backend's `1794800000_gemini_response_snapshots.js` migration and
 associated Gemini hooks first. Push the converter executor, pin
 `wrangler.converter.jsonc`'s `GITHUB_GEMINI_RESPONSE_REF` to its tested commit, then
-push this Remote branch. This preview uses the tag `preview/gemini-response-a8289bd`
-(converter commit `a8289bdd23b51ead88595199954027838fef48bd`), because workflow
+push this Remote branch. This preview uses the tag `preview/gemini-response-938532b`
+(converter commit `938532b`), because workflow
 dispatch requires a branch or tag ref. Deploy the compatible shared dispatcher with
 `npm exec wrangler deploy -- --config wrangler.converter.jsonc` before pushing
 the frontend branch; the existing preview workflow deploys the frontend: new clients select response version 1, old tasks still dispatch
@@ -44,3 +44,12 @@ conversation identity, refresh, mobile history, light/dark and 320/390/760/1440 
 Capture semantics: https://ai.google.dev/gemini-api/docs/generate-content/thinking
 and https://ai.google.dev/gemini-api/docs/thinking . Only provider-labelled public
 thought summaries are retained. Unsupported agent configuration is never guessed.
+
+The coordinator explicitly uses immediate Durable Object code updates. Cloudflare's
+new default can defer an active object's code for five minutes after a successful
+Worker deployment, which can otherwise dispatch new-format jobs through an old
+executor. Job intents and results already live in PocketBase, so the coordinator can
+restart and reconcile existing Actions IDs without resending generation. The
+`/dispatcher` health response exposes `geminiResponseRef` so release checks verify
+the active object's executor, not just the stateless Worker's uploaded version.
+See https://developers.cloudflare.com/durable-objects/deployments/durable-objects-code-updates/ .
