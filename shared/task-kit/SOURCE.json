@@ -7,7 +7,7 @@
     "index.d.mts": "a4d5922d7634ba77bef0561dfdb9b8e527562fa6610416ea4f62e8f4a1623286",
     "index.mjs": "6f69522ee7a40bce7929d6aef91ba09a1e3fe0bee6f603adbff94f171f35ee77",
     "kinds/crawl-dispatch.mjs": "0cb6827378c91053666bd7d1b395a3e66c35f7a4684121f81cb14e7a273ed3d4",
-    "kinds/file-conversion.mjs": "e66bbe96e81c28a7ecd35ec4c13206b2a4ea63bd063957d1ca21159da46172ba",
+    "kinds/file-conversion.mjs": "ac6728b347ed5ee39714268213ebd5e4e4c12c6ba7d0d88a67eba8413a1d8bb7",
     "kinds/gemini-text.mjs": "0709338803ff9c97f87d03b4c3295f4766807ba4e2119cba91212802bca579f2",
     "lifecycle.mjs": "fd78b2962ad98cf6b9ba44ce1e35e34b9cf904b2229096681c420b581bccbd29",
     "retry.mjs": "ef229b2818bf689deda32818dedc2014e387daf6cb9391be146e89293afc8b65"

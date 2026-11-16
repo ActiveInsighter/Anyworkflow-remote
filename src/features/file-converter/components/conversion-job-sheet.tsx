@@ -69,6 +69,11 @@ export function ConversionJobSheet({ job, onClose }: { job: PdfJob | null; onClo
                   <p className="max-h-60 overflow-y-auto rounded-lg bg-subtle p-3 text-caption whitespace-pre-wrap text-muted-foreground">{job.systemPrompt}</p>
                 </Block>
               ) : null}
+              {job.options?.svg_enabled && job.options?.svg_prompt ? (
+                <Block title="SVG 重绘提示词">
+                  <p className="max-h-48 overflow-y-auto rounded-lg bg-subtle p-3 text-caption whitespace-pre-wrap text-muted-foreground">{job.options.svg_prompt}</p>
+                </Block>
+              ) : null}
             </div>
           ) : null}
         </ModalBody>

@@ -72,6 +72,15 @@ export function useConversionConfig() {
     }))
   }
 
+  /** Switching the independent SVG provider resets the SVG model to that provider's default. */
+  function setSvgProvider(provider: PdfConversionOptions['svg_provider']) {
+    setOptions((current) => ({
+      ...current,
+      svg_provider: provider,
+      svg_model: provider === 'gemini' ? DEFAULT_PDF_TO_MD_OPTIONS.svg_model : MODELFLARE_DEFAULT_MODEL,
+    }))
+  }
+
   function setNumberText(key: NumericOptionKey, value: string) {
     setNumberTextState((current) => ({ ...current, [key]: value }))
     setError('')
@@ -125,6 +134,7 @@ export function useConversionConfig() {
     options,
     setOption,
     setProvider,
+    setSvgProvider,
     numberText,
     setNumberText,
     commitNumber,

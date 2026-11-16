@@ -36,6 +36,14 @@ export function buildPdfWorkflowInputs(row) {
   for (const key of PDF_OPTION_INPUTS) {
     if (options[key] !== undefined && options[key] !== '') inputs[key] = String(options[key]);
   }
+  if (options.svg_enabled) {
+    inputs.svg_config = JSON.stringify({
+      enabled: true,
+      provider: String(options.svg_provider || options.provider || 'gemini'),
+      model: String(options.svg_model || ''),
+      prompt: String(options.svg_prompt || ''),
+    });
+  }
   return inputs;
 }
 
