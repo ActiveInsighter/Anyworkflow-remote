@@ -490,3 +490,10 @@ UTC+08:00），保存草稿不会启动，点击“启用重复”才提交首�
 此功能需要配套的 file-converter-ai 工作流与 AnyWorkflow-workers PocketBase hooks；
 `shared/task-kit` 从后端源目录同步，派发使用 `image_config` JSON，以保持在 GitHub 的 25 个输入以内。
 发布顺序和验证范围见 [SVG 重绘验证记录](docs/svg-figure-rewrite-2026-11-16.md)。
+
+## Agent 执行过程
+
+消息详情新增思考摘要、工具调用/结果、分段回复与运行中 Token 明细，按数据库游标增量更新；
+断线保留已有内容并支持重试，刷新后恢复已保存过程。普通 chat 和历史最终回复继续可读。
+需先部署后端 `1794870000_agent_message_parts.js` 及 hooks，再发布配套 Action 和本前端；
+设计与恢复说明见 AnyWorkflow-workers 的 `docs/agent-message-stream.md`。

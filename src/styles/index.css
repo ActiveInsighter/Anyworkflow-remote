@@ -18,6 +18,7 @@
 @import './tokens/layout.css';
 @import './tokens/motion.css';
 @import './tokens/modal.css';
+@import './tokens/assistant-ui.css';
 
 @import './theme.css';
 @import './base.css';

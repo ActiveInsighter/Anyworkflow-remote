@@ -1,136 +1,96 @@
-import { useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { AssistantRuntimeProvider, useAui } from '@assistant-ui/react'
 import { useSearchParams } from 'react-router'
-import { MessageSquare, RefreshCw, Trash2 } from 'lucide-react'
-import { ConfirmDeleteDialog } from '@/components/feedback/confirm-dialog'
-import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
-import type { GeminiJob } from '@/types/gemini'
-import { ErrorAlert } from '@/components/feedback/error-alert'
-import { EmptyState } from '@/components/feedback/empty-state'
-import { LoadingState } from '@/components/feedback/loading-state'
+import { Menu } from '@base-ui/react/menu'
+import { Download, FileJson, Home, RotateCcw, Settings } from 'lucide-react'
+import { toast } from 'sonner'
+import { DemoShell, type DemoView } from '@/components/assistant-ui/home-demo/shell'
+import { DemoIntegrationProvider } from '@/components/assistant-ui/home-demo/integration'
+import { useFullscreenOverlay } from '@/components/assistant-ui/home-demo/fullscreen'
+import { menuItemClass } from '@/components/assistant-ui/home-demo/styles'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/assistant-ui/ui/dialog'
+import { Button } from '@/components/assistant-ui/ui/button'
+import { useSavedModels } from '@/features/models/hooks/use-saved-models'
+import { getModelCatalog } from '@/lib/api/models'
+import { getLibraryFile } from '@/lib/api/library-files'
+import { clearSession, useSession } from '@/lib/api/session'
+import { saveBlob, safeFilename } from '@/lib/platform/download'
 import { useAsyncData } from '@/hooks/use-async-data'
-import { getGeminiConfig } from '@/lib/api/gemini'
-import { ModelManagerButton } from '@/features/models/components/saved-model-select'
+import { GeminiMarkIcon } from '@/components/icons/gemini-mark'
+import { useGeminiBackend } from '../hooks/use-gemini-backend'
+import { libraryAttachment } from '../lib/markdown-attachments'
+import { GeminiResponseData } from './gemini-response-data'
 import { GeminiConfigSheet } from './gemini-config-sheet'
-import { PageHeader, SectionHeader } from '@/components/layout/page'
-import { Pager } from '@/components/navigation/pager'
-import { Button } from '@/components/ui/button'
-import { JobMenu, JobNote, JobRow } from '@/features/tasks'
-import { geminiTextKind } from '@/lib/tasks'
-import { formatDateTime } from '@/lib/format'
-import { useGeminiJobs } from '../hooks/use-gemini-jobs'
-import { GeminiComposer } from './gemini-composer'
-import { GeminiJobSheet } from './gemini-job-sheet'
 
+/** The website's HomeDemo shell and renderer, with our backend in its integration slots. */
 export function GeminiWorkspace() {
-  const jobs = useGeminiJobs()
-  const [deleting, setDeleting] = useState<GeminiJob | null>(null)
-  const config = useAsyncData(getGeminiConfig, [])
-  const [params, setParams] = useSearchParams()
-  const opened = params.get('job')
-  function setOpened(id: string | null) {
-    setParams((current) => {
-      const next = new URLSearchParams(current)
-      if (id) next.set('job', id)
-      else next.delete('job')
-      return next
-    }, { replace: true })
-  }
-  return (
-    <>
-      <PageHeader
-        compact
-        title="Gemini 消息"
-        actions={
-          <>
-            <ModelManagerButton showLabel />
-            <GeminiConfigSheet config={config} />
-          </>
-        }
-      />
-      <ErrorAlert>{config.error}</ErrorAlert>
-      {config.error ? (
-        <Button type="button" variant="outline" onClick={() => void config.reload()}>
-          重新加载消息配置
-        </Button>
-      ) : null}
-      <GeminiComposer jobs={jobs} config={config.data?.config ?? null} />
-      <section className="mt-8 min-w-0" aria-label="消息记录">
-        <SectionHeader
-          title="消息记录"
-          trailing={
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-touch"
-              aria-label="刷新消息记录"
-              onClick={() => void jobs.data.reload()}
-              disabled={jobs.data.refreshing}
-            >
-              <RefreshCw />
-            </Button>
-          }
-        />
-        <ErrorAlert>{jobs.data.error || jobs.action.error}</ErrorAlert>
-        {jobs.data.loading && !jobs.data.data ? <LoadingState label="加载消息记录…" /> : null}
-        {jobs.data.data?.items.length === 0 ? (
-          <EmptyState
-            icon={MessageSquare}
-            title="还没有消息记录"
-            description="直接提问，或添加 Markdown 文件批量处理。"
-          />
-        ) : null}
-        {jobs.data.data?.items.map((job) => (
-          <JobRow
-            key={job.id}
-            kind={geminiTextKind}
-            record={job}
-            title={job.title}
-            onOpen={() => setOpened(job.id)}
-            meta={[
-              formatDateTime(job.created),
-              job.totalChunks > 1 ? `${job.completedChunks} / ${job.totalChunks} 段已保存` : '',
-              job.failedChunks ? `${job.failedChunks} 段失败` : '',
-              job.model,
-            ]}
-            menu={geminiTextKind.isTerminal(job.status) ? <JobMenu label={`消息操作 ${job.title}`}>
-              <DropdownMenuItem variant="destructive" onSelect={() => setDeleting(job)}><Trash2 />删除消息</DropdownMenuItem>
-            </JobMenu> : undefined}
-            action={
-              geminiTextKind.isActive(job.status) ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => jobs.cancel(job)}
-                  disabled={jobs.action.busy || job.cancelRequested}
-                >
-                  {job.cancelRequested ? '结束中…' : '结束任务'}
-                </Button>
-              ) : (
-                <Button type="button" size="sm" variant="secondary" onClick={() => setOpened(job.id)}>
-                  查看回复
-                </Button>
-              )
-            }
-          >
-            {job.error ? <JobNote>{job.error}</JobNote> : null}
-          </JobRow>
-        ))}
-        {jobs.data.data ? (
-          <Pager
-            page={jobs.page}
-            totalPages={jobs.data.data.totalPages}
-            totalItems={jobs.data.data.totalItems}
-            onPageChange={jobs.setPage}
-            disabled={jobs.data.refreshing}
-            label="消息记录分页"
-          />
-        ) : null}
-      </section>
-      <ConfirmDeleteDialog open={Boolean(deleting)} onOpenChange={(open) => { if (!open) setDeleting(null) }}
-        title="删除消息" description={`删除「${deleting?.title ?? ''}」及其全部回复？`} busy={jobs.action.busy}
-        onConfirm={() => { if (deleting) void jobs.remove(deleting).then((done) => { if (done) setDeleting(null) }) }} />
-      <GeminiJobSheet jobId={opened} onClose={() => setOpened(null)} />
-    </>
-  )
+  const backend=useGeminiBackend(), session=useSession(), saved=useSavedModels()
+  const modelCatalog=useAsyncData(getModelCatalog,[])
+  const [view,setView]=useState<DemoView>('thread'),[sidebarCollapsed,setSidebarCollapsed]=useState(false)
+  const [settingsOpen,setSettingsOpen]=useState(false),[responseId,setResponseId]=useState<string | null>(null)
+  const {expanded,toggle,overlayRef}=useFullscreenOverlay()
+  const records=[...(backend.message ? [backend.message] : []),...backend.priorMessages]
+  const response=records.find(record=>record.id===responseId)
+  const modelInfo=modelCatalog.data?.models.find(model=>model.id===backend.model || model.id===backend.job?.options.agent?.model)
+  const models=[...new Map([{id:backend.model,name:modelInfo?.displayName || backend.model},...(saved.data ?? []).map(model=>({id:model.modelId,name:model.name}))].map(model=>[model.id,{...model,
+    icon:<GeminiMarkIcon className="size-3.5" />,
+    ...(modelCatalog.data?.models.find(item=>item.id===model.id)?.thinking ? {efforts:[{id:'minimal',name:'Minimal'},{id:'low',name:'Low'},{id:'medium',name:'Med'},{id:'high',name:'High'}]} : {}),
+  }])).values()]
+  const usage=backend.message?.usage
+  const lastError=useRef('')
+  useLayoutEffect(()=>{document.documentElement.dataset.chatUi='home-demo';return()=>{delete document.documentElement.dataset.chatUi}},[])
+  useEffect(()=>{setResponseId(null)},[backend.id])
+  useEffect(()=>{if(backend.error && backend.error!==lastError.current)toast.error(backend.error);lastError.current=backend.error},[backend.error])
+  const reload=()=>{void backend.config.reload();void backend.view.reload();void backend.detail.reload();void backend.progress.reload();void backend.ancestors.reload();void backend.catalog.reload()}
+  const shell=<DemoShell expanded={expanded} onToggleExpanded={toggle} view={view} onViewChange={setView} sidebarCollapsed={sidebarCollapsed} onSidebarCollapsedChange={setSidebarCollapsed}
+    menuExtra={defer=><>
+      <Menu.Item className={menuItemClass} onClick={()=>defer(()=>setSettingsOpen(true))}><Settings className="size-3.5" />Message settings</Menu.Item>
+      {backend.message ? <Menu.Item className={menuItemClass} onClick={()=>defer(()=>setResponseId(backend.message!.id))}><FileJson className="size-3.5" />Response details</Menu.Item> : null}
+      {(backend.view.data?.messages.length ?? 0)>1 ? <>
+        <Menu.Separator className="bg-border my-1 h-px" />
+        <Menu.Group><Menu.GroupLabel className="px-2 py-1 text-xs text-muted-foreground">Segments</Menu.GroupLabel>
+          {backend.view.data!.messages.map(message=><Menu.Item key={message.id} className={menuItemClass} onClick={()=>backend.setSelected(message.id)}>{message.index}. {message.sourceName} · {message.part}</Menu.Item>)}
+        </Menu.Group>
+      </> : null}
+      <Menu.Item className={menuItemClass} onClick={reload}><RotateCcw className="size-3.5" />Refresh conversation</Menu.Item>
+      <Menu.Item className={menuItemClass} render={<a href="/" />}><Home className="size-3.5" />AnyWorkflow</Menu.Item>
+    </>} />
+  return <DemoIntegrationProvider value={{model:backend.model,setModel:backend.setModel,models,effort:backend.effort,setEffort:backend.setEffort,
+    contextWindow:modelInfo?.inputTokenLimit,threadId:backend.threadRoot,
+    usage:usage ? {totalTokens:usage.totalTokenCount,inputTokens:usage.promptTokenCount,outputTokens:usage.candidatesTokenCount,reasoningTokens:usage.thoughtsTokenCount,cachedInputTokens:usage.cachedContentTokenCount} : undefined,
+    accountName:session?.record.name || session?.record.email || 'Account',openSettings:()=>setSettingsOpen(true),signOut:clearSession,submitFeedback:backend.feedback,showResponse:setResponseId}}>
+    <AssistantRuntimeProvider runtime={backend.runtime}>
+      <div className="h-dvh w-full overflow-hidden bg-background text-foreground" data-testid="gemini-workspace">
+        {expanded ? createPortal(<div ref={overlayRef} role="dialog" aria-modal="true" aria-label="Thread fullscreen" tabIndex={-1} className="bg-background fixed inset-0 z-50 overflow-hidden outline-none">{shell}</div>,document.body) : shell}
+      </div>
+      <GeminiConfigSheet config={backend.config} open={settingsOpen} onOpenChange={setSettingsOpen} hideTrigger />
+      <Dialog open={Boolean(responseId)} onOpenChange={open=>{if(!open)setResponseId(null)}}>
+        <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader><DialogTitle>Response details</DialogTitle><DialogDescription>模型返回的用量、工具、引用和响应信息。</DialogDescription></DialogHeader>
+          {response ? <>
+            <pre className="overflow-auto whitespace-pre-wrap break-all rounded-md bg-muted/50 p-3 text-xs leading-6">{JSON.stringify({usage:response.usage,finishReason:response.finishReason,error:response.error,
+              progressAt:response.progressAt,agentParts:response.agentParts,reasoning:response.response?.parts.some(part=>part.type==='reasoning' && part.text) ? 'Public summary returned' : 'The API did not return a public reasoning summary',response:response.response ?? null},null,2)}</pre>
+            <Button variant="outline" onClick={()=>saveBlob(new Blob([JSON.stringify({reply:response.reply,usage:response.usage,finishReason:response.finishReason,error:response.error,response:response.response,agentParts:response.agentParts,progressAt:response.progressAt},null,2)],{type:'application/json'}),safeFilename(backend.job?.title || '', 'Gemini response','json'))}><Download />Export JSON</Button>
+          </> : null}
+        </DialogContent>
+      </Dialog>
+      <GeminiResponseData />
+      <RuntimeSync onError={backend.setError} />
+    </AssistantRuntimeProvider>
+  </DemoIntegrationProvider>
+}
+function RuntimeSync({onError}:{onError:(error:string)=>void}) {
+  const aui=useAui(),[params,setParams]=useSearchParams(),file=params.get('file')
+  useEffect(()=>{
+    if(!file)return
+    const abort=new AbortController()
+    void getLibraryFile(file,abort.signal).then(value=>libraryAttachment(value,abort.signal)).then(async attachment=>{
+      if(abort.signal.aborted)return
+      await aui.composer.addAttachment(attachment)
+      if(!abort.signal.aborted)setParams(current=>{const next=new URLSearchParams(current);next.delete('file');return next},{replace:true})
+    }).catch(error=>{if(!abort.signal.aborted)onError(error instanceof Error ? error.message : '无法读取 Markdown 文件')})
+    return()=>abort.abort()
+  },[file,aui,setParams,onError])
+  return null
 }

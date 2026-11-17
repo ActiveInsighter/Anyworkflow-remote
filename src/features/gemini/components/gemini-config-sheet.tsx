@@ -25,11 +25,13 @@ import type { AsyncState } from '@/hooks/use-async-data'
 import { saveGeminiConfig } from '@/lib/api/gemini'
 import type { GeminiConfig, GeminiConfigRecord } from '@/types/gemini'
 
-export function GeminiConfigSheet({ config }: { config: AsyncState<GeminiConfigRecord> }) {
-  const [open, setOpen] = useState(false)
+export function GeminiConfigSheet({ config, open: controlledOpen, onOpenChange, hideTrigger = false }: { config: AsyncState<GeminiConfigRecord>; open?: boolean; onOpenChange?: (open: boolean) => void; hideTrigger?: boolean }) {
+  const [internalOpen, setInternalOpen] = useState(false)
+  const open = controlledOpen ?? internalOpen
+  const setOpen = onOpenChange ?? setInternalOpen
   return (
     <Modal open={open} onOpenChange={setOpen}>
-      <ModalTrigger
+      {!hideTrigger ? <ModalTrigger
         render={
           <Button
             type="button"
@@ -42,7 +44,7 @@ export function GeminiConfigSheet({ config }: { config: AsyncState<GeminiConfigR
       >
         <SlidersHorizontal />
         <span className="hidden sm:inline">消息配置</span>
-      </ModalTrigger>
+      </ModalTrigger> : null}
       <ModalContent size="lg" height="fixed">
         <ModalHeader>
           <ModalTitle>消息配置</ModalTitle>

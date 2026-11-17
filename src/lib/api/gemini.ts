@@ -68,3 +68,61 @@ export async function saveGeminiConfig(
     }),
   )
 }
+
+export async function getAgentParts(jobId: string, messageId: string, after: number, signal?: AbortSignal) {
+  const page = await request<import('@/types/gemini').AgentPartsPage>(
+    `${API}/jobs/${encodeURIComponent(jobId)}/messages/${encodeURIComponent(messageId)}/parts?after=${after}`, { signal },
+  )
+  if (!page || !Array.isArray(page.items) || page.items.length > 100 || !Number.isSafeInteger(page.nextCursor) || page.nextCursor < after ||
+      page.items.some(part => assertOwner(part).message !== messageId || !Number.isSafeInteger(part.revision) || part.revision <= after || part.revision > page.nextCursor) ||
+      page.hasMore && page.nextCursor === after) throw new ApiError('消息进度格式无效', 502)
+  return page
+}
+
+export type GeminiThreadSummary = Pick<GeminiJob, 'id' | 'owner' | 'title' | 'status' | 'created' | 'updated' | 'parentMessage'> & { archived?: boolean; pinned?: boolean; threadRoot?: string }
+export async function listGeminiThreads(signal?: AbortSignal): Promise<GeminiThreadSummary[]> {
+  const owner = requireSession().record.id
+  const page = (value: number) => listOwnedCollection<GeminiThreadSummary>('aw_gemini_jobs', {
+    page: value, perPage: 100, sort: '-created,-id', filter: `owner="${quoteFilter(owner)}"`,
+    fields: 'id,owner,title,status,created,updated,parentMessage,archived,threadRoot,pinned',
+  }, row => row, signal)
+  const first = await page(1)
+  const items = [...first.items]
+  for (let start = 2; start <= first.totalPages; start += 4) {
+    const next = await Promise.all(Array.from({ length: Math.min(4, first.totalPages - start + 1) }, (_, index) => page(start + index)))
+    items.push(...next.flatMap(result => result.items))
+  }
+  return items
+}
+export async function updateGeminiThread(id: string, metadata: { title?: string; archived?: boolean; pinned?: boolean }) {
+  const record = assertOwner(await request<{ id: string; owner: string; title: string; archived: boolean }>(`${API}/jobs/${encodeURIComponent(id)}/metadata`, { method: 'PATCH', data: metadata }))
+  if (record.id !== id) throw new ApiError('对话归属无效', 502)
+  return record
+}
+
+export function deleteGeminiThread(id: string) {
+  return request(`${API}/threads/${encodeURIComponent(id)}`, { method: 'DELETE' })
+}
+
+/** Read only the owned, persisted parent chain; never infer tool activity from text. */
+export async function getGeminiAncestors(job: GeminiJob, catalog: GeminiThreadSummary[], signal?: AbortSignal) {
+  const records = new Map(catalog.map(record => [record.id, record]))
+  const ancestors: GeminiMessage[] = []
+  const visited = new Set<string>()
+  let parent = job.parentMessage
+  const limit = Math.min(20, Math.floor((job.history?.length ?? 0) / 2))
+  while (parent && ancestors.length < limit && !visited.has(parent)) {
+    visited.add(parent)
+    const message = assertOwner(await request<GeminiMessage>(`/api/collections/aw_gemini_messages/records/${encodeURIComponent(parent)}`, { signal }))
+    if (message.id !== parent || !records.has(message.job)) throw new ApiError('上文消息归属无效', 502)
+    ancestors.push(message)
+    parent = records.get(message.job)?.parentMessage
+  }
+  return ancestors
+}
+
+export async function submitGeminiFeedback(jobId: string, id: string, type: 'positive' | 'negative', comment?: string) {
+  const record = assertOwner(await request<{id: string; owner: string; job: string; feedback: string}>(`${API}/jobs/${encodeURIComponent(jobId)}/messages/${encodeURIComponent(id)}/feedback`, {method:'POST', data:{type, ...(comment ? {comment} : {})}}))
+  if (record.id !== id || record.job !== jobId) throw new ApiError('评价归属无效',502)
+  return record
+}
