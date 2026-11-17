@@ -22,6 +22,7 @@ import { useGeminiBackend } from '../hooks/use-gemini-backend'
 import { libraryAttachment } from '../lib/markdown-attachments'
 import { GeminiResponseData } from './gemini-response-data'
 import { GeminiConfigSheet } from './gemini-config-sheet'
+import { GeminiExecutionStatus } from './gemini-execution-status'
 
 /** The website's HomeDemo shell and renderer, with our backend in its integration slots. */
 export function GeminiWorkspace() {
@@ -44,6 +45,7 @@ export function GeminiWorkspace() {
   useEffect(()=>{if(backend.error && backend.error!==lastError.current)toast.error(backend.error);lastError.current=backend.error},[backend.error])
   const reload=()=>{void backend.config.reload();void backend.view.reload();void backend.detail.reload();void backend.progress.reload();void backend.ancestors.reload();void backend.catalog.reload()}
   const shell=<DemoShell expanded={expanded} onToggleExpanded={toggle} view={view} onViewChange={setView} sidebarCollapsed={sidebarCollapsed} onSidebarCollapsedChange={setSidebarCollapsed}
+    threadStatus={backend.pending && backend.job ? <GeminiExecutionStatus job={backend.job} message={backend.message} connectionError={Boolean(backend.view.error || backend.progress.error)} /> : null}
     menuExtra={defer=><>
       <Menu.Item className={menuItemClass} onClick={()=>defer(()=>setSettingsOpen(true))}><Settings className="size-3.5" />Message settings</Menu.Item>
       {backend.message ? <Menu.Item className={menuItemClass} onClick={()=>defer(()=>setResponseId(backend.message!.id))}><FileJson className="size-3.5" />Response details</Menu.Item> : null}
