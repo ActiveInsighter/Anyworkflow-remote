@@ -93,6 +93,7 @@ export function useAsyncData<T>(
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
   const controllerRef = useRef<AbortController | null>(null)
+  const inFlightRef = useRef(false)
   const activeCacheKeyRef = useRef(cacheKey)
   const pollRef = useRef(options.pollMs)
   useLayoutEffect(() => {
@@ -117,6 +118,7 @@ export function useAsyncData<T>(
     controllerRef.current?.abort()
     const controller = new AbortController()
     controllerRef.current = controller
+    inFlightRef.current = true
     const cached = readCache<T>(cacheKey)
     const hasData = dataRef.current !== null || cached !== null
     setLoading(!hasData)
@@ -135,6 +137,7 @@ export function useAsyncData<T>(
         setError(message)
       }
     } finally {
+      if (controllerRef.current === controller) inFlightRef.current = false
       if (!controller.signal.aborted) {
         setLoading(false)
         setRefreshing(false)
@@ -179,18 +182,23 @@ export function useAsyncData<T>(
 
     // Re-read the interval before every wait, so it follows the data without restarting loads.
     let timer = 0
+    let stopped = false
     const schedule = () => {
+      if (stopped) return
       const value = pollRef.current
       const delay = typeof value === 'function' ? value(dataRef.current) : value
       if (!delay || delay <= 0) return
-      timer = window.setTimeout(() => {
-        if (document.visibilityState === 'visible') void reload()
+      timer = window.setTimeout(async () => {
+        // A slow response must finish before its next poll. In particular,
+        // pagination intervals shorter than mobile RTT must not abort forever.
+        if (document.visibilityState === 'visible' && !inFlightRef.current) await reload()
         schedule()
       }, delay)
     }
     schedule()
 
     return () => {
+      stopped = true
       window.clearTimeout(timer)
       controllerRef.current?.abort()
     }

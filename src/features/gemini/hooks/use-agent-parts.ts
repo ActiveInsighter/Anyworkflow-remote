@@ -8,19 +8,25 @@ export function useAgentParts(jobId: string, messageId: string, enabled: boolean
   const state = useRef({ key: '', cursor: 0, parts: new Map<string, AgentPart>() })
   const key = `${jobId}:${messageId}`
   const result = useAsyncData(async signal => {
-    const cache = state.current.key === key ? state.current : { key, cursor: 0, parts: new Map<string, AgentPart>() }
-    const page = await getAgentParts(jobId, messageId, cache.cursor, signal)
-    signal.throwIfAborted()
-    for (const part of page.items) {
-      const previous = cache.parts.get(part.key)
-      if (!previous || previous.revision < part.revision) cache.parts.set(part.key, part)
-    }
-    cache.cursor = page.nextCursor
+    const previous = state.current.key === key ? state.current : null
+    // Commit the cursor and merged map together only after the entire drain.
+    // A failed/aborted later page cannot discard already displayed history.
+    const cache = { key, cursor: previous?.cursor ?? 0, parts: new Map(previous?.parts) }
+    let page: AgentPartsPage
+    do {
+      page = await getAgentParts(jobId, messageId, cache.cursor, signal)
+      signal.throwIfAborted()
+      for (const part of page.items) {
+        const existing = cache.parts.get(part.key)
+        if (!existing || existing.revision < part.revision) cache.parts.set(part.key, part)
+      }
+      cache.cursor = page.nextCursor
+    } while (page.hasMore)
     state.current = cache
     return { ...page, key, items: [...cache.parts.values()].sort((a, b) => a.sequence - b.sequence) }
   }, [key, status], {
     enabled,
-    pollMs: (data: AgentPartsPage | null) => data?.hasMore ? 100 : data && !['queued', 'running'].includes(data.status) ? 15000 : 3000,
+    pollMs: (data: AgentPartsPage | null) => data && !['queued', 'running'].includes(data.status) ? 15000 : 3000,
   })
   return { ...result, data: result.data?.key === key ? result.data : null }
 }
