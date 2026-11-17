@@ -1,3 +1,5 @@
+import { AgentTimeline, MessageUsage } from './agent-timeline'
+import { useAgentParts } from '../hooks/use-agent-parts'
 import { isAntigravity } from '@/lib/domain/gemini-agent'
 import { Bot, Copy, Download, UserRound } from 'lucide-react'
 import { toast } from 'sonner'
@@ -18,10 +20,9 @@ import type { GeminiJob, GeminiMessageSummary } from '@/types/gemini'
 
 export function GeminiTranscript({ job, segment }: { job: GeminiJob; segment: GeminiMessageSummary }) {
   const result = useAsyncData((signal) => getGeminiMessage(job.id, segment.id, signal),
-    [job.id, segment.id, segment.status, segment.updated], {
-      pollMs: segment.status === 'queued' || segment.status === 'running' ? 3000 : undefined,
-    })
+    [job.id, segment.id, segment.status, ['queued', 'running'].includes(segment.status) ? '' : segment.updated])
   const message = result.data
+  const progress = useAgentParts(job.id, segment.id, message?.streamRevision != null, segment.status)
   if (!message) return <div className="p-5">
     <ErrorAlert>{result.error}</ErrorAlert>
     {result.error ? <Button variant="outline" onClick={() => void result.reload()}>重新加载回复</Button> : <LoadingState label="加载消息…" />}
@@ -56,26 +57,19 @@ export function GeminiTranscript({ job, segment }: { job: GeminiJob; segment: Ge
                 <MessageHeader className="min-h-8 gap-2 px-0"><span>{isAntigravity(job.model) ? 'Antigravity' : 'Gemini'}</span><span className="truncate text-caption font-normal">{job.options.agent?.model ?? job.model}</span></MessageHeader>
                 <Bubble variant="ghost" className="w-full">
                   <BubbleContent className="w-full text-body">
+                    <AgentTimeline parts={progress.data?.items ?? []} pending={pending} showText={!message.reply} />
                     {message.reply ? <MarkdownReader markdown={message.reply} /> : pending ?
                       <Marker role="status"><MarkerIcon><Spinner /></MarkerIcon><MarkerContent>{message.status === 'queued' ? '等待发送…' : isAntigravity(job.model) ? 'Agent 正在执行…' : '正在生成回复…'}</MarkerContent></Marker> :
                       <p className="text-muted-foreground">{message.status === 'canceled' ? '消息已取消。' : '没有收到回复。'}</p>}
                   </BubbleContent>
                 </Bubble>
-                <ErrorAlert>{message.error || result.error}</ErrorAlert>
+                <ErrorAlert>{message.error || result.error || progress.error}</ErrorAlert>
+                {progress.error ? <Button variant="ghost" onClick={() => void progress.reload()}>重新加载进度</Button> : null}
+                {progress.data?.progressAt ? <p role="status" className="text-caption text-muted-foreground">最近进度 {new Date(progress.data.progressAt).toLocaleTimeString()} {pending ? '· 执行中' : ''}</p> : null}
+                <MessageUsage usage={progress.data?.usage ?? message.usage ?? {}} />
                 {message.reply ? <MessageFooter className="flex-wrap gap-1 px-0">
                   <Button type="button" variant="ghost" size="icon-touch" aria-label="复制回复" onClick={() => void copy()}><Copy /></Button>
                   <Button type="button" variant="ghost" size="icon-touch" aria-label="下载回复" onClick={() => saveBlob(new Blob([message.reply], { type: 'text/markdown;charset=utf-8' }), safeFilename(job.title, 'Gemini 回复', 'md'))}><Download /></Button>
-                  {message.usage?.totalTokenCount ? <details className="ms-2 text-caption font-normal tabular-nums">
-                    <summary className="cursor-pointer select-none">{message.usage.totalTokenCount.toLocaleString()} Token · 明细</summary>
-                    <span className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-muted-foreground">
-                      {message.usage.promptTokenCount != null ? <span>输入 {message.usage.promptTokenCount.toLocaleString()}</span> : null}
-                      {message.usage.candidatesTokenCount != null ? <span>输出 {message.usage.candidatesTokenCount.toLocaleString()}</span> : null}
-                      {message.usage.thoughtsTokenCount != null ? <span>思考 {message.usage.thoughtsTokenCount.toLocaleString()}</span> : null}
-                      {message.usage.toolUseTokenCount != null ? <span>工具 {message.usage.toolUseTokenCount.toLocaleString()}</span> : null}
-                      {message.usage.cachedContentTokenCount != null ? <span>缓存 {message.usage.cachedContentTokenCount.toLocaleString()}</span> : null}
-                      {message.usage.agentStepCount != null ? <span>Agent 步骤 {message.usage.agentStepCount.toLocaleString()}</span> : null}
-                    </span>
-                  </details> : null}
                   {message.finishReason === 'MAX_TOKENS' && !message.error ? <span className="text-warning">达到输出上限</span> : null}
                 </MessageFooter> : null}
               </MessageContent>

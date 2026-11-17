@@ -68,3 +68,13 @@ export async function saveGeminiConfig(
     }),
   )
 }
+
+export async function getAgentParts(jobId: string, messageId: string, after: number, signal?: AbortSignal) {
+  const page = await request<import('@/types/gemini').AgentPartsPage>(
+    `${API}/jobs/${encodeURIComponent(jobId)}/messages/${encodeURIComponent(messageId)}/parts?after=${after}`, { signal },
+  )
+  if (!page || !Array.isArray(page.items) || page.items.length > 100 || !Number.isSafeInteger(page.nextCursor) || page.nextCursor < after ||
+      page.items.some(part => assertOwner(part).message !== messageId || !Number.isSafeInteger(part.revision) || part.revision <= after || part.revision > page.nextCursor) ||
+      page.hasMore && page.nextCursor === after) throw new ApiError('消息进度格式无效', 502)
+  return page
+}

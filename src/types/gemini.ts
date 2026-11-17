@@ -47,6 +47,8 @@ export interface GeminiMessage {
   error: string
   finishReason: string
   usage: { totalTokenCount?: number; promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number; cachedContentTokenCount?: number; toolUseTokenCount?: number; agentStepCount?: number }
+  streamRevision?: number
+  progressAt?: string
   providerState?: { id?: string; environmentId?: string; status?: string }
 }
 
@@ -82,3 +84,31 @@ export interface GeminiConfigRecord {
 
 export type GeminiMessageSummary = Pick<GeminiMessage, 'id' | 'owner' | 'job' | 'index' | 'part' | 'sourceName' | 'status' | 'error' | 'finishReason'> & { updated: string }
 export interface GeminiJobView { job: GeminiJob; messages: GeminiMessageSummary[] }
+
+/** Ordered, provider-neutral content inside one assistant turn. */
+export interface AgentPart {
+  id: string
+  owner: string
+  message: string
+  key: string
+  sequence: number
+  revision: number
+  type: 'text' | 'reasoning_summary' | 'tool_call' | 'tool_result' | 'status'
+  status: 'running' | 'completed' | 'failed'
+  content: string
+  toolName: string
+  callId: string
+  providerType: string
+  truncated: boolean
+  created: string
+  updated: string
+}
+export interface AgentPartsPage {
+  items: AgentPart[]
+  nextCursor: number
+  hasMore: boolean
+  revision: number
+  progressAt: string
+  status: string
+  usage: GeminiMessage['usage']
+}
