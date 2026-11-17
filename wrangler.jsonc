@@ -11,7 +11,11 @@
     "run_worker_first": ["/api/*", "/*.pdf"],
     "not_found_handling": "single-page-application"
   },
-  "routes": [{ "pattern": "ocr-files.any1.tech/*", "zone_name": "any1.tech" }],
+  "routes": [
+    { "pattern": "ocr-files.any1.tech/*", "zone_name": "any1.tech" },
+    { "pattern": "awremote.any1.tech", "custom_domain": true },
+    { "pattern": "file.any1.tech", "custom_domain": true }
+  ],
   "r2_buckets": [
     { "binding": "PDF_UPLOADS", "bucket_name": "anyworkflow-ocr-relay" },
     { "binding": "LIBRARY_FILES", "bucket_name": "anyworkflow-library" }
