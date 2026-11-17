@@ -11,11 +11,13 @@ import { AppTopBar } from './app-top-bar'
  * manage their own scrolling. The task center follows async work for every page in the frame.
  */
 export function AppShell() {
-  const workspace = useMatches().some((match) => (match.handle as RouteHandle | undefined)?.workspace)
+  const matches = useMatches()
+  const standaloneChat = matches.some(match => (match.handle as RouteHandle | undefined)?.standaloneChat)
+  const workspace = matches.some((match) => (match.handle as RouteHandle | undefined)?.workspace)
 
   return (
     <TaskCenterProvider>
-      <SidebarProvider className="h-dvh min-h-0 overflow-hidden bg-canvas">
+      {standaloneChat ? <Outlet /> : <SidebarProvider className="h-dvh min-h-0 overflow-hidden bg-canvas">
         <AppSidebar />
         <SidebarInset className="min-w-0 overflow-hidden">
           <AppTopBar />
@@ -27,7 +29,7 @@ export function AppShell() {
             <Outlet />
           </div>
         </SidebarInset>
-      </SidebarProvider>
+      </SidebarProvider>}
     </TaskCenterProvider>
   )
 }

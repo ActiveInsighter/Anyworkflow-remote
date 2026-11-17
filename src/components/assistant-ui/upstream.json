@@ -1,0 +1,390 @@
+{
+  "repository": "https://github.com/assistant-ui/assistant-ui",
+  "referenceCommit": "294e932dbb073b75ebc3c24540f98909a64f18c9",
+  "surface": "apps/docs/components/pages/home/demo (the actual website HomeDemo)",
+  "installation": "npx assistant-ui@latest setup; assistant-ui@0.0.135 add thread thread-list model-selector quote directive-text composer-trigger-popover context-display message-timing",
+  "registry": "https://r.assistant-ui.com/styles/base-nova",
+  "integrationChanges": [
+    "App-owned model/effort preferences, context usage and account data replace documentation-site services.",
+    "Backend settings, segments and response details are deferred menu actions.",
+    "Public result and artifact data use the same website ToolTraceCard.",
+    "Feedback markup is copied from the website; transport persists to PocketBase.",
+    "Documentation-only budget, account login and memory services are replaced by app integration.",
+    "Input gets an accessible label; unsupported historical actions are disabled."
+  ],
+  "source": [
+    {
+      "file": "src/components/assistant-ui/home-demo/shell.tsx",
+      "source": "apps/docs/components/pages/home/demo/shell.tsx",
+      "sha256": "d7076d4007730634d6f5012c8764148365c8929f9e6343befdfb9d733b8ee4a5",
+      "identicalAfterAliases": false,
+      "retainsUpstreamStyleLiterals": true
+    },
+    {
+      "file": "src/components/assistant-ui/home-demo/thread.tsx",
+      "source": "apps/docs/components/pages/home/demo/thread.tsx",
+      "sha256": "1e0a15c1833638228ce30bb7d61116d206ab3473d23b10b7599e08388d5264b1",
+      "identicalAfterAliases": false,
+      "retainsUpstreamStyleLiterals": true
+    },
+    {
+      "file": "src/components/assistant-ui/home-demo/messages.tsx",
+      "source": "apps/docs/components/pages/home/demo/messages.tsx",
+      "sha256": "2a6ffaaee92b5a5e290842cd9103d0e2bd14176ea1e67c88d73f52375e2b0fd5",
+      "identicalAfterAliases": false,
+      "retainsUpstreamStyleLiterals": true
+    },
+    {
+      "file": "src/components/assistant-ui/home-demo/composer.tsx",
+      "source": "apps/docs/components/pages/home/demo/composer.tsx",
+      "sha256": "e661897e36ce688336173e3eb9c888d7c17444945d0a30f23bba864080870be7",
+      "identicalAfterAliases": false,
+      "retainsUpstreamStyleLiterals": true
+    },
+    {
+      "file": "src/components/assistant-ui/home-demo/action-bar.tsx",
+      "source": "apps/docs/components/pages/home/demo/action-bar.tsx",
+      "sha256": "e0c02b65609d28fc7ad7f2114b3764b827774c5199e32bd75a79068891ec132b",
+      "identicalAfterAliases": false,
+      "retainsUpstreamStyleLiterals": true
+    },
+    {
+      "file": "src/components/assistant-ui/home-demo/suggestions.tsx",
+      "source": "apps/docs/components/pages/home/demo/suggestions.tsx",
+      "sha256": "576c18ba5fc2a9c7e6a6e9d3e0194af6a66e1e33dcaecea1141a04709a539398",
+      "identicalAfterAliases": true,
+      "retainsUpstreamStyleLiterals": true
+    },
+    {
+      "file": "src/components/assistant-ui/home-demo/greeting.tsx",
+      "source": "apps/docs/components/pages/home/demo/greeting.tsx",
+      "sha256": "04f5d5dcc0881919e6ab0f5ab62e093ea8d4e7b8f1a98bb3cb7154700cfac2d0",
+      "identicalAfterAliases": false,
+      "retainsUpstreamStyleLiterals": true
+    },
+    {
+      "file": "src/components/assistant-ui/home-demo/sidebar.tsx",
+      "source": "apps/docs/components/pages/home/demo/sidebar.tsx",
+      "sha256": "edccbaf8a6d5feb7f1a9d8b9b0a9ae05c5035761b91343e1f0c3384eed697626",
+      "identicalAfterAliases": true,
+      "retainsUpstreamStyleLiterals": true
+    },
+    {
+      "file": "src/components/assistant-ui/home-demo/thread-list-item.tsx",
+      "source": "apps/docs/components/pages/home/demo/thread-list-item.tsx",
+      "sha256": "af103c1eb7ce4ff79938f1cbaa3ce271bf0186e88ce455d3e54763c565b56d9e",
+      "identicalAfterAliases": true,
+      "retainsUpstreamStyleLiterals": true
+    },
+    {
+      "file": "src/components/assistant-ui/home-demo/thread-list-groups.ts",
+      "source": "apps/docs/components/pages/home/demo/thread-list-groups.ts",
+      "sha256": "b2beb6125b7422a2eced5921d6a268310b38c761fcbf6266ce3588afa8357a10",
+      "identicalAfterAliases": true,
+      "retainsUpstreamStyleLiterals": true
+    },
+    {
+      "file": "src/components/assistant-ui/home-demo/thread-rename-input.tsx",
+      "source": "apps/docs/components/pages/home/demo/thread-rename-input.tsx",
+      "sha256": "7d50ec78db3d83a7e9b7f470d8b3a759d4183285524954595dd109304acd3eef",
+      "identicalAfterAliases": true,
+      "retainsUpstreamStyleLiterals": true
+    },
+    {
+      "file": "src/components/assistant-ui/home-demo/sidebar-context.ts",
+      "source": "apps/docs/components/pages/home/demo/sidebar-context.ts",
+      "sha256": "ba8c910999193d0c3608098a98b43884f40f44205491e88fcc8c346200608d06",
+      "identicalAfterAliases": true,
+      "retainsUpstreamStyleLiterals": true
+    },
+    {
+      "file": "src/components/assistant-ui/home-demo/thread-shortcuts.ts",
+      "source": "apps/docs/components/pages/home/demo/thread-shortcuts.ts",
+      "sha256": "1fce4403b312fb2f7e76487fa1ce9e32440781132fb9796a48b54260887fb25d",
+      "identicalAfterAliases": true,
+      "retainsUpstreamStyleLiterals": true
+    },
+    {
+      "file": "src/components/assistant-ui/home-demo/styles.ts",
+      "source": "apps/docs/components/pages/home/demo/styles.ts",
+      "sha256": "9861121d6a5ef8a5b370ad785451fa62e372bc3e6884c5fd375434037b7a33d2",
+      "identicalAfterAliases": true,
+      "retainsUpstreamStyleLiterals": true
+    },
+    {
+      "file": "src/components/assistant-ui/home-demo/trace.tsx",
+      "source": "apps/docs/components/pages/home/demo/trace.tsx",
+      "sha256": "b43691ee1dae80e15e90e57255da58e969ffda1414d453fe1d0f9170cdec81d8",
+      "identicalAfterAliases": false,
+      "retainsUpstreamStyleLiterals": true
+    },
+    {
+      "file": "src/components/assistant-ui/home-demo/sources.tsx",
+      "source": "apps/docs/components/pages/home/demo/sources.tsx",
+      "sha256": "2879505aa958391452aaf09e4bcde4d2528de65426ddff9c06f0c9313c7ef4ff",
+      "identicalAfterAliases": true,
+      "retainsUpstreamStyleLiterals": true
+    },
+    {
+      "file": "src/components/assistant-ui/home-demo/commands.tsx",
+      "source": "apps/docs/components/pages/home/demo/commands.tsx",
+      "sha256": "10747199bcec7bde7664b84f9fe84185c8bb103be999b9ae22967c1326d4be28",
+      "identicalAfterAliases": true,
+      "retainsUpstreamStyleLiterals": true
+    },
+    {
+      "file": "src/components/assistant-ui/home-demo/fullscreen.ts",
+      "source": "apps/docs/components/pages/home/demo/fullscreen.ts",
+      "sha256": "dfc36372db4f641bac08645b983dd6e73e542d3cbe712fd3fd5603d977c5fa52",
+      "identicalAfterAliases": true,
+      "retainsUpstreamStyleLiterals": true
+    },
+    {
+      "file": "src/components/assistant-ui/home-demo/shared/trace-line.tsx",
+      "source": "apps/docs/components/shared/trace-line.tsx",
+      "sha256": "d68c5946d4f29c6fb22f54c5a1f7d6fa39460925339cc59432acee4813d0c264",
+      "identicalAfterAliases": true,
+      "retainsUpstreamStyleLiterals": true
+    },
+    {
+      "file": "src/components/assistant-ui/home-demo/shared/type.ts",
+      "source": "apps/docs/components/shared/type.ts",
+      "sha256": "449268725e71fc1557dea752466e46ef635341a0a35574267370694d813ae572",
+      "identicalAfterAliases": true,
+      "retainsUpstreamStyleLiterals": true
+    },
+    {
+      "file": "src/components/assistant-ui/home-demo/shared/tool-trace.tsx",
+      "source": "apps/docs/lib/tool-trace.tsx",
+      "sha256": "a096cc94ba7a68545821c15b4d3d484a78f0592df83cb61c9ffd3a7f0295debe",
+      "identicalAfterAliases": true,
+      "retainsUpstreamStyleLiterals": true
+    },
+    {
+      "file": "src/components/assistant-ui/home-demo/shared/public-assistant-errors.ts",
+      "source": "apps/docs/lib/public-assistant-errors.ts",
+      "sha256": "34388515841152ab9eddbb0cf24bed1e492d9e5dbf26b3952251ac995aaefa81",
+      "identicalAfterAliases": true,
+      "retainsUpstreamStyleLiterals": true
+    },
+    {
+      "file": "src/components/assistant-ui/home-demo/shared/feedback-popover.tsx",
+      "source": "apps/docs/components/pages/docs/assistant/feedback-popover.tsx",
+      "sha256": "04c555bc1903d2fbde1772ce55b6e3ea29371ac53cb0fb07a8c367685819066f",
+      "identicalAfterAliases": true,
+      "retainsUpstreamStyleLiterals": true
+    }
+  ],
+  "elements": [
+    {
+      "file": "src/components/assistant-ui/elements/thread.aui.tsx",
+      "registryItem": "thread",
+      "sha256": "55eb819d57f5d71aca0aa148698558e6c4f612c849de45ae8493cce106deb3ac",
+      "identicalAfterAliases": false
+    },
+    {
+      "file": "src/components/assistant-ui/elements/thread-list.aui.tsx",
+      "registryItem": "thread-list",
+      "sha256": "8c3db7523cfad4c5c30ef737f6cf9dc34df6a7b5b79529f4c44b6c7a464b3dd3",
+      "identicalAfterAliases": false
+    },
+    {
+      "file": "src/components/assistant-ui/elements/model-selector.aui.tsx",
+      "registryItem": "model-selector",
+      "sha256": "fa58d6cb2392e7d57d58d7d560008953f95025b1bd0a58b7539a61f7283557c1",
+      "identicalAfterAliases": true
+    },
+    {
+      "file": "src/components/assistant-ui/elements/quote.aui.tsx",
+      "registryItem": "quote",
+      "sha256": "002f5009aab0b6bc3743138d2d110f32b13935732f5fd2d6a4f6faeff745a6d0",
+      "identicalAfterAliases": false
+    },
+    {
+      "file": "src/components/assistant-ui/elements/directive-text.aui.tsx",
+      "registryItem": "directive-text",
+      "sha256": "3a8a0b8f0de9fd546c6e214c5ff8d833324fda0c3a730a2dcdb506e8d66cfffe",
+      "identicalAfterAliases": true
+    },
+    {
+      "file": "src/components/assistant-ui/elements/composer-trigger-popover.aui.tsx",
+      "registryItem": "composer-trigger-popover",
+      "sha256": "0399632d0408bade470f404a3e808686dd5c94db2eccac7b54deb7136289deb8",
+      "identicalAfterAliases": true
+    },
+    {
+      "file": "src/components/assistant-ui/elements/context-display.aui.tsx",
+      "registryItem": "context-display",
+      "sha256": "3f24f35b9efedf0bd265b8eb3e8a108d31af712a2fb58493b69cd6d1d6f3522b",
+      "identicalAfterAliases": true
+    },
+    {
+      "file": "src/components/assistant-ui/elements/message-timing.aui.tsx",
+      "registryItem": "message-timing",
+      "sha256": "aec46d92a52e7cacba580eb8ce55836a660a4cf48e15ffca2e3e84baaebaeaf7",
+      "identicalAfterAliases": true
+    },
+    {
+      "file": "src/components/assistant-ui/elements/attachment.aui.tsx",
+      "registryItem": "attachment",
+      "sha256": "be5a051178daf9a447e5054ff5baed27ffc8210870e23aa2add13464891762a2",
+      "identicalAfterAliases": true
+    },
+    {
+      "file": "src/components/assistant-ui/elements/file.tsx",
+      "registryItem": "file",
+      "sha256": "af6c5c38b0409f168e1bcebacffa9efaf7ff17ecc3cc0b5fab8d4770df0454a0",
+      "identicalAfterAliases": true
+    },
+    {
+      "file": "src/components/assistant-ui/elements/follow-up-suggestions.aui.tsx",
+      "registryItem": "follow-up-suggestions",
+      "sha256": "f0db1e9cfc5f648adeb57c8ac61fbeca4ebbb4d55267a9c107709af01b73abb4",
+      "identicalAfterAliases": true
+    },
+    {
+      "file": "src/components/assistant-ui/elements/image.tsx",
+      "registryItem": "image",
+      "sha256": "916b2ca0f1097a2eb22e6e5c3ffd39a918dec71abff424b6b8795939733d53fb",
+      "identicalAfterAliases": true
+    },
+    {
+      "file": "src/components/assistant-ui/elements/markdown-text.tsx",
+      "registryItem": "markdown-text",
+      "sha256": "dec8502f9b0bb6f85399a614625706c9df2d78dbc8adba24958a7bbc4aa5eeae",
+      "identicalAfterAliases": false
+    },
+    {
+      "file": "src/components/assistant-ui/elements/reasoning.aui.tsx",
+      "registryItem": "reasoning",
+      "sha256": "3ae8bcf0d84fcb9ac37a40c2046abbf46d7b8f3967b482eec84f0a743aefce65",
+      "identicalAfterAliases": true
+    },
+    {
+      "file": "src/components/assistant-ui/elements/tooltip-icon-button.tsx",
+      "registryItem": "tooltip-icon-button",
+      "sha256": "61c816e82060761445a58f72431dab00532447d666548410dd21e3b3cfed4c40",
+      "identicalAfterAliases": true
+    },
+    {
+      "file": "src/components/assistant-ui/elements/tool-fallback.aui.tsx",
+      "registryItem": "tool-fallback",
+      "sha256": "51505fb755e1930abc036618016db18dec952d3dac4b73d436f38e95707a1d9f",
+      "identicalAfterAliases": true
+    },
+    {
+      "file": "src/components/assistant-ui/elements/tool-group.aui.tsx",
+      "registryItem": "tool-group",
+      "sha256": "757caf28ee232d4f500c8af7d6837fe7d6d2b144774a6a0bcdaff8c0c517bd9e",
+      "identicalAfterAliases": true
+    },
+    {
+      "file": "src/components/assistant-ui/elements/model-selector.tsx",
+      "registryItem": "elements-model-selector",
+      "sha256": "06d81367ef90bc8014a705338c0dc17d565db55b5d173bcb50d60ccdf8880332",
+      "identicalAfterAliases": true
+    },
+    {
+      "file": "src/components/assistant-ui/elements/directive-text.tsx",
+      "registryItem": "elements-directive-text",
+      "sha256": "dcb8b91546fa6922176e913d084c27e40fe575b98d4c0314cb483206ad964160",
+      "identicalAfterAliases": true
+    },
+    {
+      "file": "src/components/assistant-ui/elements/context-display.tsx",
+      "registryItem": "elements-context-display",
+      "sha256": "9b1156b366fba9ef87e0fb207e3e8dd631aa7e976535d8d98681b6f3eda8ed82",
+      "identicalAfterAliases": true
+    },
+    {
+      "file": "src/components/assistant-ui/elements/attachment-state.ts",
+      "registryItem": "elements-attachment-state",
+      "sha256": "a789f2469c96e2524e38281aaaf5c65490c1d5b603fd2e31aaa019eb553d1326",
+      "identicalAfterAliases": false
+    },
+    {
+      "file": "src/components/assistant-ui/elements/media-player.tsx",
+      "registryItem": "elements-media-player",
+      "sha256": "c7bfde0e52e5d98739f14b55eb792436fae148f4d13b64d6879fd7fb8941b19f",
+      "identicalAfterAliases": true
+    },
+    {
+      "file": "src/components/assistant-ui/utils/href.ts",
+      "registryItem": "elements-href",
+      "sha256": "edcbea291ec6c5d506be4ddd76c6e0b6cabba4a14193f389a44fb6bfa8d81c40",
+      "identicalAfterAliases": false
+    },
+    {
+      "file": "src/components/assistant-ui/hooks/use-copy-to-clipboard.ts",
+      "registryItem": "use-copy-to-clipboard",
+      "sha256": "1f3b8a1bab79cef961f62eb25d6b58a0d16c957d63ba1faf086ad09c99712c0a",
+      "identicalAfterAliases": true
+    },
+    {
+      "file": "src/components/assistant-ui/elements/reasoning.tsx",
+      "registryItem": "elements-reasoning",
+      "sha256": "02c42a1cad5fd56f4479fe65c779e9f9934c03a6e935ac92ebf98cbb46ef3cc7",
+      "identicalAfterAliases": true
+    },
+    {
+      "file": "src/components/assistant-ui/utils/useIsomorphicLayoutEffect.ts",
+      "registryItem": "elements-reasoning",
+      "sha256": "8db117d730e640655e5099e086af4e00d545c283839d9ef5885ca93419d51893",
+      "identicalAfterAliases": true
+    },
+    {
+      "file": "src/components/assistant-ui/elements/collapsible-root.tsx",
+      "registryItem": "elements-collapsible-root",
+      "sha256": "6d3e6d9a776ac9db13448606627c2ef51e5605cacb2f805379ada9b58abe4565",
+      "identicalAfterAliases": true
+    },
+    {
+      "file": "src/components/assistant-ui/utils/model-selection.ts",
+      "registryItem": "elements-model-selection",
+      "sha256": "019d3dca2d33724de16b9eb54757344cd05bd5c89f2fc3cb2885cdcc2590f4d9",
+      "identicalAfterAliases": true
+    },
+    {
+      "file": "src/components/assistant-ui/ui/badge.tsx",
+      "registryItem": "badge",
+      "sha256": "610c24620259c690cacbb8a79fe3278aad6eaacb66e78e365de6337cdd73920c",
+      "identicalAfterAliases": true
+    },
+    {
+      "file": "src/components/assistant-ui/utils/tokens.ts",
+      "registryItem": "elements-tokens",
+      "sha256": "4d02a0aa10b8bc1aca7cb2738503fcdc898b8a9fc7b20633c53039aa73457f9a",
+      "identicalAfterAliases": false
+    },
+    {
+      "file": "src/components/assistant-ui/utils/context-usage.ts",
+      "registryItem": "elements-context-usage",
+      "sha256": "efda3c0fd48be1a65a24ab30b9c0c22f5276651348f3c77bb0334d1401369aa8",
+      "identicalAfterAliases": true
+    },
+    {
+      "file": "src/components/assistant-ui/utils/context-display-state.ts",
+      "registryItem": "elements-context-display-state",
+      "sha256": "7e24cb5f3a5acf1f223b6f06ff20fb868ec23678fdb4577efff15f4a50618ca1",
+      "identicalAfterAliases": true
+    },
+    {
+      "file": "src/components/assistant-ui/hooks/use-attachment-src.ts",
+      "registryItem": "use-attachment-src",
+      "sha256": "dfb621f1a18f4013994aa29815beddb436020105164526ab7c86b0b0a32040a1",
+      "identicalAfterAliases": true
+    },
+    {
+      "file": "src/components/assistant-ui/elements/surfaces.tsx",
+      "registryItem": "elements-surfaces",
+      "sha256": "5d81fbb669e67ae20026cd30ed57efc51a5e3ee0f4f5d265e1723de75359b8fa",
+      "identicalAfterAliases": true
+    },
+    {
+      "file": "src/components/assistant-ui/utils/useIsomorphicLayoutEffect.ts",
+      "registryItem": "elements-surfaces",
+      "sha256": "8db117d730e640655e5099e086af4e00d545c283839d9ef5885ca93419d51893",
+      "identicalAfterAliases": true
+    }
+  ]
+}

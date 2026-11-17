@@ -42,6 +42,7 @@ export class TaskCoordinator extends DurableObject<ConverterEnv> {
   async status() {
     return {
       ref: CONVERTER_REF,
+      geminiResponseRef: this.env.GITHUB_GEMINI_RESPONSE_REF,
       enabled: this.env.CONVERTER_ENABLED === 'true',
       lastPass: (await this.ctx.storage.get<PassSummary>('lastPass')) ?? null,
     }

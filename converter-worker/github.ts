@@ -4,9 +4,11 @@ import type { GitHub, GitHubRun } from './types.js'
 // Deliberately not configurable by an env var or a browser payload.
 export const CONVERTER_REF = 'main'
 export const MAX_ZIP_BYTES = 100 * 1024 * 1024
-export function createGitHub(env: ConverterEnv, fetchImpl: typeof fetch = fetch, task: { workflow: string; prefixes: string[] } = { workflow: env.GITHUB_FILE_CONVERTER_WORKFLOW, prefixes: ['file-converter-pdf-to-md', 'pdf-to-md'] }): GitHub {
+export function createGitHub(env: ConverterEnv, fetchImpl: typeof fetch = fetch, task: { workflow: string; prefixes: string[]; ref?: string } = { workflow: env.GITHUB_FILE_CONVERTER_WORKFLOW, prefixes: ['file-converter-pdf-to-md', 'pdf-to-md'] }): GitHub {
   const root = `https://api.github.com/repos/${env.GITHUB_FILE_CONVERTER_REPOSITORY}`
   const { workflow, prefixes } = task
+  const ref = task.ref || CONVERTER_REF
+  if (!/^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$/u.test(ref) || ref.includes('..')) throw new Error('Invalid trusted executor ref')
   const headers = {
     Accept: 'application/vnd.github+json',
     Authorization: `Bearer ${env.GITHUB_FILE_CONVERTER_TOKEN}`,
@@ -25,9 +27,9 @@ export function createGitHub(env: ConverterEnv, fetchImpl: typeof fetch = fetch,
   return {
     async dispatch(inputs) {
       const result = await json<{ workflow_run_id?: number } | null>(`/actions/workflows/${workflow}/dispatches`, {
-        method: 'POST', body: JSON.stringify({ ref: CONVERTER_REF, inputs }),
+        method: 'POST', body: JSON.stringify({ ref, inputs }),
       })
-      console.log(JSON.stringify({ event: 'converter_dispatched', jobId: inputs.request_id, ref: CONVERTER_REF, runId: result?.workflow_run_id }))
+      console.log(JSON.stringify({ event: 'converter_dispatched', jobId: inputs.request_id, ref, runId: result?.workflow_run_id }))
       return result
     },
     async findRun(id, since) {

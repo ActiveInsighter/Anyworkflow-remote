@@ -75,7 +75,7 @@ async function outbound(request) {
   if (url.pathname.endsWith('/dispatches')) {
     const body = await request.json()
     assert.equal([...rows, ...geminiRows].find(item => item.id === body.inputs.request_id)?.status, 'dispatching')
-    assert.equal(body.ref, 'main')
+    assert.equal(body.ref, body.inputs.request_id === 'hhhhhhhhhhhhhhh' ? 'codex/gemini-response-storage' : 'main')
     assert.equal(body.inputs.ref, undefined)
     if (url.pathname.includes('/gemini-text.yml/')) {
       assert.deepEqual(Object.keys(body.inputs), ['request_id'])
@@ -109,7 +109,7 @@ function runtime() {
           return handler.fetch(request, env, ctx);
         } };
       ` }, ...modules],
-      bindings: { ...config.vars, GITHUB_FILE_CONVERTER_TOKEN: 'github-service', POCKETBASE_SERVER_TOKEN: 'pb-service', GITHUB_FILE_CONVERTER_REF: 'old-branch' },
+      bindings: { ...config.vars, GITHUB_FILE_CONVERTER_TOKEN: 'github-service', POCKETBASE_SERVER_TOKEN: 'pb-service', GITHUB_FILE_CONVERTER_REF: 'old-branch', GITHUB_GEMINI_RESPONSE_REF: 'codex/gemini-response-storage' },
       durableObjects: { CONVERSION_COORDINATOR: { className: 'TestCoordinator', useSQLite: true } },
       outboundService: outbound,
     }, {
@@ -214,7 +214,7 @@ try {
   rows.push({ ...row('ppppppppppppppp'), created: '2026-11-15 01:00:00Z' })
   geminiRows.push(
     { id: 'ggggggggggggggg', status: 'queued', created: '2026-11-15 00:00:00Z' },
-    { id: 'hhhhhhhhhhhhhhh', status: 'queued', created: '2026-11-15 00:01:00Z' },
+    { id: 'hhhhhhhhhhhhhhh', options: { responseVersion: 1 }, status: 'queued', created: '2026-11-15 00:01:00Z' },
   )
   uncertainDispatch = false
   await tick()

@@ -1,4 +1,7 @@
 export interface GeminiInput {
+  responseVersion?: 1
+  replacesMessage?: string
+  parentMessage?: string
   agentModel?: string
   agentTimeoutMinutes?: number
   title: string
@@ -14,6 +17,12 @@ export interface GeminiInput {
 }
 
 export interface GeminiJob {
+  pinned?: boolean
+  archived?: boolean
+  threadRoot?: string
+  replacesMessage?: string
+  parentMessage?: string
+  history?: { role: 'user' | 'model'; text: string }[]
   id: string
   owner: string
   title: string
@@ -35,18 +44,26 @@ export interface GeminiJob {
 }
 
 export interface GeminiMessage {
+  feedback?: 'positive' | 'negative' | ''
+  feedbackComment?: string
+  startedAt?: string
+  finishedAt?: string
+  updated?: string
+  response?: GeminiResponse | null
   id: string
   owner: string
   job: string
   index: number
   part: number
   sourceName: string
+  sourceId?: string
   inputText: string
   status: string
   reply: string
   error: string
   finishReason: string
   usage: { totalTokenCount?: number; promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number; cachedContentTokenCount?: number; toolUseTokenCount?: number; agentStepCount?: number }
+  agentParts?: AgentPart[]
   streamRevision?: number
   progressAt?: string
   providerState?: { id?: string; environmentId?: string; status?: string }
@@ -111,4 +128,22 @@ export interface AgentPartsPage {
   progressAt: string
   status: string
   usage: GeminiMessage['usage']
+}
+
+export interface GeminiResponsePart {
+  id: string
+  type: 'text' | 'reasoning' | 'tool-call' | 'tool-result' | 'artifact'
+  text?: string
+  name?: string
+  callId?: string
+  providerType?: string
+  step?: number
+  data?: unknown
+}
+export interface GeminiResponse {
+  version: 1
+  protocol: 'generateContent' | 'interactions'
+  parts: GeminiResponsePart[]
+  metadata: Record<string, unknown>
+  capture: { totalParts: number; omittedParts: number; truncated: boolean }
 }
