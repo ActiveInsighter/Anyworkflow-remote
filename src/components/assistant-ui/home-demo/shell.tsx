@@ -33,6 +33,7 @@ const SIDEBAR_REGION_ID = "aui-demo-sidebar";
 
 export function DemoShell({
   menuExtra,
+  threadStatus,
   expanded = false,
   onToggleExpanded,
   view,
@@ -41,6 +42,7 @@ export function DemoShell({
   onSidebarCollapsedChange: setSidebarCollapsed,
 }: {
   menuExtra?: (defer: (action: () => void) => void) => ReactNode;
+  threadStatus?: ReactNode;
   expanded?: boolean;
   onToggleExpanded?: (() => void) | undefined;
   view: DemoView;
@@ -256,10 +258,11 @@ export function DemoShell({
         <Sidebar onNavigate={() => setView("thread")} />
       </div>
       <div
-        className="min-h-0 min-w-0"
+        className="flex min-h-0 min-w-0 flex-col"
         style={{ ["--thread-max-width" as string]: "42rem" }}
       >
-        <Thread />
+        {threadStatus}
+        <div className="min-h-0 flex-1"><Thread /></div>
       </div>
       <Sheet
         open={mobileSidebarOpen}
