@@ -1,7 +1,7 @@
 # 文件转换调度 Worker
 
 代码在 `converter-worker/`，独立部署为 `anyworkflow-file-converter`，配置为
-`wrangler.converter.jsonc`。PDF 识别仍由 `ActiveInsighter/file-converter-ai` 的
+`wrangler.converter.jsonc`。PDF 识别由 `ActiveInsighter/Agent-gemeni` 的
 `pdf-to-md.yml` 执行；调度器固定发送 `ref: main`，不读取旧服务器的
 `GITHUB_FILE_CONVERTER_REF`，也不接受客户端指定 ref。
 

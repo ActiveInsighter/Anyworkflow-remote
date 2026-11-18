@@ -5,7 +5,8 @@ import type { GitHub, GitHubRun } from './types.js'
 export const CONVERTER_REF = 'main'
 export const MAX_ZIP_BYTES = 100 * 1024 * 1024
 export function createGitHub(env: ConverterEnv, fetchImpl: typeof fetch = fetch, task: { workflow: string; prefixes: string[]; ref?: string } = { workflow: env.GITHUB_FILE_CONVERTER_WORKFLOW, prefixes: ['file-converter-pdf-to-md', 'pdf-to-md'] }): GitHub {
-  const root = `https://api.github.com/repos/${env.GITHUB_FILE_CONVERTER_REPOSITORY}`
+  // Use the stable ID for dispatch and reconciliation across repository renames.
+  const root = `https://api.github.com/repositories/${env.GITHUB_FILE_CONVERTER_REPOSITORY_ID}`
   const { workflow, prefixes } = task
   const ref = task.ref || CONVERTER_REF
   if (!/^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$/u.test(ref) || ref.includes('..')) throw new Error('Invalid trusted executor ref')

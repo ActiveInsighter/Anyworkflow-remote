@@ -6,7 +6,7 @@ import { isPdfJobActive, type PdfJob } from '@/lib/api/file-conversion'
 /** GitHub Actions run behind the job, when the dispatcher recorded a numeric id. */
 export function jobRunUrl(job: Pick<PdfJob, 'githubRunId'>): string | null {
   if (!/^[0-9]+$/.test(job.githubRunId)) return null
-  return `https://github.com/ActiveInsighter/file-converter-ai/actions/runs/${job.githubRunId}`
+  return `https://github.com/ActiveInsighter/Agent-gemeni/actions/runs/${job.githubRunId}`
 }
 
 /** "第 3–40 页" when the job converts only part of the PDF. */

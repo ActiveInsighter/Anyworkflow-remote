@@ -67,6 +67,7 @@ async function outbound(request) {
     return new Response(zip, { headers: { 'content-length': String(zip.length) } })
   }
   assert.equal(url.hostname, 'api.github.com')
+  assert.match(url.pathname, /^\/repositories\/1390437379\/actions\//u)
   assert.equal(request.headers.get('authorization'), 'Bearer github-service')
   assert.equal(request.headers.get('user-agent'), 'AnyWorkflow-File-Converter')
   if (url.pathname.endsWith('/gemini-models.yml/dispatches')) {

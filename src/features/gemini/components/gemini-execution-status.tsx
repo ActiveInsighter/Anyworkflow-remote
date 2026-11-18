@@ -28,7 +28,7 @@ export function GeminiExecutionStatus({ job, message, connectionError }: {
       <p role="status">{label}</p>
       <p className="mt-1 break-words">心跳：{ageLabel(message?.progressAt, now)} · 最近步骤：{ageLabel(latestStep, now)}</p>
     </div>
-    {/^[0-9]+$/.test(job.githubRunId) ? <a href={`https://github.com/ActiveInsighter/file-converter-ai/actions/runs/${job.githubRunId}`}
+    {/^[0-9]+$/.test(job.githubRunId) ? <a href={`https://github.com/ActiveInsighter/Agent-gemeni/actions/runs/${job.githubRunId}`}
       target="_blank" rel="noopener noreferrer" className="inline-flex min-h-10 shrink-0 items-center gap-1 rounded-sm underline-offset-4 hover:text-foreground hover:underline focus-visible:outline focus-visible:outline-ring">
       运行日志<ExternalLink aria-hidden="true" className="size-3" />
     </a> : null}

@@ -46,7 +46,7 @@ MD 与 PDF 复用文件夹、重命名、移动、删除和上传队列；重命
 普通客户端不能直接改状态、正文或回复。用户只能读取自己的记录、申请取消和删除终态任务。
 删除任务级联删除该任务分段，不影响资料库文件。
 
-Cloudflare 复用 shared task kit 的 GitHub 执行器，派发 `file-converter-ai/gemini-text.yml`，
+Cloudflare 复用 shared task kit 的 GitHub 执行器，按仓库 ID `1390437379` 派发 `ActiveInsighter/Agent-gemeni` 的 `gemini-text.yml`，
 workflow input 只有 `request_id`。不同 Gemini 对话可独立并发执行（调度器同时最多 4 个），
 无需等待前一个对话结束；PDF 与文本任务也不再互相阻塞。
 GitHub Actions 按 `request_id` 分组，保证不同对话的工作流互不排队，
@@ -67,7 +67,7 @@ GitHub Actions 按 `request_id` 分组，保证不同对话的工作流互不排
 
 1. 先部署 `AnyWorkflow-workers` 的 `1794700000_gemini_messages.js` migration 及三个
    `gemini*.js` hooks 和 `aw_gemini.pb.js`，重启 PB。
-2. 在 `ActiveInsighter/file-converter-ai` 配置 Actions Secret `POCKETBASE_SERVER_TOKEN`，
+2. 在 `ActiveInsighter/Agent-gemeni` 配置 Actions Secret `POCKETBASE_SERVER_TOKEN`，
    填入有效的 PB 超级用户令牌，执行器即可使用它读写整个数据库；不下发前端。
    如需专用账号，可改为在 PB 的 `aw_gemini_services` 创建 email/password 账号。
 3. 使用专用账号时配置 Actions secrets `GEMINI_PB_EMAIL`、`GEMINI_PB_PASSWORD`；
@@ -167,5 +167,5 @@ Agent 分段并发为 16，密钥轮转配置使用应用上限 RPM 60、RPD 100
 服务端在 `aw_gemini_messages.providerState` 保存 interaction ID、环境 ID、
 凭据指纹与状态；checkpoint 路由只接受匹配 GitHub execution ID 的执行器。
 创建的响应不确定时不会重发，已有 ID 仅通过 GET 轮询；用户取消会停止远程 Agent。
-发布顺序：PB migration/hooks → file-converter-ai 执行器 → Remote。
+发布顺序：PB migration/hooks → Agent-gemeni 执行器 → Remote。
 官方协议：https://aistudio.google.com/docs/antigravity-agent

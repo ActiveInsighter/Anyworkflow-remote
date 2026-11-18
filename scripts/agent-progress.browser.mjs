@@ -38,7 +38,7 @@ try {
   await page.goto(`${process.env.TEST_BASE_URL}/gemini?job=${job.id}`)
   const execution = page.getByTestId('gemini-execution-status')
   await execution.getByText('执行器在线', { exact: true }).waitFor()
-  assert.equal(await execution.getByRole('link', { name: '运行日志' }).getAttribute('href'), 'https://github.com/ActiveInsighter/file-converter-ai/actions/runs/44053812412')
+  assert.equal(await execution.getByRole('link', { name: '运行日志' }).getAttribute('href'), 'https://github.com/ActiveInsighter/Agent-gemeni/actions/runs/44053812412')
   const assistant = page.locator('[data-role="assistant"]')
   const menu = async () => { await page.getByRole('button', { name: 'Demo options', exact: true }).click() }
   await assistant.getByRole('button', { name: /^(thinking|reasoning)$/ }).click()
