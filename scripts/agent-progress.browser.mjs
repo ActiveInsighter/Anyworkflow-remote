@@ -7,7 +7,8 @@ const context = await browser.newContext({ viewport: { width: 1440, height: 1000
 await context.addInitScript(() => localStorage.setItem('anyworkflow.auth.session.v1', JSON.stringify({ token: 'fixture-token', record: { id: 'owner-1' }, baseUrl: 'https://pb.example.invalid' })))
 const page = await context.newPage(), errors = [], cursors = []
 page.on('pageerror', error => errors.push(error.message))
-let stage = 1, outage = false, legacy = false
+let stage = 1, outage = false, detailOutage = false, viewOutage = false, legacy = false
+const mutations = []
 const job = { id: 'aaaaaaaaaaaaaaa', owner: 'owner-1', title: '实时 Agent 验证', model: 'Antigravity', prompt: '检查项目并运行测试', totalChunks: 1, completedChunks: 0, failedChunks: 0, status: 'running', sources: [], history: [], threadRoot: 'aaaaaaaaaaaaaaa', options: { thinkingLevel: '', agent: { model: 'gemini-4-hydrogen' } }, created: '2026-11-17T00:00:00Z' }
 job.updated = new Date().toISOString()
 job.githubRunId = '44053812412'
@@ -17,6 +18,7 @@ const part = (key, sequence, type, content, revision = sequence) => ({ id: key, 
 const listing = items => ({ page: 1, perPage: 20, totalItems: items.length, totalPages: 1, items })
 await context.route('https://pb.example.invalid/**', route => {
   const url = new URL(route.request().url())
+  if (route.request().method() !== 'GET') mutations.push(url.pathname)
   if (url.pathname.endsWith('/models/catalog')) return route.fulfill({ json: { provider: 'gemini', status: 'ready', models: [{ id: 'Antigravity', displayName: 'Antigravity', inputTokenLimit: 1000000 }] } })
   if (url.pathname.endsWith('/parts')) {
     if (outage) return route.fulfill({ status: 503, json: { message: '进度暂时不可用' } })
@@ -27,8 +29,10 @@ await context.route('https://pb.example.invalid/**', route => {
     const items = parts.filter(p => p.revision > cursor)
     return route.fulfill({ json: { items, nextCursor: items.at(-1)?.revision ?? cursor, hasMore: false, revision: parts.length, status: message().status, progressAt: heartbeatAt, usage: { totalTokenCount: stage * 100, promptTokenCount: 80, cachedContentTokenCount: 0, toolUseTokenCount: stage * 10 } } })
   }
-  if (url.pathname.endsWith('/messages/bbbbbbbbbbbbbbb')) return route.fulfill({ json: message() })
-  if (url.pathname.endsWith('/gemini/jobs/aaaaaaaaaaaaaaa')) return route.fulfill({ json: { job: { ...job, status: message().status }, messages: [{ ...message(), updated: String(stage) }] } })
+  if (url.pathname.endsWith('/messages/bbbbbbbbbbbbbbb')) return detailOutage
+    ? route.fulfill({ status: 503, json: { message: '消息详情暂时不可用' } }) : route.fulfill({ json: message() })
+  if (url.pathname.endsWith('/gemini/jobs/aaaaaaaaaaaaaaa')) return viewOutage
+    ? route.fulfill({ status: 502, json: { message: '任务状态暂时不可用' } }) : route.fulfill({ json: { job: { ...job, status: message().status }, messages: [{ ...message(), updated: String(stage) }] } })
   if (url.pathname.endsWith('/gemini/config')) return route.fulfill({ json: { owner: job.owner, revision: 0, config: { model: job.model, delimiter: '<!-- aw:split -->', concurrency: 1, thinkingLevel: '', maxOutputTokens: 8192, rpmPerKey: 15, rpdPerKey: 500 } } })
   if (url.pathname.includes('/aw_gemini_jobs/records')) return route.fulfill({ json: listing([{ ...job, status: message().status }]) })
   if (url.pathname.endsWith('/models/saved')) return route.fulfill({ json: [] })
@@ -74,7 +78,25 @@ try {
   await page.getByText('进度暂时不可用', { exact: true }).waitFor()
   await execution.getByText('连接异常，正在重试', { exact: true }).waitFor()
   assert.equal(await assistant.getByRole('button', { name: 'terminal', exact: true }).count(), 1, 'keeps saved progress during outage')
+  await page.getByRole('button', { name: 'Stop generating', exact: true }).waitFor()
   outage = false
+  await execution.getByText('执行器在线', { exact: true }).waitFor()
+  detailOutage = true
+  await menu(); await page.getByRole('menuitem', { name: 'Refresh conversation', exact: true }).click()
+  await page.getByText('消息详情暂时不可用', { exact: true }).waitFor()
+  await execution.getByText('连接异常，正在重试', { exact: true }).waitFor()
+  await page.getByRole('button', { name: 'Stop generating', exact: true }).waitFor()
+  assert.equal(await assistant.getByRole('button', { name: 'terminal', exact: true }).count(), 1)
+  // No manual restart: the original conversation resumes after polling recovers.
+  detailOutage = false
+  await execution.getByText('执行器在线', { exact: true }).waitFor({ timeout: 40000 })
+  viewOutage = true
+  await execution.getByText('连接异常，正在重试', { exact: true }).waitFor()
+  await page.getByRole('button', { name: 'Stop generating', exact: true }).waitFor()
+  assert.equal(await assistant.getByRole('button', { name: 'terminal', exact: true }).count(), 1)
+  assert.deepEqual(mutations, [], 'read failures must not complete, fail, cancel or resubmit a task')
+  viewOutage = false
+  await execution.getByText('执行器在线', { exact: true }).waitFor()
   // Scheduler updates must never make a silent executor appear healthy.
   job.updated = new Date().toISOString()
   heartbeatAt = new Date(Date.now() - 5 * 60_000).toISOString()
