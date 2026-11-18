@@ -2,6 +2,8 @@ export interface GeminiInput {
   responseVersion?: 1
   replacesMessage?: string
   parentMessage?: string
+  environmentId?: string
+  previousInteractionId?: string
   agentModel?: string
   title: string
   prompt: string

@@ -23,10 +23,11 @@ export function GeminiExecutionStatus({ job, message, connectionError }: {
     .reduce<string | undefined>((latest, part) => !latest || Date.parse(part.updated) > Date.parse(latest) ? part.updated : latest, undefined)
   const label = connectionError ? '连接异常，正在重试' : job.status === 'queued' ? '排队中'
     : online ? '执行器在线' : '暂未收到执行器心跳'
+  const envId = message?.providerState?.environmentId || (typeof message?.response?.metadata?.environment_id === 'string' ? message.response.metadata.environment_id : '')
   return <div className="flex shrink-0 items-start justify-between gap-3 border-b px-4 py-2 text-xs text-muted-foreground md:px-5" data-testid="gemini-execution-status">
     <div className="min-w-0">
       <p role="status">{label}</p>
-      <p className="mt-1 break-words">心跳：{ageLabel(message?.progressAt, now)} · 最近步骤：{ageLabel(latestStep, now)}</p>
+      <p className="mt-1 break-words">心跳：{ageLabel(message?.progressAt, now)} · 最近步骤：{ageLabel(latestStep, now)}{envId ? ` · 沙盒：${envId}` : ''}</p>
     </div>
     {/^[0-9]+$/.test(job.githubRunId) ? <a href={`https://github.com/ActiveInsighter/Agent-gemeni/actions/runs/${job.githubRunId}`}
       target="_blank" rel="noopener noreferrer" className="inline-flex min-h-10 shrink-0 items-center gap-1 rounded-sm underline-offset-4 hover:text-foreground hover:underline focus-visible:outline focus-visible:outline-ring">
