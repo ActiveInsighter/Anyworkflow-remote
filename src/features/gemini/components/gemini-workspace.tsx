@@ -45,7 +45,7 @@ export function GeminiWorkspace() {
   useEffect(()=>{if(backend.error && backend.error!==lastError.current)toast.error(backend.error);lastError.current=backend.error},[backend.error])
   const reload=()=>{void backend.config.reload();void backend.view.reload();void backend.detail.reload();void backend.progress.reload();void backend.ancestors.reload();void backend.catalog.reload()}
   const shell=<DemoShell expanded={expanded} onToggleExpanded={toggle} view={view} onViewChange={setView} sidebarCollapsed={sidebarCollapsed} onSidebarCollapsedChange={setSidebarCollapsed}
-    threadStatus={backend.pending && backend.job ? <GeminiExecutionStatus job={backend.job} message={backend.message} connectionError={Boolean(backend.view.error || backend.progress.error)} /> : null}
+    threadStatus={backend.pending && backend.job ? <GeminiExecutionStatus job={backend.job} message={backend.message} connectionError={Boolean(backend.view.error || backend.detail.error || backend.progress.error)} /> : null}
     menuExtra={defer=><>
       <Menu.Item className={menuItemClass} onClick={()=>defer(()=>setSettingsOpen(true))}><Settings className="size-3.5" />Message settings</Menu.Item>
       {backend.message ? <Menu.Item className={menuItemClass} onClick={()=>defer(()=>setResponseId(backend.message!.id))}><FileJson className="size-3.5" />Response details</Menu.Item> : null}
