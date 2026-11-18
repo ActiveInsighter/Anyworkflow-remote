@@ -8,24 +8,9 @@ import { newRecordId } from '@/lib/api/file-conversion'
 import { wakeConverter } from '@/lib/api/converter-dispatcher'
 import { geminiTextKind, notifyTasksChanged } from '@/lib/tasks'
 import { toErrorMessage } from '@/lib/api/errors'
-import { isAntigravity } from '@/lib/domain/gemini-agent'
-import type { GeminiInput, GeminiMessage } from '@/types/gemini'
+import type { GeminiInput } from '@/types/gemini'
 import { toThreadMessages } from '../lib/thread-messages'
 import { inputSources, markdownAttachmentAdapter } from '../lib/markdown-attachments'
-
-function messageEnvironmentId(msg: GeminiMessage | null | undefined) {
-  const fromState = msg?.providerState?.environmentId
-  if (typeof fromState === 'string' && fromState.trim()) return fromState.trim()
-  const fromMeta = msg?.response?.metadata?.environment_id
-  return typeof fromMeta === 'string' && fromMeta.trim() ? fromMeta.trim() : ''
-}
-
-function messageInteractionId(msg: GeminiMessage | null | undefined) {
-  const fromState = msg?.providerState?.id
-  if (typeof fromState === 'string' && fromState.trim()) return fromState.trim()
-  const fromMeta = msg?.response?.metadata?.id
-  return typeof fromMeta === 'string' && fromMeta.trim() ? fromMeta.trim() : ''
-}
 
 const speechAdapters = {
   ...(typeof window !== 'undefined' && 'speechSynthesis' in window ? { speech: new WebSpeechSynthesisAdapter() } : {}),
@@ -89,20 +74,8 @@ export function useGeminiBackend() {
       }
       let sources = inputSources(input as AppendMessage)
       if (replace && !sources.length && target?.sourceId?.endsWith('.md')) sources = [{id:target.sourceId,name:target.sourceName,content:target.inputText}]
-      const antigravity = isAntigravity(effectiveModel)
-      const replaceParent = replace && target?.id === message?.id && job?.parentMessage
-        ? priorMessages.find(item => item.id === job.parentMessage)
-        : undefined
-      const environmentId = antigravity
-        ? (replace ? (messageEnvironmentId(replaceParent) || messageEnvironmentId(target)) : messageEnvironmentId(message))
-        : ''
-      const previousInteractionId = antigravity
-        ? (replace ? messageInteractionId(replaceParent) : messageInteractionId(message))
-        : ''
       const payload: GeminiInput = { ...config.data.config, responseVersion:1, title:'', text:replace && !sources.length ? target?.inputText || '' : '', prompt,
         systemPrompt, sources, model:effectiveModel, thinkingLevel:effectiveEffort,
-        ...(environmentId ? {environmentId} : {}),
-        ...(previousInteractionId ? {previousInteractionId} : {}),
         ...(replace ? {replacesMessage:replace.id} : message?.reply && !pending ? {parentMessage:message.id} : {}) }
       const key = JSON.stringify(payload)
       if (submission.current?.key !== key) submission.current = { key, id:newRecordId() }
