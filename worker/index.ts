@@ -11,6 +11,14 @@ import { importLegacyFiles } from './library-import.js'
 import { LIBRARY_FOLDERS_PATH, folderCollection, folderItem } from './library-folders.js'
 import { createRouter, decodeParam, pattern, under, type Route } from './router.js'
 import { readMarkdown, uploadMarkdown } from './library-markdown.js'
+import {
+  LIBRARY_IMAGES_PATH,
+  LIBRARY_IMAGE_SOURCE_PATH,
+  libraryImageItem,
+  libraryImageSource,
+  listLibraryImages,
+  uploadLibraryImage,
+} from './library-images.js'
 
 type Storage = (request: Request, env: Env) => PdfStorageEnv
 
@@ -61,6 +69,16 @@ const routes: Route[] = [
     return env.FILE_CONVERTER.fetch('https://converter.internal/models/refresh', { method: 'POST' })
   } } },
   { path: under(ARCHIVE_ADMIN_PATH), any: ({ request, env, ctx }) => archiveAdmin(request, env, ctx) },
+  // Persistent image library (isolated prefix in R2 LIBRARY_FILES).
+  { path: under(LIBRARY_IMAGE_SOURCE_PATH), any: ({ request, env, params }) => libraryImageSource(request, env, params[0]) },
+  {
+    path: LIBRARY_IMAGES_PATH,
+    methods: {
+      GET: async ({ request, env, owner }) => listLibraryImages(request, env, await owner()),
+      PUT: async ({ request, env, owner }) => uploadLibraryImage(request, env, await owner()),
+    },
+  },
+  { path: under(LIBRARY_IMAGES_PATH), any: async ({ request, env, params, owner }) => libraryImageItem(request, env, await owner(), params[0]) },
   // Persistent file library (R2 LIBRARY_FILES).
   { path: `${LIBRARY_PATH}/import`, methods: { POST: async ({ request, env, owner }) => importLegacyFiles(request, env, await owner()) } },
   { path: under(LIBRARY_SOURCE_PATH), any: ({ request, env, params, ctx }) => librarySource(request, env, params[0], ctx) },
