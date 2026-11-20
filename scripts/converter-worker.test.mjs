@@ -209,29 +209,40 @@ try {
   await tick()
   assert.equal(runReads, previousReads + 1, 'a backlog larger than one page still advances the running job')
   assert.equal(dispatches.length, 2, 'backlog cannot create overlapping Actions runs')
-  // Gemini jobs are independent: starting another conversation does not
-  // wait for the first one or for the PDF job sharing the same coordinator.
+  // An existing set of active runs must leave room for more conversations.
   rows.length = 0
-  rows.push({ ...row('ppppppppppppppp'), created: '2026-11-15 01:00:00Z' })
-  geminiRows.push(
-    { id: 'ggggggggggggggg', status: 'queued', created: '2026-11-15 00:00:00Z' },
-    { id: 'hhhhhhhhhhhhhhh', options: { responseVersion: 1 }, status: 'queued', created: '2026-11-15 00:01:00Z' },
-  )
+  rows.push(row('ppppppppppppppp'))
+  const active = Array.from({ length: 4 }, (_, index) => ({
+    id: `active${String(index).padStart(9, '0')}`, status: 'running', githubRunId: String(200 + index),
+  }))
+  const waiting = [
+    { id: 'ggggggggggggggg', status: 'queued' },
+    { id: 'hhhhhhhhhhhhhhh', options: { responseVersion: 1 }, status: 'queued' },
+    ...Array.from({ length: 4 }, (_, index) => ({
+      id: `queue${String(index).padStart(10, '0')}`, status: 'queued',
+    })),
+  ]
+  geminiRows.push(...active, ...waiting)
   uncertainDispatch = false
+  const beforeGemini = dispatches.length
   await tick()
   assert.equal(rows[0].status, 'pending', 'PDF and Gemini can run independently')
-  assert.deepEqual(geminiRows.map(item => item.status), ['pending', 'pending'])
-  assert.equal(dispatches.length, 5, 'PDF plus both conversations dispatch in one pass')
-  assert.deepEqual(dispatches.slice(-2).map(item => item.inputs), [
-    { request_id: 'ggggggggggggggg' },
-    { request_id: 'hhhhhhhhhhhhhhh' },
-  ])
+  assert.ok(active.every(item => item.status === 'running'))
+  assert.deepEqual(waiting.map(item => item.status), ['pending', 'pending', 'pending', 'pending', 'pending', 'queued'])
+  const firstPass = (await (await request('/status')).json()).lastPass.kinds['gemini-text']
+  assert.equal(firstPass.inFlight, 9)
+  assert.equal(firstPass.more, true)
+
   await tick()
-  assert.equal(dispatches.length, 5, 'polling must not re-dispatch an active conversation')
+  assert.equal(waiting.at(-1).status, 'pending')
+  assert.deepEqual(dispatches.slice(beforeGemini + 1).map(item => item.inputs),
+    waiting.map(item => ({ request_id: item.id })))
+  await tick()
+  assert.equal(dispatches.length, beforeGemini + 1 + waiting.length, 'polling must not re-dispatch an active conversation')
   completed = true
   conclusion = 'success'
   await tick()
-  assert.deepEqual(geminiRows.map(item => item.status), ['succeeded', 'succeeded'])
+  assert.ok(geminiRows.every(item => item.status === 'succeeded'))
   assert.equal(rows[0].status, 'succeeded')
   console.log('converter-worker: independent Gemini conversations and PDF, durable alarms, cancellation and streaming ZIP sync passed')
 } finally {

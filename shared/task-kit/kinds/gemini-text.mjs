@@ -10,7 +10,9 @@ export function createGeminiTextEngine({ store, github, now, log }) {
     settle: (task, run) => store.settle(task.id, { conclusion: run.conclusion || 'unknown' }),
   });
   return createTaskEngine({
-    kind: geminiTextKind, store, concurrency: 4,
+    kind: geminiTextKind, store, concurrency: Infinity,
+    // Bound dispatches per alarm while allowing active runs to accumulate.
+    maxStartsPerPass: 5,
     handlers: {
       async start(task, context) {
         const result = await handlers.start(task, context);

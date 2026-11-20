@@ -50,7 +50,9 @@ export function createTaskEngine({
   if (typeof handlers?.start !== 'function' || typeof handlers?.advance !== 'function') {
     throw new TypeError(`Task kind ${kind.id} needs start and advance handlers.`);
   }
-  if (!Number.isSafeInteger(concurrency) || concurrency < 1) throw new RangeError('concurrency must be a positive integer.');
+  if (concurrency !== Infinity && (!Number.isSafeInteger(concurrency) || concurrency < 1)) {
+    throw new RangeError('concurrency must be a positive integer or Infinity.');
+  }
   if (!(maxStartsPerPass >= 1)) throw new RangeError('maxStartsPerPass must be at least 1.');
 
   const running = kind.statusesIn('running');
