@@ -46,7 +46,9 @@ async function outbound(request) {
     const id = url.pathname.split('/records/')[1]
     if (!id) {
       const filter = url.searchParams.get('filter')
-      return Response.json({ items: records.filter(item => filter.includes(`status="${item.status}"`)).slice(0, 10) })
+      const matching = records.filter(item => filter.includes(`status="${item.status}"`)
+        && !(item.model === 'Codex' && filter.includes('model!="Codex"')))
+      return Response.json({ items: matching.slice(0, 10) })
     }
     const item = records.find(item => item.id === id)
     assert.ok(item)
@@ -222,7 +224,8 @@ try {
       id: `queue${String(index).padStart(10, '0')}`, status: 'queued',
     })),
   ]
-  geminiRows.push(...active, ...waiting)
+  const codex = { id: 'ccccccccccccccc', status: 'queued', model: 'Codex' }
+  geminiRows.push(codex, ...active, ...waiting)
   uncertainDispatch = false
   const beforeGemini = dispatches.length
   await tick()
@@ -242,7 +245,8 @@ try {
   completed = true
   conclusion = 'success'
   await tick()
-  assert.ok(geminiRows.every(item => item.status === 'succeeded'))
+  assert.equal(codex.status, 'queued', 'the Codex job stays on the self-hosted queue')
+  assert.ok([...active, ...waiting].every(item => item.status === 'succeeded'))
   assert.equal(rows[0].status, 'succeeded')
   console.log('converter-worker: independent Gemini conversations and PDF, durable alarms, cancellation and streaming ZIP sync passed')
 } finally {
