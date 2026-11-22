@@ -4,9 +4,14 @@ import { readJson } from './http.js'
 import { createStore } from './store.js'
 
 export function geminiStore(env: ConverterEnv, fetchImpl: typeof fetch = fetch): SettlingStore {
-  const store = createStore(env, fetchImpl, '/api/collections/aw_gemini_jobs/records', 'model!="Codex"')
+  const dispatchEnabled = env.GEMINI_ACTIONS_DISPATCH !== 'false'
+  // Keep reconciling any Actions dispatch already in flight during cutover.
+  const filter = dispatchEnabled ? 'model!="Codex"'
+    : 'model!="Codex" && (status="dispatching" || githubRunId!="")'
+  const store = createStore(env, fetchImpl, '/api/collections/aw_gemini_jobs/records', filter)
   return {
     ...store,
+    list: (statuses, context) => store.list(dispatchEnabled ? statuses : statuses.filter(status => status !== 'queued'), context),
     settle: async (id, outcome) => readJson(await fetchImplResponse(id, outcome)),
   }
   async function fetchImplResponse(id: string, outcome: { conclusion: string }) {

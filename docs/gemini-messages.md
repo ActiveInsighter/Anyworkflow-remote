@@ -46,16 +46,16 @@ MD 与 PDF 复用文件夹、重命名、移动、删除和上传队列；重命
 普通客户端不能直接改状态、正文或回复。用户只能读取自己的记录、申请取消和删除终态任务。
 删除任务级联删除该任务分段，不影响资料库文件。
 
-Cloudflare 复用 shared task kit 的 GitHub 执行器，按仓库 ID `1390437379` 派发 `ActiveInsighter/Agent-gemeni` 的 `gemini-text.yml`，
-workflow input 只有 `request_id`。调度器分批派发 Gemini 任务，活跃对话数无应用层上限，
-PDF 与文本任务各自调度。GitHub Actions 按 `request_id` 分组，实际并发受 GitHub Runner 配额限制。
-运行内部 KeyPool 仅控制单个 Runner，多个并行任务可能共同触发 Google 项目级配额。
+本机 FastAPI 轮询领取 Gemini 和 Antigravity 文本任务。任务参数与执行记录保存在
+PocketBase，部署主机使用专用服务账号。PDF 与文本任务各自调度。Cloudflare 的
+`GEMINI_ACTIONS_DISPATCH=false` 停止派发新的文本 Actions，同时继续按原运行身份对账。
+本机执行的文本任务不填 `githubRunId`。
 
 执行器先领取任务，再为每段取得一次发送许可。重复领取、丢失派发响应、重跑 Actions 或
 丢失发送许可均不授权重复生成。429/临时服务错误有界重试；传输超时不盲目补发。
 回复写入可重试且幂等，保存失败不会再次调用模型。
 达到输出上限时保存原始截断文本并标记该段失败；空回复、拒答、失败段也有独立错误。
-取消后停止领取新段，进行中的回复可继续保存。GitHub 结束时将未完成段收敛为失败或取消。
+取消后停止领取新段，进行中的回复可继续保存。执行器结束时将未完成段收敛为失败或取消。
 
 列表只读取元数据；点开某段才读取正文与回复。活跃状态每 5 秒更新，终态元数据降至
 30 秒；终态回复停止轮询。隐藏标签页暂停轮询。模型 Markdown 作为不可信文本渲染，不执行 HTML
@@ -63,23 +63,14 @@ PDF 与文本任务各自调度。GitHub Actions 按 `request_id` 分组，实�
 
 ## 发布顺序
 
-1. 先部署 `AnyWorkflow-workers` 的 `1794700000_gemini_messages.js` migration 及三个
-   `gemini*.js` hooks 和 `aw_gemini.pb.js`，重启 PB。
-2. 在 `ActiveInsighter/Agent-gemeni` 配置 Actions Secret `POCKETBASE_SERVER_TOKEN`，
-   填入有效的 PB 超级用户令牌，执行器即可使用它读写整个数据库；不下发前端。
-   如需专用账号，可改为在 PB 的 `aw_gemini_services` 创建 email/password 账号。
-3. 使用专用账号时配置 Actions secrets `GEMINI_PB_EMAIL`、`GEMINI_PB_PASSWORD`；
-   `POCKETBASE_SERVER_TOKEN` 非空时优先使用它。复用 `GEMINI_API_KEYS` / `GEMINI_KEY_GROUPS`。
-   `GEMINI_PB_URL` 为 Actions variable，默认 `https://pb.any1.tech`。
-4. 发布转换仓库，确保 `main` 有 `gemini-text.yml` 和 `gemini_text.py`。
-5. 发布 Remote 的 converter Worker，再发布 Remote Web Worker。沿用现有 PB/GitHub secrets
-   和 `FILE_CONVERTER` / `LIBRARY_FILES` bindings，不需要新建 R2 桶或增加 Cloudflare 密钥。
+1. 部署 `AnyWorkflow-workers` 的 PocketBase hooks，再检查本机 Gemini 执行器的专用账号与密钥。
+2. 部署 Remote 的 converter Worker，确认 `geminiActionsDispatch` 为 false。
+3. 开启本机 Gemini 队列轮询。通过新任务验证写回，等待现有 GitHub 运行对账完成，再暂停
+   `Agent-gemeni` 的 `gemini-text.yml`。
+4. 回退时先停本机领取并等待活跃任务结束，随后启用该 workflow 和
+   `GEMINI_ACTIONS_DISPATCH=true`。配套说明见 `Agent-gemeni/README.md`。
 
-部署前先完成 PB schema；新的配额协调器会同时查询两个任务集合。
-执行器 GitHub token 需具备转换仓库现有 Actions dispatch/read/cancel 权限。
-配套后端说明见 `AnyWorkflow-workers/deploy/gemini-messages.md`。
-
-如果 PB 暂时不可写，workflow 会保留三天的 `gemini-text-recovery-<runId>` artifact。
+历史 Actions 写回失败后会保留三天的 `gemini-text-recovery-<runId>` artifact。
 解压后使用执行器专用凭据运行：
 
 ```sh

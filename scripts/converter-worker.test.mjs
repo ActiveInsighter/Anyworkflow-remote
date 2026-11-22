@@ -47,7 +47,8 @@ async function outbound(request) {
     if (!id) {
       const filter = url.searchParams.get('filter')
       const matching = records.filter(item => filter.includes(`status="${item.status}"`)
-        && !(item.model === 'Codex' && filter.includes('model!="Codex"')))
+        && !(item.model === 'Codex' && filter.includes('model!="Codex"'))
+        && (!filter.includes('githubRunId!=""') || item.status === 'dispatching' || item.githubRunId))
       return Response.json({ items: matching.slice(0, 10) })
     }
     const item = records.find(item => item.id === id)
@@ -100,7 +101,7 @@ async function outbound(request) {
   return Response.json({ id: 101, status: completed ? 'completed' : 'in_progress', conclusion, head_branch: 'main', head_sha: 'a'.repeat(40) })
 }
 const mainModules = await workerModules()
-function runtime() {
+function runtime(geminiActionsDispatch = "true") {
   return new Miniflare({ ...convertV4MiniflareOptions({
     workers: [{
       name: config.name, compatibilityDate: config.compatibility_date,
@@ -112,7 +113,7 @@ function runtime() {
           return handler.fetch(request, env, ctx);
         } };
       ` }, ...modules],
-      bindings: { ...config.vars, GITHUB_FILE_CONVERTER_TOKEN: 'github-service', POCKETBASE_SERVER_TOKEN: 'pb-service', GITHUB_FILE_CONVERTER_REF: 'old-branch', GITHUB_GEMINI_RESPONSE_REF: 'codex/gemini-response-storage' },
+      bindings: { ...config.vars, GEMINI_ACTIONS_DISPATCH: geminiActionsDispatch, GITHUB_FILE_CONVERTER_TOKEN: 'github-service', POCKETBASE_SERVER_TOKEN: 'pb-service', GITHUB_FILE_CONVERTER_REF: 'old-branch', GITHUB_GEMINI_RESPONSE_REF: 'codex/gemini-response-storage' },
       durableObjects: { CONVERSION_COORDINATOR: { className: 'TestCoordinator', useSQLite: true } },
       outboundService: outbound,
     }, {
@@ -248,6 +249,18 @@ try {
   assert.equal(codex.status, 'queued', 'the Codex job stays on the self-hosted queue')
   assert.ok([...active, ...waiting].every(item => item.status === 'succeeded'))
   assert.equal(rows[0].status, 'succeeded')
+  const queuedLocal = { id: 'qqqqqqqqqqqqqqq', model: 'Antigravity', status: 'queued' }
+  const runningLocal = { id: 'rrrrrrrrrrrrrrr', model: 'Antigravity', status: 'running' }
+  const legacy = { id: 'lllllllllllllll', model: 'Antigravity', status: 'running', githubRunId: '333' }
+  geminiRows.push(queuedLocal, runningLocal, legacy)
+  const existingDispatches = dispatches.length
+  await mf.dispose()
+  mf = runtime('false')
+  await tick()
+  assert.equal(queuedLocal.status, 'queued')
+  assert.equal(runningLocal.status, 'running')
+  assert.equal(legacy.status, 'succeeded')
+  assert.equal(dispatches.length, existingDispatches)
   console.log('converter-worker: independent Gemini conversations and PDF, durable alarms, cancellation and streaming ZIP sync passed')
 } finally {
   await mf.dispose()
