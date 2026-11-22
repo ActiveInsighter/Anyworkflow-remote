@@ -45,7 +45,7 @@ export function archiveMultipart(archive: Archive, filename: string, metadata: J
   return { stream, contentType: `multipart/form-data; boundary=${boundary}` }
 }
 
-export function createStore(env: ConverterEnv, fetchImpl: typeof fetch = fetch, recordsPath = collection): Store {
+export function createStore(env: ConverterEnv, fetchImpl: typeof fetch = fetch, recordsPath = collection, listFilter = ''): Store {
   const root = new URL(env.POCKETBASE_URL).origin
   async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const headers = new Headers(init.headers)
@@ -63,7 +63,9 @@ export function createStore(env: ConverterEnv, fetchImpl: typeof fetch = fetch, 
     // Oldest last-check first: bounded, fair sweeps without pagination drift.
     async list(statuses) {
       if (statuses.length === 0) return []
-      const query = new URLSearchParams({ filter: statuses.map(status => `status="${status}"`).join(' || '), sort: statuses.length === 1 && statuses[0] === 'queued' ? 'created,id' : 'updated,id', perPage: '10' })
+      const statusFilter = statuses.map(status => `status="${status}"`).join(' || ')
+      const filter = listFilter ? `(${statusFilter}) && ${listFilter}` : statusFilter
+      const query = new URLSearchParams({ filter, sort: statuses.length === 1 && statuses[0] === 'queued' ? 'created,id' : 'updated,id', perPage: '10' })
       const result = await request<{ items: ConversionJob[] }>(`?${query}`)
       if (!Array.isArray(result.items)) throw new Error('Invalid job list')
       return result.items

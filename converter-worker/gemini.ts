@@ -4,7 +4,7 @@ import { readJson } from './http.js'
 import { createStore } from './store.js'
 
 export function geminiStore(env: ConverterEnv, fetchImpl: typeof fetch = fetch): SettlingStore {
-  const store = createStore(env, fetchImpl, '/api/collections/aw_gemini_jobs/records')
+  const store = createStore(env, fetchImpl, '/api/collections/aw_gemini_jobs/records', 'model!="Codex"')
   return {
     ...store,
     settle: async (id, outcome) => readJson(await fetchImplResponse(id, outcome)),
