@@ -36,18 +36,9 @@ export function buildPdfWorkflowInputs(row) {
   for (const key of PDF_OPTION_INPUTS) {
     if (options[key] !== undefined && options[key] !== '') inputs[key] = String(options[key]);
   }
-  // The explicit switch comes from the persisted snapshot; old queued jobs
-  // without SVG settings retain their original raster behavior.
+  // Image quality is the only image option the converter still reads.
   const image = {};
   if (options.jpeg_quality !== undefined) image.jpeg_quality = options.jpeg_quality;
-  if (options.svg_enabled === true) {
-    image.svg = {
-      enabled: true,
-      provider: String(options.svg_provider || options.provider || 'gemini'),
-      model: String(options.svg_model || ''),
-      prompt: String(options.svg_prompt || ''),
-    };
-  }
   if (Object.keys(image).length) inputs.image_config = JSON.stringify(image);
   return inputs;
 }

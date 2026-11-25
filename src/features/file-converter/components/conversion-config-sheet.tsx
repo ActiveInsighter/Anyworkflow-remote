@@ -2,10 +2,9 @@ import { SavedModelSelect } from '@/features/models/components/saved-model-selec
 import { RotateCcw, Save, SlidersHorizontal } from 'lucide-react'
 import { ErrorAlert } from '@/components/feedback/error-alert'
 import { Button } from '@/components/ui/button'
-import { Field, FieldContent, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field'
+import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { SelectField, SelectOption } from '@/components/ui/select'
-import { Switch } from '@/components/ui/switch'
 import {
   Modal,
   ModalContent,
@@ -20,7 +19,7 @@ import {
 } from '@/components/ui/modal'
 import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
-import { DEFAULT_PDF_SVG_PROMPT, DEFAULT_PDF_SYSTEM_PROMPT, MAX_SYSTEM_PROMPT_CHARS, type PdfConversionOptions } from '@/lib/api/file-conversion'
+import { DEFAULT_PDF_SYSTEM_PROMPT, MAX_SYSTEM_PROMPT_CHARS, type PdfConversionOptions } from '@/lib/api/file-conversion'
 import type { ConversionConfigState } from '../hooks/use-conversion-config'
 import {
   choiceAppliesTo,
@@ -89,34 +88,6 @@ export function ConversionConfigSheet({ config }: { config: ConversionConfigStat
                   </span>
                 </FieldDescription>
               </Field>
-
-              {options.svg_enabled ? (
-                <Field className="border-t pt-5">
-                  <div className="flex items-center justify-between gap-3">
-                    <FieldLabel htmlFor="pdf-svg-prompt">SVG 重绘提示词</FieldLabel>
-                    <Button type="button" variant="ghost" size="touch" aria-label="恢复默认 SVG 提示词" disabled={disabled} onClick={() => config.setOption('svg_prompt', DEFAULT_PDF_SVG_PROMPT)}>
-                      <RotateCcw data-icon="inline-start" />
-                      恢复默认
-                    </Button>
-                  </div>
-                  <Textarea
-                    id="pdf-svg-prompt"
-                    name="svg_prompt"
-                    maxLength={MAX_SYSTEM_PROMPT_CHARS}
-                    rows={6}
-                    className="min-h-32 resize-y text-body leading-relaxed"
-                    value={options.svg_prompt}
-                    onChange={(event) => config.setOption('svg_prompt', event.target.value)}
-                    aria-describedby="pdf-svg-prompt-help"
-                  />
-                  <FieldDescription id="pdf-svg-prompt-help" className="flex min-w-0 justify-between gap-3">
-                    <span className="min-w-0 flex-1">图片重绘要求；留空恢复默认</span>
-                    <span className="shrink-0 whitespace-nowrap tabular-nums">
-                      {options.svg_prompt.length} / {MAX_SYSTEM_PROMPT_CHARS}
-                    </span>
-                  </FieldDescription>
-                </Field>
-              ) : null}
             </fieldset>
           </ModalPane>
           <ModalPane tone="muted">
@@ -147,65 +118,6 @@ export function ConversionConfigSheet({ config }: { config: ConversionConfigStat
 
                     </Field>
                   </div>
-                </FieldSet>
-
-                <FieldSet className="min-w-0 gap-4 border-t pt-6">
-                  <FieldLegend variant="label" className="float-left mb-2 w-full text-sm">图片 SVG 重绘</FieldLegend>
-                  <Field orientation="horizontal" className="items-start">
-                    <FieldContent>
-                      <FieldLabel htmlFor="pdf-svg-enabled">启用 SVG 重绘</FieldLabel>
-                      <FieldDescription id="pdf-svg-enabled-help">
-                        自动拼接同图碎片，再交给所选 AI 重绘。失败时保留原图；与正文共用密钥时共用配额。
-                      </FieldDescription>
-                    </FieldContent>
-                    <Switch
-                      id="pdf-svg-enabled"
-                      className="mt-0.5"
-                      checked={options.svg_enabled}
-                      onCheckedChange={(checked) => config.setOption('svg_enabled', checked)}
-                      aria-describedby="pdf-svg-enabled-help"
-                    />
-                  </Field>
-                  {options.svg_enabled ? (
-                    <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-[9rem_minmax(0,1fr)]">
-                      <Field>
-                        <FieldLabel htmlFor="pdf-svg-provider">SVG 接口</FieldLabel>
-                        <SelectField
-                          id="pdf-svg-provider"
-                          name="svg_provider"
-                          value={options.svg_provider}
-                          onValueChange={(value) => config.setSvgProvider(value as PdfConversionOptions['svg_provider'])}
-                        >
-                          <SelectOption value="gemini">Gemini</SelectOption>
-                          <SelectOption value="modelflare">ModelFlare</SelectOption>
-                        </SelectField>
-                      </Field>
-                      <Field>
-                        <FieldLabel htmlFor="pdf-svg-model">
-                          {options.svg_provider === 'gemini' ? 'SVG Gemini 模型' : 'SVG ModelFlare 模型 ID'}
-                        </FieldLabel>
-                        {options.svg_provider === 'gemini' ? (
-                          <SavedModelSelect
-                            id="pdf-svg-model"
-                            value={options.svg_model}
-                            onChange={value => config.setOption('svg_model', value)}
-                            disabled={disabled}
-                          />
-                        ) : (
-                          <Input
-                            id="pdf-svg-model"
-                            name="svg_model"
-                            required
-                            maxLength={107}
-                            placeholder={MODELFLARE_DEFAULT_MODEL}
-                            className="font-mono"
-                            value={options.svg_model}
-                            onChange={event => config.setOption('svg_model', event.target.value)}
-                          />
-                        )}
-                      </Field>
-                    </div>
-                  ) : null}
                 </FieldSet>
 
                 {optionGroups.map((group) => (

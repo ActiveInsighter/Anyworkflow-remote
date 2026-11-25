@@ -1,10 +1,10 @@
-import { DEFAULT_PDF_SVG_PROMPT, DEFAULT_PDF_SYSTEM_PROMPT } from '../file-conversion-prompt'
+import { DEFAULT_PDF_SYSTEM_PROMPT } from '../file-conversion-prompt'
 import { fileConversionKind } from '@shared/task-kit/index.mjs'
 import { ApiError, assertOwner, listOwnedCollection, quoteFilter, request } from './client'
 import { requireSession } from './session'
 import { DEFAULT_POCKETBASE_URL } from './config'
 
-export { DEFAULT_PDF_SVG_PROMPT, DEFAULT_PDF_SYSTEM_PROMPT } from '../file-conversion-prompt'
+export { DEFAULT_PDF_SYSTEM_PROMPT } from '../file-conversion-prompt'
 
 export const FILE_CONVERSION_CONFIG_COLLECTION = 'aw_file_conversion_configs'
 export const FILE_CONVERSION_JOB_COLLECTION = 'aw_pdf_to_md_jobs'
@@ -28,10 +28,6 @@ export const DEFAULT_PDF_TO_MD_OPTIONS = {
   media_resolution: 'ultra_high',
   rpm_per_key: 15,
   rpd_per_key: 500,
-  svg_enabled: true,
-  svg_provider: 'gemini',
-  svg_model: 'gemini-3.5-flash-lite',
-  svg_prompt: DEFAULT_PDF_SVG_PROMPT,
 } as const
 
 const PDF_NUMERIC_LIMITS: Record<string, readonly [number, number]> = {
@@ -47,7 +43,6 @@ const PDF_NUMERIC_LIMITS: Record<string, readonly [number, number]> = {
 
 const PDF_CHOICE_VALUES: Record<string, readonly string[]> = {
   provider: ['gemini', 'modelflare'],
-  svg_provider: ['gemini', 'modelflare'],
   reasoning_effort: ['', 'minimal', 'low', 'medium', 'high', 'xhigh'],
   thinking_level: ['high', 'medium', 'low', 'minimal'],
   image_format: ['png', 'jpeg'],
@@ -69,10 +64,6 @@ export type PdfConversionOptions = {
   media_resolution: 'ultra_high' | 'high' | 'medium' | 'low' | 'unspecified'
   rpm_per_key: number
   rpd_per_key: number
-  svg_enabled: boolean
-  svg_provider: 'gemini' | 'modelflare'
-  svg_model: string
-  svg_prompt: string
 }
 
 export type PdfPageRange = {
@@ -147,27 +138,14 @@ function normalizeOptions(raw: unknown): PdfConversionOptions {
   const options = raw as Record<string, unknown>
   const result = { ...DEFAULT_PDF_TO_MD_OPTIONS } as PdfConversionOptions
   for (const [key, value] of Object.entries(options)) {
-    if (key === 'start_page' || key === 'end_page') continue
+    // Ignore fields that older records and job snapshots still carry.
+    if (key === 'start_page' || key === 'end_page' || key.startsWith('svg_')) continue
     if (!(key in DEFAULT_PDF_TO_MD_OPTIONS)) {
       throw new ApiError('转换配置包含未知参数', 502, 'INVALID_CONFIG_RESPONSE')
     }
-    if (key === 'model' || key === 'svg_model') {
+    if (key === 'model') {
       if (typeof value !== 'string' || !value.trim()) throw new ApiError('转换配置模型无效', 502, 'INVALID_CONFIG_RESPONSE')
-      result[key] = value.trim()
-      continue
-    }
-    if (key === 'svg_enabled') {
-      if (typeof value !== 'boolean') throw new ApiError('转换配置选项无效', 502, 'INVALID_CONFIG_RESPONSE')
-      result.svg_enabled = value
-      continue
-    }
-    if (key === 'svg_prompt') {
-      if (typeof value !== 'string') throw new ApiError('转换配置返回格式无效', 502, 'INVALID_CONFIG_RESPONSE')
-      const trimmed = value.trim()
-      if (trimmed.length > MAX_SYSTEM_PROMPT_CHARS) {
-        throw new ApiError(`SVG 提示词不能超过 ${MAX_SYSTEM_PROMPT_CHARS} 个字符`, 400, 'PROMPT_TOO_LONG')
-      }
-      result.svg_prompt = trimmed || DEFAULT_PDF_SVG_PROMPT
+      result.model = value.trim()
       continue
     }
     if (typeof result[key as keyof typeof DEFAULT_PDF_TO_MD_OPTIONS] === 'number') {
@@ -185,9 +163,6 @@ function normalizeOptions(raw: unknown): PdfConversionOptions {
   }
   if (!isValidModelId(result.provider, result.model)) {
     throw new ApiError('转换配置模型格式无效', 502, 'INVALID_CONFIG_RESPONSE')
-  }
-  if (result.svg_enabled && !isValidModelId(result.svg_provider, result.svg_model)) {
-    throw new ApiError('SVG 重绘模型格式无效', 502, 'INVALID_CONFIG_RESPONSE')
   }
   return result
 }

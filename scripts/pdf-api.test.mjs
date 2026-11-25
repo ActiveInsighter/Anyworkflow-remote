@@ -162,12 +162,11 @@ try {
     return Response.json({ items: [] })
   }
   assert.equal((await getPdfConversionConfig()).systemPrompt, DEFAULT_PDF_SYSTEM_PROMPT)
-  // Independent SVG AI config and workflow input serialization
+  // Legacy SVG fields are ignored; only image quality reaches the converter.
   const { buildPdfWorkflowInputs } = await server.ssrLoadModule('/shared/task-kit/kinds/file-conversion.mjs')
-  const svgConfig = {
+  const legacyConfig = {
     ...loaded.options,
-    provider: 'gemini',
-    model: 'gemini-3.5-flash-lite',
+    jpeg_quality: 90,
     svg_enabled: true,
     svg_provider: 'modelflare',
     svg_model: 'gpt-6-sol',
@@ -177,25 +176,18 @@ try {
     if (init?.method === 'PATCH') return Response.json({ ...config, ...JSON.parse(init.body), revision: 4 })
     throw Error('Unexpected request')
   }
-  const savedSvg = await savePdfConversionConfig(loaded, svgConfig, loaded.systemPrompt)
-  assert.equal(savedSvg.options.svg_enabled, true)
-  assert.equal(savedSvg.options.svg_provider, 'modelflare')
-  assert.equal(savedSvg.options.svg_model, 'gpt-6-sol')
-  assert.equal(savedSvg.options.svg_prompt, '自定义 SVG 提示词')
+  const savedLegacy = await savePdfConversionConfig(loaded, legacyConfig, loaded.systemPrompt)
+  assert.equal(savedLegacy.options.jpeg_quality, 90)
+  assert.equal('svg_enabled' in savedLegacy.options, false)
   const workflowInputs = buildPdfWorkflowInputs({
-    id: 'job-svg-1',
+    id: 'job-legacy-1',
     conversionType: 'pdf_to_md',
     sourceUrl: 'https://example.com/a.pdf',
     outputName: 'a',
     systemPrompt: 'sys',
     prompt: 'usr',
-    options: savedSvg.options,
+    options: savedLegacy.options,
   })
-  assert.deepEqual(JSON.parse(workflowInputs.image_config).svg, {
-    enabled: true,
-    provider: 'modelflare',
-    model: 'gpt-6-sol',
-    prompt: '自定义 SVG 提示词',
-  })
+  assert.deepEqual(JSON.parse(workflowInputs.image_config), { jpeg_quality: 90 })
   console.log('pdf-api: ownership, create identity and protected download passed')
 } finally { globalThis.fetch = originalFetch; await server.close() }
